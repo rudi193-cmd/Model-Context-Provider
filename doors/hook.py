@@ -1,7 +1,7 @@
 """The hook door: Claude Code's UserPromptSubmit hook.
 
     {"hooks": {"UserPromptSubmit": [{"hooks": [{"type": "command",
-      "command": "python3 /path/to/unnamed/doors/hook.py --box DIR"}]}]}}
+      "command": "python3 /path/to/model-context-provider/doors/hook.py --box DIR"}]}]}}
 
 At each prompt it asks the runtime what the model may be given. What it
 prints goes into the turn: the page the person sealed for this question,
@@ -31,7 +31,7 @@ def said(got: dict) -> str:
         )
     if got.get("state") == "populated":
         return (
-            "unnamed: the person's files hold something on this, and nothing is "
+            "Model Context Provider: the person's files hold something on this, and nothing is "
             "sealed for it, so you are given none of it.\n"
         )
     return ""
@@ -49,7 +49,7 @@ def main(argv: list[str]) -> int:
             )
     except Exception as why:  # noqa: BLE001 - a crashed hook stops the person typing
         # stderr, which Claude Code shows the person, never the turn
-        print(f"unnamed hook: {type(why).__name__}", file=sys.stderr)
+        print(f"model-context-provider hook: {type(why).__name__}", file=sys.stderr)
     return 0
 
 

@@ -67,7 +67,7 @@ def answer(box: Path, msg: dict, ask=None) -> dict | None:
         asked = params.get("protocolVersion")
         return ok({"protocolVersion": asked if asked in VERSIONS else VERSIONS[0],
                    "capabilities": {"tools": {}},
-                   "serverInfo": {"name": "unnamed", "version": "0"}})  # fmt: skip
+                   "serverInfo": {"name": "model-context-provider", "version": "0"}})  # fmt: skip
     if method == "ping":
         return ok({})
     if method == "tools/list":
@@ -96,7 +96,7 @@ class Asker:
 
     def __call__(self, system: str, user: str) -> str:
         self.n += 1
-        mid = f"unnamed-sample-{self.n}"
+        mid = f"provider-sample-{self.n}"
         req = {"jsonrpc": "2.0", "id": mid, "method": "sampling/createMessage",
                "params": {"messages": [{"role": "user",
                                         "content": {"type": "text", "text": user}}],

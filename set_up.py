@@ -1,4 +1,4 @@
-"""Set unnamed up over your record, in one go. It changes nothing of your
+"""Set the Model Context Provider up over your record, in one go. It changes nothing of your
 client's: it checks what's there and prints what to paste. The one file it
 writes is model.json beside your record, and only when you name a model.
 
@@ -51,12 +51,12 @@ def paste(box: Path) -> str:
     door = [sys.executable, str(HERE / "doors" / "mcp.py"), "--box", str(box)]
     hook = " ".join([env, *map(shlex.quote, [sys.executable, str(HERE / "doors" / "hook.py"), "--box", str(box)])])  # fmt: skip
     settings = {"hooks": {"UserPromptSubmit": [{"hooks": [{"type": "command", "command": hook}]}]}}  # fmt: skip
-    other = {"mcpServers": {"unnamed": {"type": "stdio", "command": door[0], "args": door[1:],
+    other = {"mcpServers": {"model-context-provider": {"type": "stdio", "command": door[0], "args": door[1:],
                                         "env": {"WILLOW": str(runtime.WILLOW)}}}}  # fmt: skip
     return "\n".join([
         "1. The MCP door, for Claude Code in every folder (run it once):",
         "",
-        "    claude mcp add --scope user unnamed -e " + shlex.quote(env) + " -- " + shlex.join(door),
+        "    claude mcp add --scope user model-context-provider -e " + shlex.quote(env) + " -- " + shlex.join(door),
         "",
         "2. The prompt hook, in ~/.claude/settings.json (merge it with what's there):",
         "",

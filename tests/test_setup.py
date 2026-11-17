@@ -32,7 +32,7 @@ def test_one_record_under_a_stack_is_found_checked_and_printed(box, tmp_path):
     assert code == 0, out
     assert (
         "ok  your record" in out
-        and "claude mcp add --scope user unnamed -e WILLOW=" in out
+        and "claude mcp add --scope user model-context-provider -e WILLOW=" in out
     )
 
 
@@ -68,7 +68,7 @@ def test_naming_a_model_on_this_machine_writes_model_json(box):
 def test_what_it_says_to_paste_starts_a_door_that_answers(box):
     """The JSON a client is given, started exactly as a client would start it."""
     entry = json.loads(setup.paste(box).split("3. Any other client")[1]
-                       .split("\n", 2)[2].rsplit("\n\nYour door", 1)[0])["mcpServers"]["unnamed"]  # fmt: skip
+                       .split("\n", 2)[2].rsplit("\n\nYour door", 1)[0])["mcpServers"]["model-context-provider"]  # fmt: skip
     env = {**os.environ, **entry["env"]}
     msgs = [{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
             {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}]  # fmt: skip

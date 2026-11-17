@@ -1,5 +1,5 @@
 [project]
-name = "unnamed"
+name = "model-context-provider"
 version = "0.1.0"
 description = "A model context provider over Willow: one local runtime decides what a model is given; every way in is a door."
 readme = "README.md"

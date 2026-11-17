@@ -1,4 +1,4 @@
-"""MCP sampling the unnamed way: the runtime holds the model, over the page the
+"""MCP sampling the provider's way: the runtime holds the model, over the page the
 person sealed and nothing else, and what it says is held strictly."""
 
 import json

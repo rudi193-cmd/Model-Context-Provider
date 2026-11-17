@@ -1,7 +1,5 @@
 # Model Context Provider
 
-*Working name; the repository is still `unnamed`.*
-
 MCP, the Model Context *Protocol*, names a wire: how a model reaches tools and
 context. This is a Model Context *Provider*: the one place that decides what a
 model is given from a person's own files, whatever wire carries it.

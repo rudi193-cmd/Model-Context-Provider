@@ -132,7 +132,9 @@ def backup(box: Path, to: Path) -> dict:
         }
     made = re.search(r"willow-backup-\S+\.zip", run.stdout)
     src = state(box)
-    zip_to = to / time.strftime("unnamed-runtime-%Y%m%d-%H%M%S.zip", time.gmtime())
+    zip_to = to / time.strftime(
+        "model-context-provider-%Y%m%d-%H%M%S.zip", time.gmtime()
+    )
     if zip_to.exists():
         return {
             "state": "refused",
@@ -525,7 +527,7 @@ SENTENCE_CHECK = "adapters/stdlib/sentence-check/sentence_check.py"
 
 
 PRIVACY = "adapters/stdlib/privacy/privacy.py"
-SPLIT = "\n\x1eunnamed-split\x1e\n"
+SPLIT = "\n\x1emcp-split\x1e\n"
 
 
 def names(box: Path) -> list[str]:
