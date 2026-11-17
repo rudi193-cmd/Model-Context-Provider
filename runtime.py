@@ -64,8 +64,9 @@ def sent(box: Path, door: str, verb: str, got: dict) -> dict:
 def sent_log(box: Path) -> dict:
     """What has left, oldest first, and whether the log still holds: each line
     names the hash of the one before it. The last line has no later one to
-    vouch for it, so a cut or edit there doesn't show; keeping the newest
-    hash somewhere the log can't reach closes that (Willow's tip-pin)."""
+    vouch for it, so a cut or edit there doesn't show here: pin_sent keeps
+    the newest hash somewhere the log can't reach, and check_sent holds the
+    log to it (Willow's tip-pin, for this log)."""
     f = state(box) / "sent.jsonl"
     lines = f.read_text().splitlines() if f.exists() else []
     rows, breaks = [], []
@@ -76,6 +77,54 @@ def sent_log(box: Path) -> dict:
             breaks.append(i)
         rows.append(row)
     return {"state": "populated" if rows else "empty", "rows": rows, "breaks": breaks}
+
+
+def pin_sent(box: Path, to: Path) -> dict:
+    """Where the sent log ends, written to a file the person keeps out of the
+    runtime's reach (Willow's tip-pin, for this log): how many lines, and the
+    hash of the last. Never written over, and never inside the box."""
+    got = sent_log(box)
+    if got["breaks"]:
+        return {
+            "state": "refused",
+            "why": f"the log doesn't hold at line {got['breaks'][0]}",
+        }
+    if to.exists():
+        return {
+            "state": "refused",
+            "why": f"{to} is there already; a pin is never written over",
+        }
+    if to.resolve().is_relative_to(box.parent.resolve()):
+        return {
+            "state": "refused",
+            "why": "a pin beside the box is in the runtime's reach",
+        }
+    lines = (state(box) / "sent.jsonl").read_text().splitlines() if got["rows"] else []
+    tip = hashlib.sha256(lines[-1].encode()).hexdigest() if lines else ""
+    to.write_text(json.dumps({"rows": len(lines), "tip": tip}) + "\n")
+    return {"state": "pinned", "rows": len(lines), "tip": tip, "to": str(to)}
+
+
+def check_sent(box: Path, pin: Path) -> dict:
+    """The sent log against a pin: holds (perhaps with lines since), cut short,
+    or rewritten where the pin ended."""
+    try:
+        want = json.loads(pin.read_text())
+        rows, tip = int(want["rows"]), str(want["tip"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return {"state": "refused", "why": f"{pin} is not a pin"}
+    got = sent_log(box)
+    if got["breaks"]:
+        return {
+            "state": "refused",
+            "why": f"the log doesn't hold at line {got['breaks'][0]}",
+        }
+    lines = (state(box) / "sent.jsonl").read_text().splitlines() if got["rows"] else []
+    if len(lines) < rows:
+        return {"state": "cut short", "pinned": rows, "now": len(lines)}
+    if rows and hashlib.sha256(lines[rows - 1].encode()).hexdigest() != tip:
+        return {"state": "rewritten", "at": rows - 1}
+    return {"state": "holds", "pinned": rows, "since": len(lines) - rows}
 
 
 def read(box: Path, question: str) -> dict:
@@ -287,6 +336,8 @@ VERBS = {
         "propose": lambda box, arg: propose(box),
         "leave": lambda box, arg: leave(box, Path(str(arg))),
         "sent": lambda box, arg: sent_log(box),
+        "pin": lambda box, arg: pin_sent(box, Path(str(arg))),
+        "check": lambda box, arg: check_sent(box, Path(str(arg))),
     },
     "model": {
         # read is open, but its passages would leave to the model: it gets the
