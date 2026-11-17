@@ -11,6 +11,7 @@ default is a sibling folder named Willow.
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import os
 import re
@@ -18,6 +19,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.parse
+import urllib.request
 import zipfile
 from pathlib import Path
 
@@ -267,21 +270,80 @@ DRAFT_SYSTEM = (
 )
 
 
+LOCAL_MODEL = "adapters/stdlib/local-model/local_model.py"
+
+
+def on_this_machine(url: str) -> bool:
+    host = urllib.parse.urlparse(url).hostname or ""
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def local_ask(url: str, model: str, timeout: float = 300):
+    """A way to a model on this machine: an OpenAI-style chat endpoint, the
+    way Willow's local-model reaches one, at temperature 0 and seed 0, through
+    no proxy. A URL off this machine is refused before anything is sent."""
+    if not on_this_machine(url):
+        raise ValueError(f"{url} is not on this machine")
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+    def ask(system: str, user: str) -> str:
+        body = {"model": model, "temperature": 0, "seed": 0,
+                "messages": [{"role": "system", "content": system},
+                             {"role": "user", "content": user}]}  # fmt: skip
+        req = urllib.request.Request(
+            url.rstrip("/") + "/chat/completions", data=json.dumps(body).encode(),
+            headers={"Content-Type": "application/json"},
+        )  # fmt: skip
+        with opener.open(req, timeout=timeout) as r:
+            return json.loads(r.read())["choices"][0]["message"]["content"]
+
+    ask.to = f"{model} at {url} (this machine)"
+    return ask
+
+
+def the_local_model(box: Path):
+    """The model the person named in model.json beside the box, {"url": ...,
+    "model": ...}, or None. Only a model on this machine."""
+    f = state(box) / "model.json"
+    if not f.exists():
+        return None
+    doc = json.loads(f.read_text())
+    return local_ask(str(doc["url"]), str(doc["model"]))
+
+
+def models(box: Path) -> dict:
+    """The model servers on this machine, as Willow's local-model finds them."""
+    run = willow(LOCAL_MODEL, "servers")
+    return {"state": "populated" if run.returncode == 0 else "empty",
+            "servers": run.stdout.strip().splitlines()}  # fmt: skip
+
+
 def draft(box: Path, question: str, ask=None, door: str = "") -> dict:
-    """A sentence from the model the door's far side runs (MCP sampling), over
-    the page the person sealed for this question and nothing else. No sealed
-    page, no model asked. What the model is sent goes on the sent log before
-    it is sent; what it says back is held by answer, strictly, and waits for
-    the person's seal. A struck sentence gets one more try, told why."""
+    """A sentence from a model, over the page the person sealed for this
+    question and nothing else: the client's model when the door can sample,
+    else the model on this machine the person named in model.json. No sealed
+    page, no model asked. What the model is sent goes on the sent log, with
+    where to, before it is sent, so a send that fails is on it too, as tried.
+    What it says back is held by answer, strictly, and waits for the
+    person's seal. A struck sentence gets one more try, told why."""
     if ask is None:
-        return {
-            "state": "refused",
-            "why": "this door's client can't be asked (no sampling)",
-        }
+        try:
+            ask = the_local_model(box)
+        except (OSError, ValueError, KeyError) as why:
+            return {"state": "refused", "why": f"model.json: {why}"}
+    if ask is None:
+        return {"state": "refused",
+                "why": "no model to ask: the client can't sample, and no model.json names one"}  # fmt: skip
     got = context(box, question)
     if got["state"] != "left":
         return {"state": got["state"], "asked": False}
-    sent(box, door or "unknown", "sample", got)
+    to = getattr(ask, "to", f"the client's model, through the {door} door")
+    sent(box, door or "unknown", "sample", {**got, "to": to})
     prompt = f"Their question: {question}\n\nThe page:\n{got['page']}"
     said = {}
     for _ in range(2):
@@ -463,6 +525,8 @@ VERBS = {
         "backup": lambda box, arg, **kw: backup(box, Path(str(arg))),
         "pin": lambda box, arg, **kw: pin_sent(box, Path(str(arg))),
         "check": lambda box, arg, **kw: check_sent(box, Path(str(arg))),
+        "models": lambda box, arg, **kw: models(box),
+        "draft": lambda box, arg, **kw: draft(box, str(arg), None, kw.get("door", "")),
     },
     "model": {
         # read is open, but its passages would leave to the model: it gets the
