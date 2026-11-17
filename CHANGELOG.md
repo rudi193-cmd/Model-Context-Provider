@@ -4,6 +4,9 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Preview before sealing.** The person's `preview` shows each waiting
+  scope's page as it would leave, withheld, by place: the same texts a sealed
+  page is held to. `waiting` points at it. Nothing is sealed or sent.
 - **Restore.** The person's `restore` puts the runtime's zip from a backup
   back beside the box: checked first (flat names, every CRC, no key, no box,
   the sent log's chain), never written over a file that differs, each file

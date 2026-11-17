@@ -20,6 +20,10 @@ Two ways, and the choice is the person's, not code's:
 
 ## Built since
 
+- **Preview before sealing**: `preview` shows the page a scope would let
+  leave, withheld, by place, from the texts the runtime holds a sealed page
+  to before it leaves; `waiting` points at it, since a scope's own words are
+  a hash. It seals, sends and writes nothing.
 - **Restore**: `restore` puts the runtime's zip back beside the box, after
   checking it the way Willow's `restore-drill` checks a box backup (flat
   names, every CRC, no key, no box, the sent log's chain). It never writes

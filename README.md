@@ -59,6 +59,7 @@ beside the person's record.
 | `waiting`: what waits on their seal, and what each one is | `answer`: one sentence, checked, then waiting |
 | `scopes`: every question proposed, and where each stands | `draft`: ask a model for that sentence |
 | `stop`: never let a scope leave again | `context`: the sealed page for this question, if there is one |
+| `preview`: the page a scope would let leave, before they seal it | |
 | `shared`: what left, as places, not hashes | |
 | `close`: this session's actions, for one seal | |
 | `owed`: what waits on their seal, in one line | |
@@ -95,6 +96,7 @@ Your own door, for everything a model can't do:
 
     python doors/pipe.py --box BOX
     {"waiting": true}
+    {"preview": true}
     {"shared": true}
     {"backup": "/media/usb"}
     {"restore": "/media/usb/model-context-provider-20261117-120000.zip"}

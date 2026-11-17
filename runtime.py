@@ -102,8 +102,11 @@ def waiting(box: Path) -> dict:
         except (OSError, ValueError):
             out.append({"seal": subject, "claim": "its file can't be read"})
             continue
-        out.append({"seal": subject, "claim": prop.get("claim", ""),
-                    "path": prop.get("path", ""), "words": str(prop.get("data", ""))[:500]})  # fmt: skip
+        item = {"seal": subject, "claim": prop.get("claim", ""),
+                "path": prop.get("path", ""), "words": str(prop.get("data", ""))[:500]}  # fmt: skip
+        if subject in scopes(box):  # its words are a hash: the page says what it is
+            item["preview"] = {"preview": subject}
+        out.append(item)
     return {"state": "waiting" if out else "empty", "waiting": out}
 
 
@@ -589,7 +592,7 @@ PLAIN = {
     "stopped": ("You stopped this from being shared.",
                 "To share it again, ask the question in other words, propose it, and seal it anew."),
     "not_a_scope": ("That isn't a question you were asked to share.",
-                    "See them with scopes, and stop one by the seal it shows."),
+                    "See them with scopes: each shows the seal to name."),
     "not_pin": ("That file isn't a pin.",
                 "Point check at the file pin wrote."),
     "session_failed": ("The step that closes a session couldn't run, so nothing waits on you for it.",
@@ -726,6 +729,41 @@ def scope_list(box: Path) -> dict:
                 page.get("state") if page["state"] == "left" else page.get("code"), "not sealed")  # fmt: skip
         out.append({"seal": subject, "places": where, "stands": stands})
     return {"state": "populated" if out else "empty", "scopes": out}
+
+
+def preview(box: Path, subject) -> dict:
+    """What a scope would let leave, before the person seals it: its passages
+    as they were withheld when it was proposed, by place. These are the texts
+    a sealed page is held to before it leaves, so what is shown here is what
+    would go. Nothing is sealed, sent or written down. With no subject, every
+    scope proposed here that waits on the seal."""
+    known = scopes(box)
+    if isinstance(subject, str) and subject.startswith("proposal:"):
+        if subject not in known:
+            return {"state": "refused", "code": "not_a_scope",
+                    "why": f"{subject} isn't a scope proposed here"}  # fmt: skip
+        want = [subject]
+    else:
+        owed = {w["seal"] for w in waiting(box)["waiting"]}
+        want = [s for s in known if s in owed]
+    f = state(box) / "places.json"
+    places = json.loads(f.read_text()) if f.exists() else {}
+    out = []
+    for s in want:
+        by: dict[str, list[tuple[str, str]]] = {}
+        for text in known[s]:
+            where = places.get(hashlib.sha256(text.encode()).hexdigest(), {}).get(
+                "where", "?"
+            )
+            by.setdefault(where.rsplit(":", 1)[0], []).append((where, text))
+        page = "\n".join(
+            f"## {pool}\n\n"
+            + "\n".join(f"{w}\n\n```\n{t}\n```\n" for w, t in sorted(each))
+            for pool, each in sorted(by.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+        )
+        out.append({"seal": s, "passages": len(known[s]), "page": page,
+                    "stopped": s in stopped(box)})  # fmt: skip
+    return {"state": "preview" if out else "empty", "previews": out}
 
 
 def stop(box: Path, subject: str) -> dict:
@@ -872,6 +910,7 @@ VERBS = {
         "shared": lambda box, arg, **kw: shared(box),
         "scopes": lambda box, arg, **kw: scope_list(box),
         "stop": lambda box, arg, **kw: stop(box, str(arg)),
+        "preview": lambda box, arg, **kw: preview(box, arg),
         "waiting": lambda box, arg, **kw: waiting(box),
         "backup": lambda box, arg, **kw: backup(box, Path(str(arg))),
         "restore": lambda box, arg, **kw: restore(box, Path(str(arg))),
