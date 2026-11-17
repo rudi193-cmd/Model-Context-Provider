@@ -40,6 +40,9 @@ TOOLS = [
     {"name": "leave", "arg": None,
      "description": "The scope the person sealed, as the one page you may read. "
                     "Without a seal, nothing."},
+    {"name": "context", "arg": "question",
+     "description": "Ask a question and get the page the person sealed for it, if "
+                    "they sealed one; else only whether their files hold it."},
     {"name": "answer", "arg": "sentence",
      "description": "One sentence about the page you were given, citing each passage "
                     "by its id in brackets, like [a1b2c3d4e5f6]. Code checks it; if it "

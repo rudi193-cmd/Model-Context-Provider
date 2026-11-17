@@ -43,8 +43,8 @@ def read(box: Path, question: str) -> dict:
     if run.returncode == 2:
         return {"state": "refused", "why": run.stderr.strip()}
     got = json.loads(run.stdout)
-    # kept beside the box, for holding a model's answer to what was served
-    (state(box) / "last-read.json").write_text(json.dumps(got.get("served", [])))
+    if "served" in got:  # kept beside the box, to hold a model's answer to it
+        (state(box) / "last-read.json").write_text(json.dumps(got["served"]))
     return got
 
 
@@ -58,6 +58,12 @@ def propose(box: Path) -> dict:
     subject = next((w for w in run.stdout.split() if w.startswith("proposal:")), None)
     if run.returncode == 2 or subject is None:
         return {"state": "refused", "why": (run.stderr or run.stdout).strip()}
+    # what this scope holds, kept beside the box, so a page can be matched to it
+    f = state(box) / "scopes.json"
+    scopes = json.loads(f.read_text()) if f.exists() else {}
+    served = json.loads((state(box) / "last-read.json").read_text())
+    scopes[subject] = sorted(s["text"].strip() for s in served)
+    f.write_text(json.dumps(scopes))
     return {"state": "waiting", "seal": subject}
 
 
@@ -72,24 +78,50 @@ def leave(box: Path, to: Path) -> dict:
 
 #: who is on the far side of each door. A door not named here faces a model:
 #: an unknown door fails closed.
-FACES = {"pipe": "person", "mcp": "model"}
+FACES = {"pipe": "person", "mcp": "model", "hook": "model"}
 
 
 SENTENCE_CHECK = "adapters/stdlib/sentence-check/sentence_check.py"
+
+
+def sealed_page(box: Path) -> dict:
+    """The sealed scope's one file, as text, written outside the box and
+    removed; or the refusal."""
+    with tempfile.TemporaryDirectory() as d:
+        page = Path(d) / "served.md"
+        got = leave(box, page)
+        if got["state"] != "left":
+            return got
+        return {"state": "left", "page": page.read_text()}
 
 
 def leave_to_model(box: Path) -> dict:
     """Line 1 at a model's door: the sealed scope's one file, handed over as
     text. The model names no path. The runtime keeps a copy, to hold the
     model's answer to it."""
-    with tempfile.TemporaryDirectory() as d:
-        page = Path(d) / "served.md"
-        got = leave(box, page)
-        if got["state"] != "left":
-            return got
-        text = page.read_text()
-    (state(box) / "last-page.md").write_text(text)
-    return {"state": "left", "page": text}
+    got = sealed_page(box)
+    if got["state"] == "left":
+        (state(box) / "last-page.md").write_text(got["page"])
+    return got
+
+
+def context(box: Path, question: str) -> dict:
+    """What a model may be given with a prompt: the sealed page, when the
+    kernel says these words are sealed by a scope the runtime proposed and the
+    page holds exactly that scope; else only whether the files hold it. A page
+    sealed for another question stays out."""
+    got = read(box, question)
+    if got["state"] == "sealed":
+        f = state(box) / "scopes.json"
+        scope = (json.loads(f.read_text()) if f.exists() else {}).get(got.get("by"))
+        page = sealed_page(box)
+        if scope and page["state"] == "left":
+            held = sorted(b["text"].strip() for b in boxes_of(page["page"]))
+            if held == scope:
+                (state(box) / "last-page.md").write_text(page["page"])
+                return page
+        return {"state": "populated"}
+    return {"state": got["state"]}
 
 
 def boxes_of(page: str) -> list[dict]:
@@ -158,6 +190,7 @@ VERBS = {
         "propose": lambda box, arg: propose(box),
         "leave": lambda box, arg: leave_to_model(box),
         "answer": lambda box, arg: answer(box, str(arg)),
+        "context": lambda box, arg: context(box, str(arg)),
     },
 }
 
