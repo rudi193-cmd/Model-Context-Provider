@@ -3,6 +3,20 @@
 A model context provider: what a model is given, decided in one place, with
 the wire that carries it left as a detail. It starts from two lines.
 
+## Set it up
+
+Make your record in Willow's UI (pick your folders, type your words, seal
+it, press **Start it**), then:
+
+    python setup.py --stack PATH/TO/YOUR/STACK
+
+It checks your record, your words and Willow, and prints what to paste:
+the `claude mcp add --scope user …` line for Claude Code, the prompt hook
+for `~/.claude/settings.json`, and the JSON any other MCP client takes. It
+changes nothing of your client's. To draft answers with a model on this
+machine, add `--model http://127.0.0.1:11434/v1 NAME`; that writes
+`model.json` beside your record, and nothing else.
+
 ## The two lines
 
 1. **A grant guards what leaves, never what is read.**
