@@ -56,3 +56,18 @@ def leave(box: Path, to: Path) -> dict:
     if run.returncode != 0:
         return {"state": "refused", "why": run.stderr.strip()}
     return {"state": "left", "to": str(to)}
+
+
+#: the verbs, the same for every door. There is no verb to seal.
+VERBS = {
+    "read": lambda box, arg: read(box, str(arg)),
+    "propose": lambda box, arg: propose(box),
+    "leave": lambda box, arg: leave(box, Path(str(arg))),
+}
+
+
+def call(box: Path, verb: str, arg=None) -> dict:
+    """What every door calls: one verb, decided here."""
+    if verb not in VERBS:
+        return {"state": "refused", "why": f"no verb {verb!r}; one of {sorted(VERBS)}"}
+    return VERBS[verb](box, arg)

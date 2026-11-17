@@ -1,0 +1,95 @@
+"""The MCP door: the Model Context Protocol's stdio transport, one JSON-RPC 2.0
+message a line, written by hand with the standard library (the shape of
+Willow's adapters/stdlib/mcp-lite/server.py).
+
+    python doors/mcp.py --box DIR
+
+Its tools are the runtime's verbs. There is no tool to seal: sealing is the
+person's, with their key, outside any door.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import runtime
+
+VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
+
+
+def schema(arg: str | None) -> dict:
+    if arg is None:
+        return {"type": "object", "properties": {}}
+    return {
+        "type": "object",
+        "properties": {arg: {"type": "string"}},
+        "required": [arg],
+    }
+
+
+TOOLS = [
+    {"name": "read", "arg": "question",
+     "description": "Ask the person's files a question. Reading needs no grant."},
+    {"name": "propose", "arg": None,
+     "description": "Propose what the last read served as one scope; it waits for the "
+                    "person's seal. You cannot seal."},
+    {"name": "leave", "arg": "to",
+     "description": "Write the sealed scope as the one file a model reads, to a path "
+                    "outside the box. Without a seal nothing is written."},
+]  # fmt: skip
+
+
+def answer(box: Path, msg: dict) -> dict | None:
+    if not isinstance(msg, dict) or "id" not in msg:
+        return None
+    mid, method, params = msg["id"], msg.get("method"), msg.get("params") or {}
+
+    def ok(result: dict) -> dict:
+        return {"jsonrpc": "2.0", "id": mid, "result": result}
+
+    if method == "initialize":
+        asked = params.get("protocolVersion")
+        return ok({"protocolVersion": asked if asked in VERSIONS else VERSIONS[0],
+                   "capabilities": {"tools": {}},
+                   "serverInfo": {"name": "unnamed", "version": "0"}})  # fmt: skip
+    if method == "ping":
+        return ok({})
+    if method == "tools/list":
+        return ok({"tools": [{"name": t["name"], "description": t["description"],
+                              "inputSchema": schema(t["arg"])} for t in TOOLS]})  # fmt: skip
+    if method == "tools/call":
+        name = str(params.get("name"))
+        args = params.get("arguments") or {}
+        spec = next((t for t in TOOLS if t["name"] == name), None)
+        arg = args.get(spec["arg"]) if spec and spec["arg"] else None
+        result = runtime.call(box, name, arg)
+        refused = result.get("state") == "refused"
+        return ok({"content": [{"type": "text", "text": json.dumps(result)}],
+                   "structuredContent": result, "isError": refused})  # fmt: skip
+    return {"jsonrpc": "2.0", "id": mid,
+            "error": {"code": -32601, "message": f"method not found: {method}"}}  # fmt: skip
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) != 2 or argv[0] != "--box":
+        print("usage: mcp.py --box DIR", file=sys.stderr)
+        return 2
+    box = Path(argv[1])
+    for raw in sys.stdin:
+        if not raw.strip():
+            continue
+        try:
+            reply = answer(box, json.loads(raw))
+        except ValueError:
+            reply = {"jsonrpc": "2.0", "id": None,
+                     "error": {"code": -32700, "message": "parse error"}}  # fmt: skip
+        if reply is not None:
+            print(json.dumps(reply), flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

@@ -16,22 +16,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import runtime
 
-VERBS = {
-    "read": lambda box, arg: runtime.read(box, arg),
-    "propose": lambda box, arg: runtime.propose(box),
-    "leave": lambda box, arg: runtime.leave(box, Path(arg)),
-}
-
 
 def answer(box: Path, line: str) -> dict:
     try:
         req = json.loads(line)
     except json.JSONDecodeError:
         return {"state": "refused", "why": "not a JSON line"}
-    if not isinstance(req, dict) or len(req) != 1 or next(iter(req)) not in VERBS:
-        return {"state": "refused", "why": f"one of {sorted(VERBS)}, one a line"}
+    if not isinstance(req, dict) or len(req) != 1:
+        return {"state": "refused", "why": 'one request a line: {"verb": argument}'}
     verb, arg = next(iter(req.items()))
-    return {"verb": verb, **VERBS[verb](box, arg)}
+    return {"verb": verb, **runtime.call(box, verb, arg)}
 
 
 def main(argv: list[str]) -> int:
