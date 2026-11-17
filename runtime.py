@@ -190,7 +190,9 @@ def shared(box: Path) -> dict:
             what = {"waiting": "a sentence back, waiting on your seal",
                     "struck": "a sentence back, struck by the check"}.get(r["state"], r["state"])  # fmt: skip
         elif r["verb"] == "propose":
-            what = "a question to share, waiting on your seal"
+            what = "a question to share, " + (
+                "already sealed" if r["state"] == "sealed" else "waiting on your seal"
+            )
         else:
             what = f"{r['verb']}: {r['state']}"
         lines.append(f"{when}  {who}: {what}")
@@ -294,6 +296,8 @@ def propose(box: Path) -> dict:
         places[hashlib.sha256(text.encode()).hexdigest()] = {
             "where": s["where"], "starts": text[:70]}  # fmt: skip
     f.write_text(json.dumps(places))
+    if subject not in {w["seal"] for w in waiting(box)["waiting"]}:
+        return {"state": "sealed", "seal": subject}  # proposed before, and sealed
     return {"state": "waiting", "seal": subject}
 
 

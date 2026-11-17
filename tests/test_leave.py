@@ -36,3 +36,10 @@ def test_a_new_read_after_the_seal_does_not_widen_what_leaves(box, tmp_path):
 
 def test_proposing_with_nothing_read_is_refused_not_a_blank_grant(box):
     assert runtime.propose(box)["state"] == "refused"
+
+
+def test_proposing_what_is_already_sealed_says_sealed_not_waiting(box):
+    runtime.read(box, "when does the first frost come")
+    subject = runtime.propose(box)["seal"]
+    seal(box, subject)
+    assert runtime.propose(box) == {"state": "sealed", "seal": subject}
