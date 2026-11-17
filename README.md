@@ -88,3 +88,14 @@ core already made it into Willow.
 | The human seals; code only proposes | Willow `kernel.py` (`propose`, `seal`) |
 
 Nothing here reads the person's key. The key is the user's.
+
+### The hook door in Claude Code
+
+Run on 2026-11-17, same demo box, `--settings` with only this hook. For
+"When is the car's MOT due?" and "when does the first frost come" the hook
+added one line each: the files hold something, nothing is sealed, so the
+model is given none of it. Frost was sealed before the runtime kept scopes,
+so it failed closed too. The model then answered frost from general
+knowledge: the hook keeps the person's files out, not the model's own.
+A prompt with extra instructions added nothing: the kernel's rank asks for
+half the words.
