@@ -33,6 +33,25 @@ itself; a test fails any door that does.
     WILLOW=/path/to/Willow python -m pytest tests
     python doors/mcp.py --box DIR
 
+### In a real client
+
+Claude Code, with only this door and nothing else of yours:
+
+    cat > mcp.json <<'JSON'
+    {"mcpServers": {"unnamed": {"type": "stdio", "command": "python3",
+      "args": ["/path/to/unnamed/doors/mcp.py", "--box", "/path/to/box"],
+      "env": {"WILLOW": "/path/to/Willow"}}}}
+    JSON
+    claude -p "When does the first frost come in my files?" \
+      --strict-mcp-config --mcp-config mcp.json \
+      --allowedTools "mcp__unnamed__read,mcp__unnamed__propose,mcp__unnamed__leave,mcp__unnamed__answer"
+
+Run on 2026-11-17 over a made-up pile, Claude Code 2.1.326: read gave
+`{"state":"populated"}` and no passage; propose waited on the seal; leave was
+refused, "no sealed scope; nothing served"; and the model would not call
+answer, since it had no page or ids: "Anything I sent would have been made up." It
+stopped at the seal, which is the person's.
+
 ## Where they come from
 
 Both are rules of the one-box plan in willows-grove,
