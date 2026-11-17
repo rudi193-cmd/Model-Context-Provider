@@ -52,6 +52,14 @@ refused, "no sealed scope; nothing served"; and the model would not call
 answer, since it had no page or ids: "Anything I sent would have been made up." It
 stopped at the seal, which is the person's.
 
+Then the scope was sealed (the seal was the user's word, given in chat, for
+this demo box and its scratch key), and the client ran again. leave gave it
+the one page, the garden passage under an opaque id and nothing of the car.
+Its first answer, "The first frost comes in late October, which is when the
+dahlias come up [bd84e5143742].", was struck: "which, when are no box's".
+Its second, in the page's own words, held all four checks and was proposed
+through the kernel, where it waits for the person's seal.
+
 ## Where they come from
 
 Both are rules of the one-box plan in willows-grove,
