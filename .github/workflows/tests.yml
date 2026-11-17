@@ -12,7 +12,8 @@ permissions:
 
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    # pinned, as Willow pins it: ubuntu-latest is 26.04, which has no Python 3.9
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -23,7 +24,7 @@ jobs:
       # side by side, the layout a person's machine has.
       - uses: actions/checkout@v7
         with:
-          path: unnamed
+          path: model-context-provider
       - uses: actions/checkout@v7
         with:
           repository: willow-memory/Willow
@@ -39,10 +40,10 @@ jobs:
       - name: Install
         run: pip install pytest ruff==0.16.7
       - name: Lint
-        working-directory: unnamed
+        working-directory: model-context-provider
         run: ruff check . && ruff format --check .
       - name: Tests
-        working-directory: unnamed
+        working-directory: model-context-provider
         env:
           WILLOW: ${{ github.workspace }}/Willow
         run: python -m pytest -q
