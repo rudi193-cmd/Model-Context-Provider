@@ -32,13 +32,14 @@ def schema(arg: str | None) -> dict:
 
 TOOLS = [
     {"name": "read", "arg": "question",
-     "description": "Ask the person's files a question. Reading needs no grant."},
+     "description": "Ask the person's files a question. You get whether they hold it, "
+                    "never the passages: those reach you only through a sealed leave."},
     {"name": "propose", "arg": None,
      "description": "Propose what the last read served as one scope; it waits for the "
                     "person's seal. You cannot seal."},
-    {"name": "leave", "arg": "to",
-     "description": "Write the sealed scope as the one file a model reads, to a path "
-                    "outside the box. Without a seal nothing is written."},
+    {"name": "leave", "arg": None,
+     "description": "The scope the person sealed, as the one page you may read. "
+                    "Without a seal, nothing."},
 ]  # fmt: skip
 
 
@@ -65,7 +66,7 @@ def answer(box: Path, msg: dict) -> dict | None:
         args = params.get("arguments") or {}
         spec = next((t for t in TOOLS if t["name"] == name), None)
         arg = args.get(spec["arg"]) if spec and spec["arg"] else None
-        result = runtime.call(box, name, arg)
+        result = runtime.call(box, name, arg, door="mcp")
         refused = result.get("state") == "refused"
         return ok({"content": [{"type": "text", "text": json.dumps(result)}],
                    "structuredContent": result, "isError": refused})  # fmt: skip

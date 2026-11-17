@@ -14,6 +14,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -58,16 +59,43 @@ def leave(box: Path, to: Path) -> dict:
     return {"state": "left", "to": str(to)}
 
 
+#: who is on the far side of each door. A door not named here faces a model:
+#: an unknown door fails closed.
+FACES = {"pipe": "person", "mcp": "model"}
+
+
+def leave_to_model(box: Path) -> dict:
+    """Line 1 at a model's door: the sealed scope's one file, handed over as
+    text. The model names no path; the file is written outside the box, read
+    and removed."""
+    with tempfile.TemporaryDirectory() as d:
+        page = Path(d) / "served.md"
+        got = leave(box, page)
+        if got["state"] != "left":
+            return got
+        return {"state": "left", "page": page.read_text()}
+
+
 #: the verbs, the same for every door. There is no verb to seal.
 VERBS = {
-    "read": lambda box, arg: read(box, str(arg)),
-    "propose": lambda box, arg: propose(box),
-    "leave": lambda box, arg: leave(box, Path(str(arg))),
+    "person": {
+        "read": lambda box, arg: read(box, str(arg)),
+        "propose": lambda box, arg: propose(box),
+        "leave": lambda box, arg: leave(box, Path(str(arg))),
+    },
+    "model": {
+        # read is open, but its passages would leave to the model: it gets the
+        # state alone, never a passage, a place or a count
+        "read": lambda box, arg: {"state": read(box, str(arg))["state"]},
+        "propose": lambda box, arg: propose(box),
+        "leave": lambda box, arg: leave_to_model(box),
+    },
 }
 
 
-def call(box: Path, verb: str, arg=None) -> dict:
-    """What every door calls: one verb, decided here."""
-    if verb not in VERBS:
-        return {"state": "refused", "why": f"no verb {verb!r}; one of {sorted(VERBS)}"}
-    return VERBS[verb](box, arg)
+def call(box: Path, verb: str, arg=None, door: str = "") -> dict:
+    """What every door calls: one verb, decided here, by who the door faces."""
+    verbs = VERBS[FACES.get(door, "model")]
+    if verb not in verbs:
+        return {"state": "refused", "why": f"no verb {verb!r}; one of {sorted(verbs)}"}
+    return verbs[verb](box, arg)

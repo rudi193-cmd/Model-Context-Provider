@@ -94,25 +94,39 @@ def test_mcp_lists_the_runtimes_verbs_and_no_seal(box):
     )
     assert init["result"]["protocolVersion"] == "2025-06-18"
     names = [t["name"] for t in listed["result"]["tools"]]
-    assert sorted(names) == sorted(runtime.VERBS)
+    assert sorted(names) == sorted(runtime.VERBS["model"])
     assert "seal" not in names
 
 
-def test_both_doors_get_the_same_answer_from_the_one_runtime(box, tmp_path):
+def test_a_model_learns_whether_the_files_hold_it_never_what_they_say(box):
     q = "when does the first frost come"
-    by_pipe = pipe(box, {"read": q})[0]
-    by_mcp = mcp(box, tool(1, "read", question=q))[0]["result"]["structuredContent"]
-    by_pipe.pop("verb")
-    assert by_mcp == by_pipe
+    assert pipe(box, {"read": q})[0]["served"]  # the person's door: passages
+    got = mcp(box, tool(1, "read", question=q))[0]["result"]["structuredContent"]
+    assert got == {"state": "populated"}  # the model's: no text, place or count
 
 
-def test_mcp_cannot_leave_unsealed_any_more_than_the_pipe(box, tmp_path):
-    out = tmp_path / "out.md"
+def test_a_sealed_scope_is_the_one_page_the_model_gets(box):
+    from test_leave import seal
+
+    q = "when does the first frost come"
+    mcp(box, tool(1, "read", question=q))
+    seal(box, mcp(box, tool(2, "propose"))[0]["result"]["structuredContent"]["seal"])
+    got = mcp(box, tool(3, "leave"))[0]["result"]
+    assert not got["isError"]
+    assert "first frost comes in late October" in got["structuredContent"]["page"]
+    assert "MOT" not in got["structuredContent"]["page"]
+
+
+def test_a_door_the_runtime_does_not_know_is_treated_as_facing_a_model(box):
+    got = runtime.call(box, "read", "when does the first frost come", door="new")
+    assert got == {"state": "populated"}
+
+
+def test_mcp_cannot_leave_unsealed_any_more_than_the_pipe(box):
     got = mcp(
         box,
         tool(1, "read", question="when does the first frost come"),
         tool(2, "propose"),
-        tool(3, "leave", to=str(out)),
+        tool(3, "leave"),
     )
     assert [g["result"]["isError"] for g in got] == [False, False, True]
-    assert not out.exists()

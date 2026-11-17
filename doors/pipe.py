@@ -25,7 +25,7 @@ def answer(box: Path, line: str) -> dict:
     if not isinstance(req, dict) or len(req) != 1:
         return {"state": "refused", "why": 'one request a line: {"verb": argument}'}
     verb, arg = next(iter(req.items()))
-    return {"verb": verb, **runtime.call(box, verb, arg)}
+    return {"verb": verb, **runtime.call(box, verb, arg, door="pipe")}
 
 
 def main(argv: list[str]) -> int:
