@@ -63,9 +63,27 @@ def test_the_whole_way_round_ends_in_a_file_only_the_person_sealed(box):
     assert (box / "written" / got["path"]).read_text() == sentence + "\n"
 
 
-def test_reading_again_after_the_page_left_means_the_old_page_is_not_answerable(box):
+def test_reading_again_after_the_page_left_it_is_still_answerable(box):
     sid = handed(box)
     runtime.call(box, "read", "when is the car's MOT due", door="mcp")
     got = runtime.call(box, "answer", f"The first frost comes in late October [{sid}].",
                        door="mcp")  # fmt: skip
+    assert got["state"] == "waiting"
+
+
+def test_an_answer_to_a_page_that_is_not_a_sealed_scope_is_refused(box):
+    sid = handed(box)
+    f = runtime.state(box) / "last-page.md"
+    f.write_text(f.read_text().replace("late October", "late November"))
+    got = runtime.call(box, "answer", f"The first frost comes in late November [{sid}].",
+                       door="mcp")  # fmt: skip
     assert got["state"] == "refused"
+
+
+def test_the_answer_names_the_scope_it_was_given(box):
+    sid = handed(box)
+    got = runtime.call(box, "answer", f"The first frost comes in late October [{sid}].",
+                       door="mcp")  # fmt: skip
+    (w,) = runtime.call(box, "waiting", door="pipe")["waiting"]
+    scopes = json.loads((runtime.state(box) / "scopes.json").read_text())
+    assert w["seal"] == got["seal"] and next(iter(scopes)) in w["claim"]
