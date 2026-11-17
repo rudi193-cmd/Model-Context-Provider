@@ -50,7 +50,12 @@ def paste(box: Path) -> str:
     env = f"WILLOW={runtime.WILLOW}"
     door = [sys.executable, str(HERE / "doors" / "mcp.py"), "--box", str(box)]
     hook = " ".join([env, *map(shlex.quote, [sys.executable, str(HERE / "doors" / "hook.py"), "--box", str(box)])])  # fmt: skip
-    settings = {"hooks": {"UserPromptSubmit": [{"hooks": [{"type": "command", "command": hook}]}]}}  # fmt: skip
+    session = " ".join([env, *map(shlex.quote, [sys.executable, str(HERE / "doors" / "session.py"), "--box", str(box)])])  # fmt: skip
+    settings = {"hooks": {
+        "UserPromptSubmit": [{"hooks": [{"type": "command", "command": hook}]}],
+        "SessionStart": [{"hooks": [{"type": "command", "command": session}]}],
+        "SessionEnd": [{"hooks": [{"type": "command", "command": session, "timeout": 60}]}],
+    }}  # fmt: skip
     other = {"mcpServers": {"model-context-provider": {"type": "stdio", "command": door[0], "args": door[1:],
                                         "env": {"WILLOW": str(runtime.WILLOW)}}}}  # fmt: skip
     return "\n".join([
@@ -58,7 +63,9 @@ def paste(box: Path) -> str:
         "",
         "    claude mcp add --scope user model-context-provider -e " + shlex.quote(env) + " -- " + shlex.join(door),
         "",
-        "2. The prompt hook, in ~/.claude/settings.json (merge it with what's there):",
+        "2. The hooks, in ~/.claude/settings.json (merge them with what's there): the prompt",
+        "   hook, and the session door, which closes each session for your one seal and",
+        "   tells you at the next start what waits on it:",
         "",
         *("    " + ln for ln in json.dumps(settings, indent=2).splitlines()),
         "",

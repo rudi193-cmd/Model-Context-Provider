@@ -84,3 +84,13 @@ def test_setup_writes_nothing_of_the_clients(box, tmp_path, monkeypatch):
     (tmp_path / "home").mkdir()
     run("--box", box)
     assert list((tmp_path / "home").iterdir()) == []
+
+
+def test_the_hooks_it_says_to_paste_include_the_session_door(box):
+    text = setup.paste(box).split("2. The hooks")[1].split("\n\n3. Any other")[0]
+    hooks = json.loads(text[text.index("{") :])["hooks"]
+    (start,) = hooks["SessionStart"][0]["hooks"]
+    (end,) = hooks["SessionEnd"][0]["hooks"]
+    assert "doors/session.py" in start["command"] and start["command"] == end["command"]
+    assert end["timeout"] == 60  # its own budget is 1.5 s; Claude Code allows up to 60
+    assert "doors/hook.py" in hooks["UserPromptSubmit"][0]["hooks"][0]["command"]

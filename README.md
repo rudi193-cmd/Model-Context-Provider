@@ -60,6 +60,8 @@ beside the person's record.
 | `scopes`: every question proposed, and where each stands | `draft`: ask a model for that sentence |
 | `stop`: never let a scope leave again | `context`: the sealed page for this question, if there is one |
 | `shared`: what left, as places, not hashes | |
+| `close`: this session's actions, for one seal | |
+| `owed`: what waits on their seal, in one line | |
 | `draft`, `models`, `backup`, `pin`, `check`, `sent` | |
 
 Neither side can seal or decline. Sealing is the person's, with their key,
@@ -69,7 +71,8 @@ the one thing to do next.
 ## Set it up
 
 You need Python 3.9 or newer and a Willow checkout whose `approved-only` is
-0.2.0 or later (`--scope`). Make your record in Willow's UI: pick your
+0.2.0 or later (`--scope`). On a big folder, `claude-code` 0.2.0 and
+`session-seal` 0.3.0 or later make each bite seconds, not a minute. Make your record in Willow's UI: pick your
 folders, type your own words into the words step, seal it, and press **Start
 it**. Then:
 
@@ -78,7 +81,8 @@ it**. Then:
 It checks Willow, your record and your words, and prints what to paste:
 
 - the `claude mcp add --scope user …` line for Claude Code;
-- the prompt hook for `~/.claude/settings.json`;
+- the hooks for `~/.claude/settings.json`: the prompt hook, and the session
+  door on SessionStart and SessionEnd;
 - the JSON any other MCP client takes.
 
 It changes nothing of your client's. To draft answers with a model on this
@@ -100,6 +104,38 @@ Your own door, for everything a model can't do:
 | `doors/pipe.py` | the person | one JSON request a line in, one answer a line out |
 | `doors/mcp.py` | a model | MCP over stdio, by hand; asks the client's model through sampling when the client offers it |
 | `doors/hook.py` | a model | Claude Code's prompt hook: the sealed page for this question, or one line saying nothing is sealed |
+| `doors/session.py` | the person | Claude Code's SessionEnd and SessionStart hooks: each session closed for one seal, and at the next start one line to the person of what waits |
+
+## One seal a session
+
+A seal at every step is a lot to ask. At a session's end the session door
+asks the runtime to `close` it: Willow's `session-seal` bundles the record's
+rows since the last close (each by number, kind and hash, no words) as one
+proposal, "yes, these were my actions". At the next start, the person is
+told in one line what waits on them, how many are sessions and how many are
+pages or sentences, and how to see each. The line goes out as Claude Code's
+`systemMessage`, shown to the person and never put in the turn.
+
+It proposes; it never seals. Sealing a session says the actions were the
+person's; it doesn't let a page leave. A page still leaves only on its own
+seal, and a sealed one keeps being given for its question, session after
+session, until it changes in the files or the person stops it. So the seals
+fall away: one a session, and one a question, once.
+
+SessionEnd hooks get 1.5 seconds unless they say otherwise, so the line
+`set_up.py` prints gives it 60, the most Claude Code allows.
+
+## A big folder
+
+The kernel reads every file at every bite: on 190,000 passages, half a
+minute. So the runtime keeps an index of the folder beside the box
+(`BOX.runtime/index`), brought current at each read by Willow's
+`index-cache`, which rebuilds only when a file changed. While it is
+current, `claude-code`'s bite answers from it, the same JSON and the same
+row on the record as the kernel's, and a session closes from it too. Over
+one real folder: a read 27 seconds before, 3 after; the first one, which
+builds the index, 19. The index never goes in a backup, and with a Willow
+too old to have that bite, the kernel reads the folder as before.
 
 A door imports the runtime and nothing that decides, and never calls Willow
 itself. `tests/test_doors.py` fails any door that does. A door the runtime
@@ -150,6 +186,8 @@ named in `model.json`.
 | `sentence-check` | holding the model's sentence to its page |
 | `privacy` | withholding numbers, emails and keys |
 | `backup`, `local-model` | the record's backup, and finding models on this machine |
+| `session-seal` | one seal over a session's actions |
+| `index-cache`, `claude-code`'s `bite` | a bite answered from an index of the folder |
 
 It uses Willow by its command line only, and never imports or changes
 Willow's kernel. When Willow lacks something, the fix goes to Willow:

@@ -109,6 +109,9 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         return runtime.call(box, "leave", door="mcp")
     if code == "not_a_scope":
         return runtime.call(box, "stop", "proposal:" + "0" * 64, door="pipe")
+    if code == "session_failed":
+        monkeypatch.setattr(runtime, "SESSION_SEAL", "no/such/session_seal.py")
+        return runtime.call(box, "close", door="pipe")
     raise AssertionError(f"no scenario for {code}")
 
 

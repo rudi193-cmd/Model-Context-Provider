@@ -19,3 +19,14 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
 - **The person's verbs:** `waiting`, `scopes`, `stop`, `backup`, `models`,
   `pin`, `check`; every refusal in plain words with a next step; `set_up.py`
   prints what to paste into a client.
+- **One seal a session.** `doors/session.py`, Claude Code's SessionEnd and
+  SessionStart hooks, facing the person: the runtime's `close` bundles each
+  session's actions with Willow's `session-seal` for one seal, and `owed`
+  tells the person at the next start, in one line shown only to them, what
+  waits. `set_up.py` prints both hooks. After a close, a model reads again
+  before it can propose.
+- **An index of the folder**, kept beside the box by Willow's
+  `index-cache`: each read, and each session's close, is answered from it
+  by `claude-code`'s `bite` while it is current, the kernel's own answer in
+  seconds instead of half a minute. The kernel reads the folder when the
+  index can't answer.
