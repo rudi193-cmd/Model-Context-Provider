@@ -18,6 +18,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import zipfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -100,6 +101,57 @@ def waiting(box: Path) -> dict:
         out.append({"seal": subject, "claim": prop.get("claim", ""),
                     "path": prop.get("path", ""), "words": str(prop.get("data", ""))[:500]})  # fmt: skip
     return {"state": "waiting" if out else "empty", "waiting": out}
+
+
+BACKUP = "adapters/stdlib/backup/backup.py"
+
+
+def chain_holds(lines: list[str]) -> bool:
+    return all(
+        json.loads(line).get("prev")
+        == (hashlib.sha256(lines[i - 1].encode()).hexdigest() if i else "")
+        for i, line in enumerate(lines)
+    )
+
+
+def backup(box: Path, to: Path) -> dict:
+    """Willow's backup of the box, and beside it a zip of what the runtime
+    keeps beside the box (the sent log, the scopes it proposed, the person's
+    names list), which a box backup can't see. Each copy is checked before it
+    is kept, byte for byte and the sent log's chain; one that fails is
+    deleted. Neither holds the key."""
+    run = willow(BACKUP, "--box", str(box), "--to", str(to))
+    if run.returncode != 0:
+        return {"state": "refused", "why": (run.stderr or run.stdout).strip()}
+    made = re.search(r"willow-backup-\S+\.zip", run.stdout)
+    src = state(box)
+    zip_to = to / time.strftime("unnamed-runtime-%Y%m%d-%H%M%S.zip", time.gmtime())
+    if zip_to.exists():
+        return {
+            "state": "refused",
+            "why": f"{zip_to} is there already; never written over",
+        }
+    files = sorted(p for p in src.iterdir() if p.is_file())
+    with zipfile.ZipFile(zip_to, "w", zipfile.ZIP_DEFLATED) as z:
+        for f in files:
+            z.write(f, f.name)
+    with zipfile.ZipFile(zip_to) as z:
+        same = sorted(z.namelist()) == [f.name for f in files] and all(
+            z.read(f.name) == f.read_bytes() for f in files
+        )
+        sent = (
+            z.read("sent.jsonl").decode().splitlines()
+            if "sent.jsonl" in z.namelist()
+            else []
+        )
+    if not same or not chain_holds(sent):
+        zip_to.unlink()
+        return {
+            "state": "refused",
+            "why": "the runtime's copy didn't check out; deleted",
+        }
+    return {"state": "kept", "box": made.group(0) if made else run.stdout.strip(),
+            "runtime": zip_to.name, "files": [f.name for f in files]}  # fmt: skip
 
 
 def pin_sent(box: Path, to: Path) -> dict:
@@ -360,6 +412,7 @@ VERBS = {
         "leave": lambda box, arg: leave(box, Path(str(arg))),
         "sent": lambda box, arg: sent_log(box),
         "waiting": lambda box, arg: waiting(box),
+        "backup": lambda box, arg: backup(box, Path(str(arg))),
         "pin": lambda box, arg: pin_sent(box, Path(str(arg))),
         "check": lambda box, arg: check_sent(box, Path(str(arg))),
     },
