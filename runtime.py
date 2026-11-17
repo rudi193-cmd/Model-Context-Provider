@@ -79,6 +79,29 @@ def sent_log(box: Path) -> dict:
     return {"state": "populated" if rows else "empty", "rows": rows, "breaks": breaks}
 
 
+def waiting(box: Path) -> dict:
+    """What waits on the person's seal, each with what it is: the kernel's own
+    out, and each proposal's file read from the box for its claim, where it
+    would be written and its words. The runtime reads; it never seals."""
+    run = willow("kernel.py", "out", "--box", str(box))
+    if run.returncode == 2:
+        return {"state": "refused", "why": run.stderr.strip()}
+    out = []
+    for line in run.stdout.splitlines():
+        if not line.startswith("waiting on your seal: proposal:"):
+            continue
+        subject = line.split(": ", 1)[1]
+        f = box / "proposals" / f"{subject[len('proposal:') :]}.json"
+        try:
+            prop = json.loads(f.read_text())
+        except (OSError, ValueError):
+            out.append({"seal": subject, "claim": "its file can't be read"})
+            continue
+        out.append({"seal": subject, "claim": prop.get("claim", ""),
+                    "path": prop.get("path", ""), "words": str(prop.get("data", ""))[:500]})  # fmt: skip
+    return {"state": "waiting" if out else "empty", "waiting": out}
+
+
 def pin_sent(box: Path, to: Path) -> dict:
     """Where the sent log ends, written to a file the person keeps out of the
     runtime's reach (Willow's tip-pin, for this log): how many lines, and the
@@ -336,6 +359,7 @@ VERBS = {
         "propose": lambda box, arg: propose(box),
         "leave": lambda box, arg: leave(box, Path(str(arg))),
         "sent": lambda box, arg: sent_log(box),
+        "waiting": lambda box, arg: waiting(box),
         "pin": lambda box, arg: pin_sent(box, Path(str(arg))),
         "check": lambda box, arg: check_sent(box, Path(str(arg))),
     },
