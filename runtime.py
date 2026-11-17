@@ -34,3 +34,27 @@ def read(box: Path, question: str) -> dict:
     if run.returncode == 2:
         return {"state": "refused", "why": run.stderr.strip()}
     return json.loads(run.stdout)
+
+
+APPROVED_ONLY = "adapters/stdlib/approved-only/approved_only.py"
+
+
+def propose(box: Path) -> dict:
+    """Propose what may leave: the passages the last read served, as one scope
+    for the person to seal. The runtime only proposes; it never seals."""
+    run = willow(APPROVED_ONLY, "scope", "--box", str(box))
+    subject = next(
+        (w for w in run.stdout.split() if w.startswith("proposal:")), None
+    )
+    if run.returncode == 2 or subject is None:
+        return {"state": "refused", "why": (run.stderr or run.stdout).strip()}
+    return {"state": "waiting", "seal": subject}
+
+
+def leave(box: Path, to: Path) -> dict:
+    """Let context leave. Line 1: only a scope the person sealed leaves, as the
+    one file the model reads; without one, nothing is written and it says so."""
+    run = willow(APPROVED_ONLY, "--box", str(box), "--to", str(to))
+    if run.returncode != 0:
+        return {"state": "refused", "why": run.stderr.strip()}
+    return {"state": "left", "to": str(to)}
