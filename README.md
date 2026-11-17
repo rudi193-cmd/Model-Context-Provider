@@ -33,6 +33,12 @@ itself; a test fails any door that does.
     WILLOW=/path/to/Willow python -m pytest tests
     python doors/mcp.py --box DIR
 
+A box made by Willow's UI (**Start it**) is at `STACK/mine/FOLDER/box`, made
+with the words you typed into the words step and sealed. Point a door at it
+and your words reach your files through every door, with nothing here doing
+it: the kernel reads the box's own words list on every question, and the list
+itself never leaves (`tests/test_words.py`).
+
 ### In a real client
 
 Claude Code, with only this door and nothing else of yours:
