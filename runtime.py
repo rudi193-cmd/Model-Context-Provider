@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -103,7 +104,9 @@ def propose(box: Path) -> dict:
     f = state(box) / "scopes.json"
     scopes = json.loads(f.read_text()) if f.exists() else {}
     served = json.loads((state(box) / "last-read.json").read_text())
-    scopes[subject] = sorted(s["text"].strip() for s in served)
+    scopes[subject] = sorted(
+        s.strip() for s in withhold(box, [s["text"] for s in served])
+    )
     f.write_text(json.dumps(scopes))
     return {"state": "waiting", "seal": subject}
 
@@ -125,6 +128,36 @@ FACES = {"pipe": "person", "mcp": "model", "hook": "model"}
 SENTENCE_CHECK = "adapters/stdlib/sentence-check/sentence_check.py"
 
 
+PRIVACY = "adapters/stdlib/privacy/privacy.py"
+SPLIT = "\n\x1eunnamed-split\x1e\n"
+
+
+def names(box: Path) -> list[str]:
+    """The names the person wants kept out of anything that leaves, one a
+    line in names.txt beside the box."""
+    f = state(box) / "names.txt"
+    if not f.exists():
+        return []
+    return [n.strip() for n in f.read_text().splitlines() if n.strip()]
+
+
+def withhold(box: Path, texts: list[str]) -> list[str]:
+    """Texts as they may leave: Willow's privacy scrub (numbers, emails, keys),
+    then each name the person listed, as [withheld: name]. One pass for all,
+    so a page and what it is compared with are withheld the same way."""
+    run = subprocess.run(
+        [sys.executable, PRIVACY, "scrub"], cwd=WILLOW, input=SPLIT.join(texts),
+        capture_output=True, text=True, check=False,
+    )  # fmt: skip
+    if run.returncode != 0:
+        raise RuntimeError("privacy scrub failed: " + run.stderr.strip()[:200])
+    out = run.stdout.removesuffix("\n").split(SPLIT)
+    for name in names(box):
+        pat = re.compile(r"(?<!\w)" + re.escape(name) + r"(?!\w)", re.IGNORECASE)
+        out = [pat.sub("[withheld: name]", s) for s in out]
+    return out
+
+
 def sealed_page(box: Path) -> dict:
     """The sealed scope's one file, as text, written outside the box and
     removed; or the refusal."""
@@ -133,7 +166,11 @@ def sealed_page(box: Path) -> dict:
         got = leave(box, page)
         if got["state"] != "left":
             return got
-        return {"state": "left", "page": page.read_text()}
+        try:
+            (text,) = withhold(box, [page.read_text()])
+        except RuntimeError as why:  # can't withhold: nothing leaves
+            return {"state": "refused", "why": str(why)}
+        return {"state": "left", "page": text}
 
 
 def leave_to_model(box: Path) -> dict:
@@ -200,7 +237,8 @@ def answer(box: Path, sentence: str) -> dict:
     if run.returncode == 42:
         return {"state": "struck", "checks": checks}
     served = json.loads((state(box) / "last-read.json").read_text())
-    by_text = {s["text"].strip(): s["id"] for s in served}
+    out = withhold(box, [s["text"] for s in served]) if served else []
+    by_text = {w.strip(): s["id"] for w, s in zip(out, served)}
     cites = [by_text.get(b["text"].strip()) for b in boxes]
     if None in cites:
         return {"state": "refused", "why": "the page is not what the last read served"}
