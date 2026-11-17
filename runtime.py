@@ -111,12 +111,26 @@ def propose(box: Path) -> dict:
     return {"state": "waiting", "seal": subject}
 
 
-def leave(box: Path, to: Path) -> dict:
-    """Let context leave. Line 1: only a scope the person sealed leaves, as the
-    one file the model reads; without one, nothing is written and it says so."""
+def serve(box: Path, to: Path) -> dict:
+    """Willow's approved-only: the last sealed scope as one file, or refused."""
     run = willow(APPROVED_ONLY, "--box", str(box), "--to", str(to))
     if run.returncode != 0:
         return {"state": "refused", "why": run.stderr.strip()}
+    return {"state": "left", "to": str(to)}
+
+
+def leave(box: Path, to: Path) -> dict:
+    """Let context leave as a file. Line 1: only a scope the person sealed,
+    whole and withheld, the same page a model would get; never into the box
+    or the folder it reads."""
+    pile = Path(json.loads((box / "kernel.json").read_text()).get("pile", box))
+    for name, root in (("the box", box), ("your folder", pile)):
+        if to.resolve().is_relative_to(root.resolve()):
+            return {"state": "refused", "why": f"{to} is inside {name}"}
+    got = sealed_page(box)
+    if got["state"] != "left":
+        return got
+    to.write_text(got["page"])
     return {"state": "left", "to": str(to)}
 
 
@@ -163,14 +177,25 @@ def sealed_page(box: Path) -> dict:
     removed; or the refusal."""
     with tempfile.TemporaryDirectory() as d:
         page = Path(d) / "served.md"
-        got = leave(box, page)
+        got = serve(box, page)
         if got["state"] != "left":
             return got
         try:
             (text,) = withhold(box, [page.read_text()])
         except RuntimeError as why:  # can't withhold: nothing leaves
             return {"state": "refused", "why": str(why)}
-        return {"state": "left", "page": text}
+    # approved-only drops a sealed passage that has since changed in the files,
+    # and serves the rest without saying so: a page leaves only whole, as a
+    # scope this runtime proposed
+    f = state(box) / "scopes.json"
+    scopes = json.loads(f.read_text()) if f.exists() else {}
+    held = sorted(b["text"].strip() for b in boxes_of(text))
+    if held not in scopes.values():
+        return {"state": "refused",
+                "why": "the sealed scope is not whole: a passage of it changed in "
+                       "the files since it was sealed, or this runtime never "
+                       "proposed it; nothing leaves until a scope is sealed again"}  # fmt: skip
+    return {"state": "left", "page": text}
 
 
 def leave_to_model(box: Path) -> dict:
