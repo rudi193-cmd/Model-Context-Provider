@@ -89,7 +89,7 @@ def waiting(box: Path) -> dict:
     would be written and its words. The runtime reads; it never seals."""
     run = willow("kernel.py", "out", "--box", str(box))
     if run.returncode == 2:
-        return {"state": "refused", "why": run.stderr.strip()}
+        return {"state": "refused", "code": "record_broken", "why": run.stderr.strip()}
     out = []
     for line in run.stdout.splitlines():
         if not line.startswith("waiting on your seal: proposal:"):
@@ -125,13 +125,18 @@ def backup(box: Path, to: Path) -> dict:
     deleted. Neither holds the key."""
     run = willow(BACKUP, "--box", str(box), "--to", str(to))
     if run.returncode != 0:
-        return {"state": "refused", "why": (run.stderr or run.stdout).strip()}
+        return {
+            "state": "refused",
+            "code": "backup_place",
+            "why": (run.stderr or run.stdout).strip(),
+        }
     made = re.search(r"willow-backup-\S+\.zip", run.stdout)
     src = state(box)
     zip_to = to / time.strftime("unnamed-runtime-%Y%m%d-%H%M%S.zip", time.gmtime())
     if zip_to.exists():
         return {
             "state": "refused",
+            "code": "exists",
             "why": f"{zip_to} is there already; never written over",
         }
     files = sorted(p for p in src.iterdir() if p.is_file())
@@ -151,6 +156,7 @@ def backup(box: Path, to: Path) -> dict:
         zip_to.unlink()
         return {
             "state": "refused",
+            "code": "copy_bad",
             "why": "the runtime's copy didn't check out; deleted",
         }
     return {"state": "kept", "box": made.group(0) if made else run.stdout.strip(),
@@ -165,16 +171,19 @@ def pin_sent(box: Path, to: Path) -> dict:
     if got["breaks"]:
         return {
             "state": "refused",
+            "code": "log_changed",
             "why": f"the log doesn't hold at line {got['breaks'][0]}",
         }
     if to.exists():
         return {
             "state": "refused",
+            "code": "exists",
             "why": f"{to} is there already; a pin is never written over",
         }
     if to.resolve().is_relative_to(box.parent.resolve()):
         return {
             "state": "refused",
+            "code": "pin_beside",
             "why": "a pin beside the box is in the runtime's reach",
         }
     lines = (state(box) / "sent.jsonl").read_text().splitlines() if got["rows"] else []
@@ -190,11 +199,12 @@ def check_sent(box: Path, pin: Path) -> dict:
         want = json.loads(pin.read_text())
         rows, tip = int(want["rows"]), str(want["tip"])
     except (OSError, ValueError, KeyError, TypeError):
-        return {"state": "refused", "why": f"{pin} is not a pin"}
+        return {"state": "refused", "code": "not_pin", "why": f"{pin} is not a pin"}
     got = sent_log(box)
     if got["breaks"]:
         return {
             "state": "refused",
+            "code": "log_changed",
             "why": f"the log doesn't hold at line {got['breaks'][0]}",
         }
     lines = (state(box) / "sent.jsonl").read_text().splitlines() if got["rows"] else []
@@ -210,7 +220,7 @@ def read(box: Path, question: str) -> dict:
     as the kernel answers it."""
     run = willow("kernel.py", "bite", "--box", str(box), question)
     if run.returncode == 2:
-        return {"state": "refused", "why": run.stderr.strip()}
+        return {"state": "refused", "code": "record_broken", "why": run.stderr.strip()}
     got = json.loads(run.stdout)
     if "served" in got:  # kept beside the box, to hold a model's answer to it
         (state(box) / "last-read.json").write_text(json.dumps(got["served"]))
@@ -226,7 +236,11 @@ def propose(box: Path) -> dict:
     run = willow(APPROVED_ONLY, "scope", "--box", str(box))
     subject = next((w for w in run.stdout.split() if w.startswith("proposal:")), None)
     if run.returncode == 2 or subject is None:
-        return {"state": "refused", "why": (run.stderr or run.stdout).strip()}
+        return {
+            "state": "refused",
+            "code": "nothing_to_scope",
+            "why": (run.stderr or run.stdout).strip(),
+        }
     # what this scope holds, kept beside the box, so a page can be matched to it
     f = state(box) / "scopes.json"
     scopes = json.loads(f.read_text()) if f.exists() else {}
@@ -242,7 +256,7 @@ def serve(box: Path, to: Path) -> dict:
     """Willow's approved-only: the last sealed scope as one file, or refused."""
     run = willow(APPROVED_ONLY, "--box", str(box), "--to", str(to))
     if run.returncode != 0:
-        return {"state": "refused", "why": run.stderr.strip()}
+        return {"state": "refused", "code": "not_sealed", "why": run.stderr.strip()}
     return {"state": "left", "to": str(to)}
 
 
@@ -253,7 +267,11 @@ def leave(box: Path, to: Path) -> dict:
     pile = Path(json.loads((box / "kernel.json").read_text()).get("pile", box))
     for name, root in (("the box", box), ("your folder", pile)):
         if to.resolve().is_relative_to(root.resolve()):
-            return {"state": "refused", "why": f"{to} is inside {name}"}
+            return {
+                "state": "refused",
+                "code": "inside",
+                "why": f"{to} is inside {name}",
+            }
     got = sealed_page(box)
     if got["state"] != "left":
         return got
@@ -335,10 +353,14 @@ def draft(box: Path, question: str, ask=None, door: str = "") -> dict:
         try:
             ask = the_local_model(box)
         except (OSError, ValueError, KeyError) as why:
-            return {"state": "refused", "why": f"model.json: {why}"}
+            return {
+                "state": "refused",
+                "code": "model_json",
+                "why": f"model.json: {why}",
+            }
     if ask is None:
         return {"state": "refused",
-                "why": "no model to ask: the client can't sample, and no model.json names one"}  # fmt: skip
+                "code": "no_model", "why": "no model to ask: the client can't sample, and no model.json names one"}  # fmt: skip
     got = context(box, question)
     if got["state"] != "left":
         return {"state": got["state"], "asked": False}
@@ -350,7 +372,11 @@ def draft(box: Path, question: str, ask=None, door: str = "") -> dict:
         try:
             text = str(ask(DRAFT_SYSTEM, prompt)).strip()
         except Exception as why:  # noqa: BLE001 - a client that fails asks nothing more
-            return {"state": "refused", "why": f"the client's model: {why}"}
+            return {
+                "state": "refused",
+                "code": "model_failed",
+                "why": f"the client's model: {why}",
+            }
         said = answer(box, text)
         said["sentence"] = text
         if said["state"] != "struck":
@@ -360,6 +386,67 @@ def draft(box: Path, question: str, ask=None, door: str = "") -> dict:
         ]
         prompt += f"\n\nYour sentence was struck: {'; '.join(failed)}. Try once more."
     return {**said, "asked": True}
+
+
+#: every refusal, in plain words: what happened, and the one thing to do next.
+#: {box} is the person's record, {verbs} what this door can do. A refusal's
+#: own words ("why") stay with it, for whoever needs the detail.
+PLAIN = {
+    "record_broken": ("Your record wouldn't open.",
+                      "Run: python kernel.py verify --box {box} (it says what's wrong)."),
+    "nothing_to_scope": ("There's nothing to share yet: no question has found anything in your files.",
+                         "Ask a question your files answer, then propose it."),
+    "not_sealed": ("Nothing is sealed for this, so nothing was shared.",
+                   "Look at what waits on you (waiting) and seal the one you mean to share."),
+    "not_whole": ("Something you sealed has changed in your files since, so nothing was shared.",
+                  "Ask the question again in other words, propose it, and seal it again."),
+    "scrub_failed": ("The step that hides names and numbers couldn't run, so nothing was shared.",
+                     "Check that WILLOW points at your Willow folder."),
+    "inside": ("That place is inside your record or your folder.",
+               "Choose a place outside both."),
+    "no_page": ("There's no page to answer yet.",
+                "Get the sealed page first (leave), then answer it."),
+    "not_scope": ("The page being answered isn't one that was sealed.",
+                  "Get the page again (leave) and answer that."),
+    "check_failed": ("The check on the answer couldn't run.",
+                     "Check that WILLOW points at your Willow folder."),
+    "answer_refused": ("Your record wouldn't take the answer.",
+                       "Try the answer again; nothing was written."),
+    "no_model": ("There's no model to ask.",
+                 ('Name one on this machine in model.json beside your record: '
+                  '{{"url": "http://127.0.0.1:11434/v1", "model": "NAME"}}.')),
+    "model_json": ("model.json can't be used.",
+                   ('Make it {{"url": "http://127.0.0.1:11434/v1", "model": "NAME"}}, '
+                    "with a url on this machine.")),
+    "model_failed": ("The model didn't answer, so nothing was proposed.",
+                     "Check it's running: models lists what this machine runs."),
+    "no_verb": ("That isn't something this door does.",
+                "This door can: {verbs}."),
+    "backup_place": ("The backup can't go there.",
+                     "Choose a place outside your record, your folder and your key's folder: a USB stick."),
+    "exists": ("There's already a file by that name, and it's never written over.",
+               "Choose another name or place."),
+    "copy_bad": ("The copy didn't check out, so it was deleted.",
+                 "Try again, somewhere else."),
+    "log_changed": ("Your sent log has been changed since it was written.",
+                    "Hold it to your pin (check), and compare it with your backup."),
+    "pin_beside": ("A pin kept beside your record can be changed along with it.",
+                   "Keep it somewhere else: a USB stick, another machine."),
+    "not_pin": ("That file isn't a pin.",
+                "Point check at the file pin wrote."),
+}  # fmt: skip
+
+
+def plain(got: dict, box: Path, faces: str, verbs) -> dict:
+    """A refusal with its plain words added: say, and next. A model's door gets
+    the next step as something to tell the person."""
+    if got.get("state") != "refused" or "say" in got:
+        return got
+    say, nxt = PLAIN.get(got.get("code", ""), (got.get("why", "Refused."), ""))
+    nxt = nxt.format(box=box, verbs=", ".join(sorted(verbs)))
+    if faces == "model" and nxt:
+        nxt = "Tell the person: " + nxt
+    return {**got, "say": say, "next": nxt}
 
 
 #: who is on the far side of each door. A door not named here faces a model:
@@ -411,7 +498,7 @@ def sealed_page(box: Path) -> dict:
         try:
             (text,) = withhold(box, [page.read_text()])
         except RuntimeError as why:  # can't withhold: nothing leaves
-            return {"state": "refused", "why": str(why)}
+            return {"state": "refused", "code": "scrub_failed", "why": str(why)}
     # approved-only drops a sealed passage that has since changed in the files,
     # and serves the rest without saying so: a page leaves only whole, as a
     # scope this runtime proposed
@@ -420,7 +507,7 @@ def sealed_page(box: Path) -> dict:
     held = sorted(b["text"].strip() for b in boxes_of(text))
     if held not in scopes.values():
         return {"state": "refused",
-                "why": "the sealed scope is not whole: a passage of it changed in "
+                "code": "not_whole", "why": "the sealed scope is not whole: a passage of it changed in "
                        "the files since it was sealed, or this runtime never "
                        "proposed it; nothing leaves until a scope is sealed again"}  # fmt: skip
     return {"state": "left", "page": text}
@@ -475,7 +562,11 @@ def answer(box: Path, sentence: str) -> dict:
     writes, and a struck sentence goes nowhere."""
     page = state(box) / "last-page.md"
     if not page.exists():
-        return {"state": "refused", "why": "nothing has left to you to answer"}
+        return {
+            "state": "refused",
+            "code": "no_page",
+            "why": "nothing has left to you to answer",
+        }
     boxes = boxes_of(page.read_text())
     with tempfile.TemporaryDirectory() as d:
         f = Path(d) / "boxes.json"
@@ -484,7 +575,7 @@ def answer(box: Path, sentence: str) -> dict:
             SENTENCE_CHECK, "--sentence", sentence, "--boxes", str(f), "--json"
         )
     if run.returncode not in (0, 42):
-        return {"state": "refused", "why": run.stderr.strip()}
+        return {"state": "refused", "code": "check_failed", "why": run.stderr.strip()}
     report = json.loads(run.stdout)
     checks = {r["where"]: r["what"] for g in report["groups"] for r in g["rows"]}
     if run.returncode == 42:
@@ -498,7 +589,11 @@ def answer(box: Path, sentence: str) -> dict:
     held = sorted(b["text"].strip() for b in boxes)
     scope = next((s for s, texts in scopes.items() if texts == held), None)
     if scope is None:
-        return {"state": "refused", "why": "the page is not a scope the person sealed"}
+        return {
+            "state": "refused",
+            "code": "not_scope",
+            "why": "the page is not a scope the person sealed",
+        }
     page_hash = hashlib.sha256(page.read_bytes()).hexdigest()
     prop = {"path": "answers/" + hashlib.sha256(sentence.encode()).hexdigest()[:12] + ".md",
             "data": sentence + "\n", "cites": [],
@@ -509,7 +604,11 @@ def answer(box: Path, sentence: str) -> dict:
         f.write_text(json.dumps(prop) + "\n")
         run = willow("kernel.py", "propose", "--box", str(box), "--file", str(f))
     if run.returncode == 2 or "refused" in run.stdout:
-        return {"state": "refused", "why": (run.stderr or run.stdout).strip()}
+        return {
+            "state": "refused",
+            "code": "answer_refused",
+            "why": (run.stderr or run.stdout).strip(),
+        }
     subject = next((w for w in run.stdout.split() if w.startswith("proposal:")), None)
     return {"state": "waiting", "seal": subject, "checks": checks, "path": prop["path"]}
 
@@ -545,12 +644,15 @@ VERBS = {
 
 def call(box: Path, verb: str, arg=None, door: str = "", ask=None) -> dict:
     """What every door calls: one verb, decided here, by who the door faces.
-    Whatever reaches a model, and every file that leaves, is written down."""
+    Whatever reaches a model, and every file that leaves, is written down.
+    A refusal comes back in plain words, with the one thing to do next."""
     faces = FACES.get(door, "model")
     verbs = VERBS[faces]
     if verb not in verbs:
-        return {"state": "refused", "why": f"no verb {verb!r}; one of {sorted(verbs)}"}
+        got = {"state": "refused", "code": "no_verb",
+               "why": f"no verb {verb!r}; one of {sorted(verbs)}"}  # fmt: skip
+        return plain(got, box, faces, verbs)
     got = verbs[verb](box, arg, ask=ask, door=door)
     if got.get("state") != "refused" and (faces == "model" or verb == "leave"):
         sent(box, door or "unknown", verb, got)
-    return got
+    return plain(got, box, faces, verbs)
