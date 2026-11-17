@@ -163,6 +163,44 @@ def backup(box: Path, to: Path) -> dict:
             "runtime": zip_to.name, "files": [f.name for f in files]}  # fmt: skip
 
 
+#: who is on the far side of each door, as a person says it
+FAR_SIDE = {"pipe": "you", "mcp": "the AI assistant (MCP)",
+            "hook": "the AI assistant (prompt hook)"}  # fmt: skip
+
+
+def shared(box: Path) -> dict:
+    """The sent log as a person reads it: when, to whom, and what, by place
+    (file and line) rather than hash, from the places kept beside the box.
+    Oldest first. A passage whose place isn't known is said so."""
+    log = sent_log(box)
+    f = state(box) / "places.json"
+    places = json.loads(f.read_text()) if f.exists() else {}
+    lines = []
+    for r in log["rows"]:
+        when = r["ts"].replace("T", " ").removesuffix("Z")[:16]
+        who = r.get("to") or FAR_SIDE.get(r["door"], f"the {r['door']} door")
+        if "page" in r:
+            where = [places.get(h, {}).get("where", "a passage whose place isn't kept")
+                     for h in r.get("passages", [])]  # fmt: skip
+            what = "the page you sealed: " + "; ".join(where)
+        elif r["verb"] in ("read", "context"):
+            what = ("whether your files hold the question: "
+                    + {"populated": "yes", "sealed": "yes", "empty": "no"}.get(r["state"], r["state"]))  # fmt: skip
+        elif r["verb"] in ("answer", "draft"):
+            what = {"waiting": "a sentence back, waiting on your seal",
+                    "struck": "a sentence back, struck by the check"}.get(r["state"], r["state"])  # fmt: skip
+        elif r["verb"] == "propose":
+            what = "a question to share, waiting on your seal"
+        else:
+            what = f"{r['verb']}: {r['state']}"
+        lines.append(f"{when}  {who}: {what}")
+    if log["breaks"]:
+        lines.append(
+            f"(the log has been changed at line {log['breaks'][0]}; see check)"
+        )
+    return {"state": "populated" if lines else "empty", "lines": lines}
+
+
 def pin_sent(box: Path, to: Path) -> dict:
     """Where the sent log ends, written to a file the person keeps out of the
     runtime's reach (Willow's tip-pin, for this log): how many lines, and the
@@ -245,10 +283,17 @@ def propose(box: Path) -> dict:
     f = state(box) / "scopes.json"
     scopes = json.loads(f.read_text()) if f.exists() else {}
     served = json.loads((state(box) / "last-read.json").read_text())
-    scopes[subject] = sorted(
-        s.strip() for s in withhold(box, [s["text"] for s in served])
-    )
+    held = [s.strip() for s in withhold(box, [s["text"] for s in served])]
+    scopes[subject] = sorted(held)
     f.write_text(json.dumps(scopes))
+    # and where each passage lives, by the hash the sent log keeps of it, so
+    # the person can read the log as places: kept here, never sent
+    f = state(box) / "places.json"
+    places = json.loads(f.read_text()) if f.exists() else {}
+    for text, s in zip(held, served):
+        places[hashlib.sha256(text.encode()).hexdigest()] = {
+            "where": s["where"], "starts": text[:70]}  # fmt: skip
+    f.write_text(json.dumps(places))
     return {"state": "waiting", "seal": subject}
 
 
@@ -620,6 +665,7 @@ VERBS = {
         "propose": lambda box, arg, **kw: propose(box),
         "leave": lambda box, arg, **kw: leave(box, Path(str(arg))),
         "sent": lambda box, arg, **kw: sent_log(box),
+        "shared": lambda box, arg, **kw: shared(box),
         "waiting": lambda box, arg, **kw: waiting(box),
         "backup": lambda box, arg, **kw: backup(box, Path(str(arg))),
         "pin": lambda box, arg, **kw: pin_sent(box, Path(str(arg))),
