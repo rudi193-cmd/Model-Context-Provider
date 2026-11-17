@@ -1,0 +1,43 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Every job here only reads: checkouts and tests.
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.9 because Willow's kernel promises it; 3.14 the newest.
+        python-version: ["3.9", "3.14"]
+    steps:
+      # The runtime uses Willow by its command line, so both are checked out
+      # side by side, the layout a person's machine has.
+      - uses: actions/checkout@v7
+        with:
+          path: unnamed
+      - uses: actions/checkout@v7
+        with:
+          repository: willow-memory/Willow
+          path: Willow
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: pip install pytest ruff==0.16.7
+      - name: Lint
+        working-directory: unnamed
+        run: ruff check . && ruff format --check .
+      - name: Tests
+        working-directory: unnamed
+        env:
+          WILLOW: ${{ github.workspace }}/Willow
+        run: python -m pytest -q

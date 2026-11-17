@@ -9,4 +9,5 @@ Read [README.md](README.md) first: the two lines are the whole design.
   in `runtime.FACES`, or it is treated as facing a model.
 - **Willow by its command line only.** Nothing here imports or changes
   Willow's `kernel.py`.
-- **After a change:** `ruff check . && ruff format --check . && python -m pytest tests`.
+- **After a change:** `ruff check . && ruff format --check . && python -m pytest`,
+  with `WILLOW` pointing at Willow. CONTRIBUTING.md has the rest.

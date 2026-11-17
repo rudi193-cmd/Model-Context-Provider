@@ -1,0 +1,8 @@
+# Weekly updates for the workflow's actions. There are no packages to pin:
+# the runtime is the standard library and Willow beside it.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

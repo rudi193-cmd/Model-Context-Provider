@@ -1,0 +1,9 @@
+# The runtime runs Willow's kernel, which runs on Python 3.9+, so everything
+# here is linted for 3.9, under the same rules as Willow's own ruff.toml.
+target-version = "py39"
+line-length = 88
+
+[lint]
+# FA102: an `int | None` annotation 3.9 reads only after
+# `from __future__ import annotations`
+select = ["E4", "E7", "E9", "F", "FA102"]

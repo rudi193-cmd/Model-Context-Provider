@@ -8,7 +8,7 @@ the wire that carries it left as a detail. It starts from two lines.
 Make your record in Willow's UI (pick your folders, type your words, seal
 it, press **Start it**), then:
 
-    python setup.py --stack PATH/TO/YOUR/STACK
+    python set_up.py --stack PATH/TO/YOUR/STACK
 
 It checks your record, your words and Willow, and prints what to paste:
 the `claude mcp add --scope user …` line for Claude Code, the prompt hook

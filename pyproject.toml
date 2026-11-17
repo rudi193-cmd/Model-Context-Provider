@@ -1,0 +1,15 @@
+[project]
+name = "unnamed"
+version = "0.1.0"
+description = "A model context provider over Willow: one local runtime decides what a model is given; every way in is a door."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+# No dependencies: the standard library, and Willow beside it (WILLOW).
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff==0.16.7"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -8,12 +8,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-import runtime
-import setup
+import runtime  # noqa: E402
+import set_up as setup  # noqa: E402
 
 
 def run(*argv):
-    p = subprocess.run([sys.executable, str(ROOT / "setup.py"), *map(str, argv)],
+    p = subprocess.run([sys.executable, str(ROOT / "set_up.py"), *map(str, argv)],
                        capture_output=True, text=True, check=False)  # fmt: skip
     return p.returncode, p.stdout + p.stderr
 
@@ -38,7 +38,7 @@ def test_one_record_under_a_stack_is_found_checked_and_printed(box, tmp_path):
 
 def test_several_records_are_listed_to_choose_from(box, tmp_path):
     code, out = run("--stack", a_stack(tmp_path, box, 2))
-    assert code == 42 and out.count("python setup.py --box") == 2
+    assert code == 42 and out.count("python set_up.py --box") == 2
 
 
 def test_no_record_yet_says_to_press_start(tmp_path):

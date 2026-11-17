@@ -2,9 +2,9 @@
 client's: it checks what's there and prints what to paste. The one file it
 writes is model.json beside your record, and only when you name a model.
 
-    python setup.py --stack STACK            the stack Willow's UI made
-    python setup.py --box BOX                or one record directly
-    python setup.py --box BOX --model URL NAME   and the model on this machine
+    python set_up.py --stack STACK            the stack Willow's UI made
+    python set_up.py --box BOX                or one record directly
+    python set_up.py --box BOX --model URL NAME   and the model on this machine
 """
 
 from __future__ import annotations
@@ -103,7 +103,7 @@ def main(argv: list[str]) -> int:
             print("Your stack has a record for each folder. Run again with one:")
             print(
                 "\n".join(
-                    f"    python setup.py --box {shlex.quote(str(b))}" for b in found
+                    f"    python set_up.py --box {shlex.quote(str(b))}" for b in found
                 )
             )
             return 42
