@@ -301,12 +301,26 @@ def propose(box: Path) -> dict:
     return {"state": "waiting", "seal": subject}
 
 
-def serve(box: Path, to: Path) -> dict:
-    """Willow's approved-only: the last sealed scope as one file, or refused."""
-    run = willow(APPROVED_ONLY, "--box", str(box), "--to", str(to))
+def serve(box: Path, to: Path, scope: str | None = None) -> dict:
+    """Willow's approved-only: a sealed scope as one file (that subject's with
+    --scope, else the last sealed), or refused."""
+    argv = ["--box", str(box), "--to", str(to)] + (["--scope", scope] if scope else [])
+    run = willow(APPROVED_ONLY, *argv)
+    if run.returncode != 0 and "not whole" in run.stderr:
+        return {"state": "refused", "code": "not_whole", "why": run.stderr.strip()}
     if run.returncode != 0:
         return {"state": "refused", "code": "not_sealed", "why": run.stderr.strip()}
     return {"state": "left", "to": str(to)}
+
+
+def scopes(box: Path) -> dict:
+    f = state(box) / "scopes.json"
+    return json.loads(f.read_text()) if f.exists() else {}
+
+
+def stopped(box: Path) -> list[str]:
+    f = state(box) / "stopped.json"
+    return json.loads(f.read_text()) if f.exists() else []
 
 
 def leave(box: Path, to: Path) -> dict:
@@ -481,6 +495,10 @@ PLAIN = {
                     "Hold it to your pin (check), and compare it with your backup."),
     "pin_beside": ("A pin kept beside your record can be changed along with it.",
                    "Keep it somewhere else: a USB stick, another machine."),
+    "stopped": ("You stopped this from being shared.",
+                "To share it again, ask the question in other words, propose it, and seal it anew."),
+    "not_a_scope": ("That isn't a question you were asked to share.",
+                    "See them with scopes, and stop one by the seal it shows."),
     "not_pin": ("That file isn't a pin.",
                 "Point check at the file pin wrote."),
 }  # fmt: skip
@@ -536,29 +554,33 @@ def withhold(box: Path, texts: list[str]) -> list[str]:
     return out
 
 
-def sealed_page(box: Path) -> dict:
-    """The sealed scope's one file, as text, written outside the box and
-    removed; or the refusal."""
+def sealed_page(box: Path, scope: str | None = None) -> dict:
+    """A sealed scope's one file, as text, withheld (that subject's, else the
+    last sealed); or the refusal. It leaves only whole, as a scope this
+    runtime proposed, and never one the person stopped."""
     with tempfile.TemporaryDirectory() as d:
         page = Path(d) / "served.md"
-        got = serve(box, page)
+        got = serve(box, page, scope)
         if got["state"] != "left":
             return got
         try:
             (text,) = withhold(box, [page.read_text()])
         except RuntimeError as why:  # can't withhold: nothing leaves
             return {"state": "refused", "code": "scrub_failed", "why": str(why)}
-    # approved-only drops a sealed passage that has since changed in the files,
-    # and serves the rest without saying so: a page leaves only whole, as a
-    # scope this runtime proposed
-    f = state(box) / "scopes.json"
-    scopes = json.loads(f.read_text()) if f.exists() else {}
+    # the runtime's own check, behind approved-only's: whole, and one it proposed
     held = sorted(b["text"].strip() for b in boxes_of(text))
-    if held not in scopes.values():
-        return {"state": "refused",
-                "code": "not_whole", "why": "the sealed scope is not whole: a passage of it changed in "
-                       "the files since it was sealed, or this runtime never "
-                       "proposed it; nothing leaves until a scope is sealed again"}  # fmt: skip
+    known = scopes(box)
+    if (known.get(scope) if scope else None) != held and (
+        scope or held not in known.values()
+    ):
+        return {"state": "refused", "code": "not_whole",
+                "why": "the sealed scope is not whole, or this runtime never proposed it"}  # fmt: skip
+    if any(known.get(s) == held for s in stopped(box)):
+        return {
+            "state": "refused",
+            "code": "stopped",
+            "why": "the person stopped this scope",
+        }
     return {"state": "left", "page": text}
 
 
@@ -573,22 +595,58 @@ def leave_to_model(box: Path) -> dict:
 
 
 def context(box: Path, question: str) -> dict:
-    """What a model may be given with a prompt: the sealed page, when the
-    kernel says these words are sealed by a scope the runtime proposed and the
-    page holds exactly that scope; else only whether the files hold it. A page
+    """What a model may be given with a prompt: the page of the scope the
+    kernel says these words are sealed by, when the runtime proposed it and
+    it is whole and not stopped; else only whether the files hold it. A page
     sealed for another question stays out."""
     got = read(box, question)
     if got["state"] == "sealed":
-        f = state(box) / "scopes.json"
-        scope = (json.loads(f.read_text()) if f.exists() else {}).get(got.get("by"))
-        page = sealed_page(box)
-        if scope and page["state"] == "left":
-            held = sorted(b["text"].strip() for b in boxes_of(page["page"]))
-            if held == scope:
+        by = got.get("by")
+        if by in scopes(box):
+            page = sealed_page(box, by)
+            if page["state"] == "left":
                 (state(box) / "last-page.md").write_text(page["page"])
                 return page
         return {"state": "populated"}
     return {"state": got["state"]}
+
+
+def scope_list(box: Path) -> dict:
+    """Every question the person was asked to share, as places, and where
+    each stands: waiting on their seal, sealed, changed since they sealed it
+    (so it won't leave until sealed again), or stopped."""
+    f = state(box) / "places.json"
+    places = json.loads(f.read_text()) if f.exists() else {}
+    owed = {w["seal"] for w in waiting(box)["waiting"]}
+    out = []
+    for subject, texts in scopes(box).items():
+        where = [places.get(hashlib.sha256(x.encode()).hexdigest(), {}).get("where", "?")
+                 for x in texts]  # fmt: skip
+        if subject in stopped(box):
+            stands = "stopped: it won't be shared again"
+        elif subject in owed:
+            stands = "waiting on your seal"
+        else:
+            page = sealed_page(box, subject)
+            stands = {"left": "sealed",
+                      "not_whole": "changed in your files since you sealed it: seal it again to share it"}.get(
+                page.get("state") if page["state"] == "left" else page.get("code"), "not sealed")  # fmt: skip
+        out.append({"seal": subject, "places": where, "stands": stands})
+    return {"state": "populated" if out else "empty", "scopes": out}
+
+
+def stop(box: Path, subject: str) -> dict:
+    """Never let this scope leave again. A stop needs no key: refusing to send
+    only ever makes things safer. To share it again, seal it anew."""
+    if subject not in scopes(box):
+        return {
+            "state": "refused",
+            "code": "not_a_scope",
+            "why": f"{subject} isn't a scope proposed here",
+        }
+    f = state(box) / "stopped.json"
+    f.write_text(json.dumps(sorted({*stopped(box), subject})))
+    return {"state": "stopped", "seal": subject}
 
 
 def boxes_of(page: str) -> list[dict]:
@@ -670,6 +728,8 @@ VERBS = {
         "leave": lambda box, arg, **kw: leave(box, Path(str(arg))),
         "sent": lambda box, arg, **kw: sent_log(box),
         "shared": lambda box, arg, **kw: shared(box),
+        "scopes": lambda box, arg, **kw: scope_list(box),
+        "stop": lambda box, arg, **kw: stop(box, str(arg)),
         "waiting": lambda box, arg, **kw: waiting(box),
         "backup": lambda box, arg, **kw: backup(box, Path(str(arg))),
         "pin": lambda box, arg, **kw: pin_sent(box, Path(str(arg))),

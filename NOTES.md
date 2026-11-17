@@ -18,33 +18,19 @@ Two ways, and the choice is the person's, not code's:
   the box; a phone passkey later, if wanted). Willow's `share`, `browse`
   and `static-search` are the parts.
 
-## "I didn't mean to share that"
-
-A sealed scope that should never leave again. The kernel's `decline` is
-signed with the key, like `seal`. Without the key, the runtime could keep a
-stop list of scopes it won't serve: refusing to send only ever makes
-things safer, so it needs no key. Willow has `decisions` for a recorded no
-with its reason.
-
-## A sealed passage that changed
-
-A scope whose passage changed now fails closed (`tests/test_stale.py`):
-safe, but silent. The person should hear which scope, which file, and be
-offered to seal it again. Willow's `stale-answers` finds the same thing
-for approved answers.
-
-## Two sealed questions
-
-Willow's `approved-only` serves only the last sealed scope
-(`scopes[-1]` in `do_serve`), so an older sealed question gets nothing
-here (`tests/test_hook.py`, the two-scopes test). The fix is in Willow:
-let approved-only serve a scope by its subject. Take it there with the
-other approved-only finding: a sealed scope whose passage changed is
-served short, with no warning (`if i in by_id`).
-
 ## Restore
 
 `backup` keeps the box and the runtime's zip, checked. Putting the
 runtime's zip back is by hand: unzip it into `BOX.runtime/` beside the box.
 Willow's `restore-drill` proves a backup restores; the runtime's zip wants
 the same.
+
+## Built since
+
+- **Two sealed questions**, **a sealed passage that changed**: Willow's
+  approved-only now serves a sealed scope by name (`--scope`) and refuses
+  one that isn't whole (Willow branch `ccr-cddfc117-zpl0tu`, `d7c40dd`); the
+  runtime serves each question its own scope, and `scopes` says out loud
+  which one changed in the files since it was sealed.
+- **"I didn't mean to share that"**: `stop` keeps a scope from ever leaving
+  again, by any door, with no key; sharing it again means sealing it anew.

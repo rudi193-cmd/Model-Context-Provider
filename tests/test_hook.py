@@ -57,11 +57,12 @@ def test_whatever_it_is_sent_it_exits_0_and_says_nothing(box):
         assert (run.returncode, run.stdout) == (0, ""), stdin[:20]
 
 
-def test_two_scopes_sealed_the_older_ones_question_gets_no_page_not_the_wrong_one(box):
+def test_two_scopes_sealed_each_question_gets_its_own_page(box):
     runtime.read(box, FROST)
     seal(box, runtime.propose(box)["seal"])
     runtime.read(box, "when is the car's MOT due")
     seal(box, runtime.propose(box)["seal"])
-    run = prompt(box, FROST)  # approved-only serves the last sealed scope, the MOT's
-    assert "<sealed-page>" not in run.stdout and "MOT" not in run.stdout
-    assert "MOT" in prompt(box, "when is the car's MOT due").stdout
+    frost = prompt(box, FROST).stdout  # the older scope, served by its name
+    assert "first frost comes in late October" in frost and "MOT" not in frost
+    mot = prompt(box, "when is the car's MOT due").stdout
+    assert "MOT" in mot and "frost" not in mot

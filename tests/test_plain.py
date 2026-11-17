@@ -102,6 +102,13 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
     if code == "not_pin":
         (usb / "pin.json").write_text("hello")
         return runtime.call(box, "check", str(usb / "pin.json"), door="pipe")
+    if code == "stopped":
+        sealed(box)
+        subject = runtime.call(box, "scopes", door="pipe")["scopes"][0]["seal"]
+        runtime.call(box, "stop", subject, door="pipe")
+        return runtime.call(box, "leave", door="mcp")
+    if code == "not_a_scope":
+        return runtime.call(box, "stop", "proposal:" + "0" * 64, door="pipe")
     raise AssertionError(f"no scenario for {code}")
 
 
