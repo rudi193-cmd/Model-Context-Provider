@@ -23,7 +23,7 @@ WILLOW = Path(os.environ.get("WILLOW", HERE.parent / "Willow"))
 def willow(*args: str) -> subprocess.CompletedProcess:
     """Run one of Willow's commands, its output caught."""
     return subprocess.run(
-        [sys.executable, *args], cwd=WILLOW, capture_output=True, text=True
+        [sys.executable, *args], cwd=WILLOW, capture_output=True, text=True, check=False
     )
 
 
@@ -43,9 +43,7 @@ def propose(box: Path) -> dict:
     """Propose what may leave: the passages the last read served, as one scope
     for the person to seal. The runtime only proposes; it never seals."""
     run = willow(APPROVED_ONLY, "scope", "--box", str(box))
-    subject = next(
-        (w for w in run.stdout.split() if w.startswith("proposal:")), None
-    )
+    subject = next((w for w in run.stdout.split() if w.startswith("proposal:")), None)
     if run.returncode == 2 or subject is None:
         return {"state": "refused", "why": (run.stderr or run.stdout).strip()}
     return {"state": "waiting", "seal": subject}

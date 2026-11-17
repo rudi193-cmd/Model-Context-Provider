@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import runtime  # noqa: E402
+import runtime
 
 
 @pytest.fixture
@@ -18,8 +18,14 @@ def box(tmp_path):
     (pile / "car.md").write_text("The car's MOT is due on the 3rd of March.\n")
     b = tmp_path / "box"
     run = runtime.willow(
-        "kernel.py", "init", "--box", str(b), "--pile", str(pile),
-        "--key", str(tmp_path / "test.key"),
+        "kernel.py",
+        "init",
+        "--box",
+        str(b),
+        "--pile",
+        str(pile),
+        "--key",
+        str(tmp_path / "test.key"),
     )
     assert run.returncode == 0, run.stderr
     return b
