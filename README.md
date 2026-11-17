@@ -17,6 +17,22 @@ the wire that carries it left as a detail. It starts from two lines.
 
 Both are proposals. Nothing here is sealed.
 
+## What is built
+
+| Piece | What it does | Held by |
+|---|---|---|
+| `runtime.py` | The one place that decides. Reads through Willow's kernel (no grant); proposes a scope; lets out only a scope the person sealed | `tests/test_read.py`, `tests/test_leave.py` |
+| `runtime.FACES` | Who is on the far side of each door. A model's door gets whether the files hold a question, never the passages; those reach it only as the sealed scope's one page. A door the runtime doesn't know faces a model | `tests/test_doors.py` |
+| `runtime.answer` | A model's only way back: one sentence about the page it was given, held by Willow's sentence-check, then proposed through the kernel to wait for the person's seal | `tests/test_answer.py` |
+| `doors/pipe.py` | A person's door: one JSON request a line | `tests/test_doors.py` |
+| `doors/mcp.py` | A model's door: MCP over stdio, by hand, the shape of Willow's mcp-lite | `tests/test_doors.py` |
+
+A door imports the runtime and nothing that decides, and never calls Willow
+itself; a test fails any door that does.
+
+    WILLOW=/path/to/Willow python -m pytest tests
+    python doors/mcp.py --box DIR
+
 ## Where they come from
 
 Both are rules of the one-box plan in willows-grove,
