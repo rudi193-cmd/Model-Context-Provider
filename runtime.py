@@ -16,6 +16,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -34,6 +35,46 @@ def state(box: Path) -> Path:
     d = box.parent / (box.name + ".runtime")
     d.mkdir(exist_ok=True)
     return d
+
+
+def sent(box: Path, door: str, verb: str, got: dict) -> dict:
+    """Write down what just reached the far side of a door that faces a model,
+    or a file leaving: the door, the verb, the state, and for a page each
+    passage's hash and its page's hash, never the text. Each line names the
+    hash of the one before it, so a cut or an edit shows. Returns got."""
+    f = state(box) / "sent.jsonl"
+    lines = f.read_text().splitlines() if f.exists() else []
+    prev = hashlib.sha256(lines[-1].encode()).hexdigest() if lines else ""
+    row = {"n": len(lines), "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+           "door": door, "verb": verb, "state": got.get("state"), "prev": prev}  # fmt: skip
+    page = got.get("page")
+    if page is not None:
+        row["page"] = hashlib.sha256(page.encode()).hexdigest()
+        row["passages"] = [
+            hashlib.sha256(b["text"].encode()).hexdigest() for b in boxes_of(page)
+        ]
+    if got.get("to"):
+        row["to"] = got["to"]
+    with f.open("a") as out:
+        out.write(json.dumps(row, sort_keys=True) + "\n")
+    return got
+
+
+def sent_log(box: Path) -> dict:
+    """What has left, oldest first, and whether the log still holds: each line
+    names the hash of the one before it. The last line has no later one to
+    vouch for it, so a cut or edit there doesn't show; keeping the newest
+    hash somewhere the log can't reach closes that (Willow's tip-pin)."""
+    f = state(box) / "sent.jsonl"
+    lines = f.read_text().splitlines() if f.exists() else []
+    rows, breaks = [], []
+    for i, line in enumerate(lines):
+        row = json.loads(line)
+        want = hashlib.sha256(lines[i - 1].encode()).hexdigest() if i else ""
+        if row.get("prev") != want or row.get("n") != i:
+            breaks.append(i)
+        rows.append(row)
+    return {"state": "populated" if rows else "empty", "rows": rows, "breaks": breaks}
 
 
 def read(box: Path, question: str) -> dict:
@@ -182,6 +223,7 @@ VERBS = {
         "read": lambda box, arg: read(box, str(arg)),
         "propose": lambda box, arg: propose(box),
         "leave": lambda box, arg: leave(box, Path(str(arg))),
+        "sent": lambda box, arg: sent_log(box),
     },
     "model": {
         # read is open, but its passages would leave to the model: it gets the
@@ -196,8 +238,13 @@ VERBS = {
 
 
 def call(box: Path, verb: str, arg=None, door: str = "") -> dict:
-    """What every door calls: one verb, decided here, by who the door faces."""
-    verbs = VERBS[FACES.get(door, "model")]
+    """What every door calls: one verb, decided here, by who the door faces.
+    Whatever reaches a model, and every file that leaves, is written down."""
+    faces = FACES.get(door, "model")
+    verbs = VERBS[faces]
     if verb not in verbs:
         return {"state": "refused", "why": f"no verb {verb!r}; one of {sorted(verbs)}"}
-    return verbs[verb](box, arg)
+    got = verbs[verb](box, arg)
+    if got.get("state") != "refused" and (faces == "model" or verb == "leave"):
+        sent(box, door or "unknown", verb, got)
+    return got
