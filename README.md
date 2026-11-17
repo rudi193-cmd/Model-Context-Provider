@@ -62,6 +62,7 @@ beside the person's record.
 | `shared`: what left, as places, not hashes | |
 | `close`: this session's actions, for one seal | |
 | `owed`: what waits on their seal, in one line | |
+| `restore`: what `backup` kept beside the record, put back, never over a file | |
 | `draft`, `models`, `backup`, `pin`, `check`, `sent` | |
 
 Neither side can seal or decline. Sealing is the person's, with their key,
@@ -96,6 +97,7 @@ Your own door, for everything a model can't do:
     {"waiting": true}
     {"shared": true}
     {"backup": "/media/usb"}
+    {"restore": "/media/usb/model-context-provider-20261117-120000.zip"}
 
 ## The doors
 
@@ -200,7 +202,6 @@ this ([willow-memory/Willow#373](https://github.com/willow-memory/Willow/pull/37
   Two ways are open: MCP elicitation, where the client shows the person a
   form, or a page to seal from. That choice is the person's to make.
   [NOTES.md](NOTES.md) has both.
-- **Restore** of the runtime's backup is by hand.
 - **Models off this machine** are refused. Sending even a sealed page to
   someone else's server is a bigger step, and would be the person's
   explicit line in `model.json`.

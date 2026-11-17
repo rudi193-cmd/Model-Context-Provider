@@ -166,6 +166,52 @@ def backup(box: Path, to: Path) -> dict:
             "runtime": zip_to.name, "files": [f.name for f in files]}  # fmt: skip
 
 
+def restore(box: Path, frm: Path) -> dict:
+    """The runtime's zip from a backup, put back beside the box. The zip is
+    checked first, as Willow's restore-drill checks a box backup: flat names
+    only, every CRC, no key, no box, the sent log's chain. Nothing is ever
+    written over: a file already there that differs refuses the whole restore,
+    and one that is the same is left alone. What is written is read back."""
+    if not (box / "kernel.json").is_file():
+        return {"state": "refused", "code": "no_box",
+                "why": f"no box at {box}; restore the box first"}  # fmt: skip
+    try:
+        with zipfile.ZipFile(frm) as z:
+            names = z.namelist()
+            bad = z.testzip()
+            got = {n: z.read(n) for n in names} if bad is None else {}
+    except (OSError, zipfile.BadZipFile) as why:
+        return {"state": "refused", "code": "not_backup",
+                "why": f"{frm}: {type(why).__name__}"}  # fmt: skip
+    if (
+        bad is not None
+        or not names
+        or any(Path(n).name != n or n in ("", ".", "..") for n in names)
+        or any(
+            n.endswith(".key") or n in ("kernel.json", "record.jsonl") for n in names
+        )
+        or not chain_holds(got.get("sent.jsonl", b"").decode().splitlines())
+    ):
+        return {"state": "refused", "code": "not_backup",
+                "why": f"{frm} isn't a whole copy of the runtime's files"}  # fmt: skip
+    dest = state(box)
+    there = {n: dest / n for n in names if (dest / n).exists()}
+    differ = sorted(
+        n for n, p in there.items() if not p.is_file() or p.read_bytes() != got[n]
+    )
+    if differ:
+        return {"state": "refused", "code": "restore_over",
+                "why": f"already there and not the same: {', '.join(differ)}"}  # fmt: skip
+    new = sorted(n for n in names if n not in there)
+    for n in new:
+        with open(dest / n, "xb") as f:
+            f.write(got[n])
+    if any((dest / n).read_bytes() != got[n] for n in new):
+        return {"state": "refused", "code": "copy_bad",
+                "why": "a restored file didn't read back the same"}  # fmt: skip
+    return {"state": "restored", "files": new, "same": sorted(there)}
+
+
 #: who is on the far side of each door, as a person says it
 FAR_SIDE = {"pipe": "you", "mcp": "the AI assistant (MCP)",
             "hook": "the AI assistant (prompt hook)"}  # fmt: skip
@@ -530,6 +576,12 @@ PLAIN = {
                "Choose another name or place."),
     "copy_bad": ("The copy didn't check out, so it was deleted.",
                  "Try again, somewhere else."),
+    "no_box": ("There's no record to put this back beside.",
+               "Put your record back first: unzip its backup where it goes, and copy your key back."),
+    "not_backup": ("That file isn't a whole backup of what this keeps beside your record, so nothing was put back.",
+                   "Point restore at the model-context-provider zip that backup made."),
+    "restore_over": ("Something here already differs from the backup, and it's never written over, so nothing was put back.",
+                     "Move the files it names somewhere else first, if you mean the backup's to win."),
     "log_changed": ("Your sent log has been changed since it was written.",
                     "Hold it to your pin (check), and compare it with your backup."),
     "pin_beside": ("A pin kept beside your record can be changed along with it.",
@@ -822,6 +874,7 @@ VERBS = {
         "stop": lambda box, arg, **kw: stop(box, str(arg)),
         "waiting": lambda box, arg, **kw: waiting(box),
         "backup": lambda box, arg, **kw: backup(box, Path(str(arg))),
+        "restore": lambda box, arg, **kw: restore(box, Path(str(arg))),
         "pin": lambda box, arg, **kw: pin_sent(box, Path(str(arg))),
         "check": lambda box, arg, **kw: check_sent(box, Path(str(arg))),
         "models": lambda box, arg, **kw: models(box),

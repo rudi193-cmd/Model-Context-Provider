@@ -18,15 +18,14 @@ Two ways, and the choice is the person's, not code's:
   the box; a phone passkey later, if wanted). Willow's `share`, `browse`
   and `static-search` are the parts.
 
-## Restore
-
-`backup` keeps the box and the runtime's zip, checked. Putting the
-runtime's zip back is by hand: unzip it into `BOX.runtime/` beside the box.
-Willow's `restore-drill` proves a backup restores; the runtime's zip wants
-the same.
-
 ## Built since
 
+- **Restore**: `restore` puts the runtime's zip back beside the box, after
+  checking it the way Willow's `restore-drill` checks a box backup (flat
+  names, every CRC, no key, no box, the sent log's chain). It never writes
+  over a file: one that differs refuses the whole restore. The box itself
+  is still restored by hand, as Willow's `backup` README says: unzip it,
+  copy the key back.
 - **Two sealed questions**, **a sealed passage that changed**: Willow's
   approved-only now serves a sealed scope by name (`--scope`) and refuses
   one that isn't whole (Willow branch `ccr-cddfc117-zpl0tu`, `d7c40dd`); the

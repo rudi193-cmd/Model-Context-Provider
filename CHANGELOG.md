@@ -4,6 +4,11 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Restore.** The person's `restore` puts the runtime's zip from a backup
+  back beside the box: checked first (flat names, every CRC, no key, no box,
+  the sent log's chain), never written over a file that differs, each file
+  read back. Three new refusals in plain words: `no_box`, `not_backup`,
+  `restore_over`.
 - **The runtime and its two lines.** Reading through Willow's kernel needs no
   grant; only a scope the person sealed leaves, whole, as one page.
 - **Doors:** a pipe for the person; MCP over stdio and Claude Code's prompt

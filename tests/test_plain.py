@@ -112,6 +112,16 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
     if code == "session_failed":
         monkeypatch.setattr(runtime, "SESSION_SEAL", "no/such/session_seal.py")
         return runtime.call(box, "close", door="pipe")
+    if code == "no_box":
+        return runtime.call(usb / "gone", "restore", str(usb / "x.zip"), door="pipe")
+    if code == "not_backup":
+        (usb / "x.zip").write_text("hello")
+        return runtime.call(box, "restore", str(usb / "x.zip"), door="pipe")
+    if code == "restore_over":
+        (runtime.state(box) / "names.txt").write_text("Aoife\n")
+        made = runtime.call(box, "backup", str(usb), door="pipe")["runtime"]
+        (runtime.state(box) / "names.txt").write_text("Brigid\n")
+        return runtime.call(box, "restore", str(usb / made), door="pipe")
     raise AssertionError(f"no scenario for {code}")
 
 
