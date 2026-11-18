@@ -101,9 +101,16 @@ pattern:
     is built too, as `report coming-up`; it loads Willow's `pieces` add-on
     from beside it, so both are pinned. It reads the box's main folder
     only, not extra sources. Not yet tried in a real session.
-- [ ] **timeline**
-  - **Note:** writes a dated, cited timeline of one matter to a file, to
-    hand to someone. That is a way out: it needs the leave rules.
+- [x] **timeline**
+  - **Note:** built 2026-11-18 as `timeline` on both doors: the person's
+    writes the file whole; a session they let in has it made for them and
+    is given it withheld. The owner's word: it is up to the person what
+    goes in and out.
+  - **Note:** tried over the real record the same day. Three loose words
+    gave 787 lines, so: a session is given it in parts and by date, without
+    what `report-skip.txt` leaves out; every word must be held before half
+    is tried; and Willow's `timeline` 0.1.2 drops lines with no letter or
+    digit.
 - [ ] **milestones**
   - **Note:** a child's firsts by age, from notes. Read-only.
 - [ ] **projects**
@@ -123,8 +130,9 @@ pattern:
     sends, and a model may put a package together for their seal; only
     sealed sentences go; what arrives is the person's to receive, then
     read by a session they let in. See "`share`" below.
-- [ ] **rss-out** (needs careful "leave" design)
-  - **Note:** not looked at yet. Also a way out.
+- [x] **rss-out** (needs careful "leave" design)
+  - **Note:** built 2026-11-18 as `feed` on both doors: sentences by
+    default, everything sealed on the person's word. Nothing is served.
 - [ ] **local-model / openai-compatible, mcp-lite, mcp-sampling, privacy,
   etc.** (many already partially used)
   - **Note:** local-model, openai-compatible and privacy are pinned and
@@ -197,7 +205,7 @@ pattern:
   - **Note:** held, with one stated exception: a job needs the `kartikeya`
     package and `bwrap`, on a Python the person names beside the record;
     without them `job` is refused and everything else runs. The pin is at
-    Willow `b105b459`, which so far exists only on this machine.
+    Willow `e183b6c9`, which so far exists only on this machine.
 
 ### Open design questions
 
@@ -323,8 +331,8 @@ so none is lost. A box is ticked when it is built.
     was built. The other three demos have not been read.
 - [x] **Depend on GitHub less.** The check and the hook that holds `main`
   are built and run here, and the check is the gate.
-  - **Note:** the twelve Willow commits this pin stands on (the hook
-    add-ons, `todo`, `people`, `hook-guard`, `kart`) are on this machine
+  - **Note:** the thirteen Willow commits this pin stands on (the hook
+    add-ons, `todo`, `people`, `hook-guard`, `kart`, `timeline`) are on this machine
     only; the owner said to save that pull request for later.
 - [ ] **Quoted speech in the todo report.** About a dozen of the 91 lines
   are the owner quoted saying "I need to…" in a past session, not tasks.
@@ -357,8 +365,8 @@ so none is lost. A box is ticked when it is built.
     ruling: only numbers go back from a job.
   - **Needs:** trying it between two real records. Not built: kart's
     `wasm` and noised counts (the third part of `demo/johnson`).
-- [ ] **`timeline` and `rss-out`**: ways out to another person or place.
-  Each needs a ruling.
+- [x] **`timeline` and `rss-out`**: built 2026-11-18 as `timeline` and
+  `feed`, on both doors. Not yet tried over the real record.
 
 ## Still loose
 
@@ -406,8 +414,7 @@ so none is lost. A box is ticked when it is built.
 What is left, gathered from the lines above, in the order the owner last
 gave:
 
-1. `share` tried between two real records; then `timeline` and
-   `rss-out`, each on a ruling.
+1. `share`, `timeline` and `feed` tried over real records.
 2. The per-item seal paths reviewed for what can go, now that a session's
    yes covers reading.
 3. The paces list above.

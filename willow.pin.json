@@ -1,7 +1,7 @@
 {
   "_what": "The Willow this runtime was built on: its commit, and every file of what runs, by SHA-256. willow_pin.py refuses a checkout whose files differ; repin is the one way to move it.",
   "willow": "https://github.com/willow-memory/Willow",
-  "commit": "b105b459b6bfb20a9a54b1cbc86f4802fe8d1fc7",
+  "commit": "e183b6c951a88e050edec685fe1108fed3f64eb9",
   "add_ons": [
     "approved-only",
     "backup",
@@ -24,12 +24,14 @@
     "on-this-day",
     "openai-compatible",
     "people",
+    "rss-out",
     "pieces",
     "privacy",
     "sentence-check",
     "session-seal",
     "share",
     "stale-answers",
+    "timeline",
     "todo"
   ],
   "deps": [
@@ -79,6 +81,8 @@
     "adapters/stdlib/openai-compatible/openai_compatible.py": "65ee0577d711a2aba036eaaadc0269c9748d87b6e3d4a39b42863a5d6c254c9d",
     "adapters/stdlib/people/README.md": "8dba307bcb04082aa6dc57460c0f9100dde56306bec4fe368c0fa422b771d4fd",
     "adapters/stdlib/people/people.py": "cef121f17447416e54882491b9333514c5dfa784ed3c75bcf0ea8961b1aed621",
+    "adapters/stdlib/rss-out/README.md": "7ef2e078f21d39384d04ff264cfa53e3c02af0b211061db0f3d9b86e0cfe7337",
+    "adapters/stdlib/rss-out/rss_out.py": "4336a185ded03dd90cb68ac56f52ffcb79238f3119fcee312598b794c2218a0b",
     "adapters/stdlib/pieces/README.md": "e7d8ee0c37d201a26dc3c2df744b43d6e6c9f84f3aeed9c263ee3bf63e3aafbd",
     "adapters/stdlib/pieces/pieces.py": "e71b21b32270ac656211503861ede104c07e6fe5f843d189486faa8b365e3506",
     "adapters/stdlib/privacy/README.md": "51332bdf225568cff942398fbdc2290714a02a466dab73611d7ea87fdc3b8120",
@@ -95,6 +99,8 @@
     "adapters/stdlib/share/share.py": "08134908e7e6ce83e6c173a5fbe109032385398ad0d820e7e1ee8ada6c28208b",
     "adapters/stdlib/stale-answers/README.md": "637f866eb51b2e032d89c28193365def5f80750202a26b6504d175c5985a687c",
     "adapters/stdlib/stale-answers/stale_answers.py": "54616e180d41e4e812b01cf5db98556e2f53298a47c73a71ff3421ee250be5d1",
+    "adapters/stdlib/timeline/README.md": "0eacebaea13462b588f8855f6c415720f1c253f975e2e1737f7ae14e1be62d01",
+    "adapters/stdlib/timeline/timeline.py": "3ede7b9718b88986164e671827e03f28dcb887954b1a0672be0feb611b6d866e",
     "adapters/stdlib/todo/README.md": "051e37ce0904f2c1dc79ccc7ab32703262fb6700c84d768fa9519b6c02cafdb1",
     "adapters/stdlib/todo/todo.py": "186f227770f8eaf7b0d2ed42c8b93da1facd72766f1ae3d2e59aed2385f72bab",
     "adapters/deps/kart/README.md": "ee31892e1598f5782e70215b756c7b9cbfbc611375c8dac80a5c1a2b69f3c968",

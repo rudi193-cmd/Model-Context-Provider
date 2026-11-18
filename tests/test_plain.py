@@ -159,6 +159,10 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         return runtime.call(box, "job", "ls", door="mcp", where="/w", session="s")
     if code == "no_skill":
         return runtime.call(box, "skill", "nope", door="mcp")
+    if code == "timeline_refused":
+        return runtime.call(box, "timeline", " ", door="pipe")
+    if code == "feed_refused":
+        return runtime.call(box, "feed", {"to": str(box / "feed.xml")}, door="pipe")
     if code == "share_refused":
         return runtime.call(box, "share_send", {"answers": "nope", "for": "x"}, door="pipe")  # fmt: skip
     if code == "no_share_id":

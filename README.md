@@ -73,6 +73,7 @@ beside the person's record.
 | `restore`: what `backup` kept beside the record, put back, never over a file | |
 | `draft`, `models`, `backup`, `pin`, `check`, `sent` | |
 | `bring_in`, `brought_in`: bring a notes vault or a calendar into their folder, and list what was brought | |
+| `timeline`: one matter in date order, each line cited, as a file to hand on; `feed`: what they sealed, as an RSS file | `timeline`, `feed`: the same, made for the person once the session is let in |
 | `share_id`, `share_person`, `share_send`, `share_receive`, `share_forward`, `share_rotate`, `share_witness`, `shares`: an identity for sharing, whom to send to, every send, receive and passing on, a new key, and the record held to what others kept; `job_write`, `job_take`, `job_run`, `job_gather`: a job that travels in a package, run once sealed, and only its numbers sent back | `share_propose`: a package put together for their seal; `share_received`: what arrived, once the session is let in |
 
 Neither side can seal or decline. Sealing is the person's, with their key,
@@ -463,6 +464,34 @@ written beside your record for you to read, and stays there. `share_send`
 refuses a result that isn't numbers even if you sealed it by hand. A job
 itself may be sent: it is a shell task, not a word of your files. A model
 can write, take, run or send none of this.
+
+## Two files to hand on
+
+- **A timeline of one matter.** `{"timeline": "mould landlord"}` writes
+  every line of your folder about it, oldest first, each with its file
+  and line, to a file beside your record; `{"timeline": {"about": "...",
+  "to": "FILE"}}` writes it where you say. It is Willow's `timeline`: made
+  to hand to a lawyer, a doctor or a council, your lines as you wrote
+  them, and it never guesses a date. A passage is in when it holds every
+  one of your words; if none does, those holding half are used and it says
+  so, and `"loose": true` asks for that from the start. A session you let in can make one for
+  you (`timeline`): the file is written whole for you, and the session is
+  given the same lines with names and numbers withheld. A long one comes
+  to it in parts of whole lines, and it can ask for the days between two
+  dates. What you leave out of every report (`report-skip.txt`) is left
+  out of the session's part, and so is the note of where an undated line's
+  date came from. Your file is the whole of it either way, and
+  asking again makes no second copy while your files read the same.
+- **A feed of what you sealed.** `{"feed": true}` writes the sentences you
+  sealed as an RSS file for a feed reader, newest first (Willow's
+  `rss-out`); `"since": "2026-11-01"` keeps the newer ones, `"to"` says
+  where, and `"all": true` adds everything else you sealed (notes, tasks,
+  the words of a skill). A session you let in can have it written for you
+  (`feed`) and is told where it is and how many items it holds, and none
+  of it.
+
+Neither is sent or served anywhere: each is a file, never written over
+one that is there, and where it goes next is yours.
 
 ## One place to keep things
 

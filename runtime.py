@@ -343,6 +343,13 @@ def shared(box: Path) -> dict:
                     "populated": f"that there is a {name} report, and nothing of it",
                     "empty": f"that the {name} report holds nothing"}.get(
                 r["state"], f"report: {r['state']}")  # fmt: skip
+        elif r["verb"] in ("timeline", "feed"):
+            what = {
+                ("timeline", "left"): "a timeline of one matter from your files, also written to a file for you",
+                ("timeline", "written"): "that a timeline it asked for is written to a file for you, and none of it",
+                ("timeline", "empty"): "that your files hold nothing for a timeline it asked for",
+                ("feed", "written"): "that a feed of what you sealed is written to a file for you, and none of it",
+            }.get((r["verb"], r["state"]), f"{r['verb']}: {r['state']}")  # fmt: skip
         elif r["verb"].startswith("share_"):
             whom, pack = r.get("whom", "someone"), r.get("package", "")[:20]
             what = {
@@ -828,6 +835,10 @@ PLAIN = {
                    "Leave it alone. To give it to someone else, the person drops it (task_drop) and it is added again."),
     "task_not_held": ("This session hasn't claimed that task, so it wasn't marked done.",
                       "Claim it first (task_claim), then mark it done with what you found."),
+    "timeline_refused": ("That timeline couldn't be made, so nothing was written.",
+                         "Say what it is about in a few words (a name, a place, a thing). If you named a file, it must be a new one outside your folder and your record."),
+    "feed_refused": ("That feed couldn't be written.",
+                     "If you named a file, it must be a new one outside your folder and your record. A date is written year-month-day."),
     "share_refused": ("That couldn't be shared, so nothing was packed and nothing left.",
                       "The reason it gave says what to fix. Only sentences you sealed can go in a package (they show as a model's sentence on your seal page), for someone you named."),
     "no_share_id": ("You have no identity for sharing yet, so nothing was packed or received.",
@@ -3312,6 +3323,200 @@ def shares_listed(box: Path) -> dict:
             "log": willow(SHARE, "log", "--box", str(box)).stdout.splitlines()}  # fmt: skip
 
 
+# ── made to hand on: a timeline of one matter, a feed of what was sealed ────
+#: Willow's timeline and rss-out write each; this decides who may ask, and
+#: where the file goes. The file is the person's to hand on or to put where
+#: a reader fetches it: nothing here sends or serves anything.
+TIMELINE = "adapters/stdlib/timeline/timeline.py"
+RSS_OUT = "adapters/stdlib/rss-out/rss_out.py"
+ABOUT_MOST = 300  # characters of the words that choose a matter
+DAY = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+
+
+def made_at(box: Path, asked, name: str) -> Path:
+    """Where a made file goes: where the person said, or a new file in the
+    folder of made things beside the box."""
+    if isinstance(asked, str) and asked.strip():
+        return Path(asked).expanduser()
+    out = state(box) / "made"
+    out.mkdir(exist_ok=True)
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    stem, _, ext = name.rpartition(".")
+    return next(p for i in range(1000)
+                if not (p := out / f"{stem}-{stamp}-{i:03d}.{ext}").exists())  # fmt: skip
+
+
+def timeline(box: Path, arg) -> dict:
+    """One matter from the person's folder as a dated list of the lines
+    about it, each with its file and line, written to a file to hand to
+    someone (Willow's timeline). The lines are as the person wrote them:
+    nothing is withheld from their own copy. {"about": WORDS, "to": FILE};
+    without a file it goes beside the box.
+
+    A passage is in when it holds every one of the words. When none does,
+    it falls back to Willow's own rule, half of them, and says so (loose);
+    {"loose": true} asks for that from the start."""
+    asked = arg if isinstance(arg, dict) else {"about": arg}
+    about = " ".join(str(asked.get("about") or "").split())
+    if not about or len(about) > ABOUT_MOST:
+        return {"state": "refused", "code": "timeline_refused",
+                "why": f"say what it is about, in at most {ABOUT_MOST} characters"}  # fmt: skip
+    slug = re.sub(r"[^a-z0-9]+", "-", about.lower()).strip("-")[:40] or "matter"
+    to = made_at(box, asked.get("to"), f"timeline-{slug}.txt")
+    loose = bool(asked.get("loose"))
+    run = willow(TIMELINE, "--box", str(box), "--to", str(to),
+                 *(() if loose else ("--every",)), about)  # fmt: skip
+    if run.returncode == 42 and not loose:  # no passage holds them all: half, then
+        loose = True
+        run = willow(TIMELINE, "--box", str(box), "--to", str(to), about)
+    if run.returncode == 42:  # nothing holds the words, or they are too common
+        return {"state": "empty", "about": about, "said": run.stdout.strip()[-300:]}
+    if run.returncode != 0 or not to.is_file():
+        return {"state": "refused", "code": "timeline_refused",
+                "why": (run.stderr or run.stdout).strip()[-300:]}  # fmt: skip
+    return {"state": "written", "about": about, "file": str(to), "text": to.read_text(),
+            **({"loose": True} if loose else {})}  # fmt: skip
+
+
+def timeline_short(line: str) -> str:
+    """A timeline's line as a session is given it: the padding that lines
+    the file up in columns dropped, and the note of where an undated line's
+    date was taken from. Both are in the person's file; a line that names
+    several dates, or was filed on another day, still says so."""
+    line = re.sub(r" {2,}", "  ", line)
+    note = re.search(r"  \(([^()]*)\)$", line)
+    if note is None:
+        return line
+    kept = [p for p in note.group(1).split("; ") if not p.startswith("date from ")]
+    return line[: note.start()] + (f"  ({'; '.join(kept)})" if kept else "")
+
+
+def timeline_to_model(box: Path, arg, let: bool) -> dict:
+    """A timeline at a model's door, for a session the person let in: the
+    file is written for the person as on their own door, whole, and the
+    model is told where it is; asked again, a timeline that reads the same
+    is the same file. What the model itself is given is the same lines
+    withheld: all of them when they are under the most that is given at
+    once, else a part of whole lines and the line to ask again after.
+    since and until keep the lines dated in those days."""
+    if not let:
+        return {"state": "refused", "code": "no_grant",
+                "why": "a timeline is made only for a session let in"}  # fmt: skip
+    asked = arg if isinstance(arg, dict) else {"about": arg}
+    since, until = (str(asked.get(k) or "") for k in ("since", "until"))
+    after = str(asked.get("after") or "0")
+    if any(d and not DAY.fullmatch(d) for d in (since, until)) or not after.isdigit():
+        return {"state": "refused", "code": "timeline_refused",
+                "why": "since and until are dates, year-month-day; after is a number of lines"}  # fmt: skip
+    with tempfile.TemporaryDirectory() as d:  # made anew, to see how it reads now
+        got = timeline(box, {"about": asked.get("about"), "to": str(Path(d) / "t.txt"),
+                             "loose": asked.get("loose")})  # fmt: skip
+    if got["state"] != "written":
+        return {k: v for k, v in got.items() if k != "said"}
+    # the person's copy, whole: one file for a timeline that reads the same
+    out = state(box) / "made"
+    slug = re.sub(r"[^a-z0-9]+", "-", got["about"].lower()).strip("-")[:40] or "matter"
+    same = [p for p in sorted(out.glob(f"timeline-{slug}-*.txt")) if out.is_dir()
+            and p.read_text() == got["text"]]  # fmt: skip
+    kept = same[-1] if same else made_at(box, None, f"timeline-{slug}.txt")
+    if not same:
+        fd = os.open(kept, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+            f.write(got["text"])
+    # the session's part: the lines in the dates it asked for, from the line
+    # it asked to start after, as many whole lines as are given at once
+    head, _, body = got["text"].partition("\n\n")
+    lines = body.split("\n\n", 1)[-1].splitlines()
+    # what the person leaves out of every report is left out of the
+    # session's part too (their own file is whole), and the padding that
+    # lines the file up in columns is dropped: more lines fit in a part
+    skip, total = left_out(box), len(lines)
+    lines = [timeline_short(ln) for ln in lines
+             if not is_left_out((ln.split(None, 2) + ["", ""])[1], skip)]  # fmt: skip
+    if since or until:
+        lines = [ln for ln in lines if DAY.fullmatch(ln[:10])
+                 and (not since or ln[:10] >= since) and (not until or ln[:10] <= until)]  # fmt: skip
+    start, part, size = int(after), [], 0
+    for ln in lines[start:]:
+        size += len(ln) + 1
+        if size > REPORT_MOST and part:
+            break
+        part.append(ln)
+    if not part:
+        return {"state": "empty", "about": got["about"], "file": str(kept)}
+    try:
+        said = withhold(box, [head, *part])
+    except RuntimeError as why:  # can't withhold: nothing leaves
+        return {"state": "refused", "code": "scrub_failed", "why": str(why)}
+    while len(said) > 2 and sum(len(s) + 1 for s in said) > REPORT_MOST:
+        said.pop()  # withholding can lengthen a line: still never over the most
+    given = len(said) - 1
+    told = {"state": "left", "file": str(kept), "by": "grant", "lines": len(lines),
+            "loose": got.get("loose"),
+            "left_out": total - len(lines) if not (since or until) else None,
+            "given": f"{start + 1} to {start + given}",
+            "page": "\n".join([said[0], "", *said[1:]]) + "\n"}  # fmt: skip
+    if start + given < len(lines):
+        told["after"] = start + given  # ask again with this to get the next part
+    return {k: v for k, v in told.items() if v is not None}
+
+
+def feed(box: Path, arg) -> dict:
+    """What the person sealed, as an RSS feed file for a feed reader
+    (Willow's rss-out): {"to": FILE, "since": YYYY-MM-DD, "title", "link"}.
+    It holds the sentences they sealed and nothing else unless they say
+    {"all": true}, which adds everything sealed here (notes, tasks, the
+    words of a skill). Nothing is served or sent: where the file goes is
+    theirs."""
+    asked = arg if isinstance(arg, dict) else {}
+    to = made_at(box, asked.get("to"), "feed.xml")
+    more = [x for flag in ("since", "title", "link") if asked.get(flag)
+            for x in (f"--{flag}", str(asked[flag]))]  # fmt: skip
+    pile = Path(json.loads((box / "kernel.json").read_text()).get("pile", box))
+    for name, where in (("your record", box), ("your folder", pile)):
+        if to.resolve().is_relative_to(
+            where.resolve()
+        ):  # Willow's rss-out doesn't check
+            return {"state": "refused", "code": "feed_refused",
+                    "why": f"{to} is inside {name}; a feed is never written there"}  # fmt: skip
+    if to.exists():
+        return {"state": "refused", "code": "feed_refused",
+                "why": f"{to} is there already; a feed is never written over"}  # fmt: skip
+    part = to.with_name(to.name + ".part")
+    part.unlink(missing_ok=True)
+    run = willow(RSS_OUT, "--box", str(box), "--to", str(part), *more)
+    if run.returncode not in (0, 42) or not part.is_file():
+        part.unlink(missing_ok=True)
+        return {"state": "refused", "code": "feed_refused",
+                "why": (run.stderr or run.stdout).strip()[-300:]}  # fmt: skip
+    text = part.read_text()
+    part.unlink()
+    if not asked.get("all"):  # sentences alone: every other item is taken out
+
+        def kept(item):
+            guid = re.search(
+                r"<guid[^>]*>(proposal:[0-9a-f]{64})</guid>", item.group(0)
+            )
+            return item.group(0) if guid and share_sentence(box, guid.group(1)) else ""
+
+        text = re.sub(r"\n    <item>.*?</item>", kept, text, flags=re.S)
+    fd = os.open(to, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+    return {"state": "written", "file": str(to), "items": text.count("<item>")}
+
+
+def feed_to_model(box: Path, arg, let: bool) -> dict:
+    """A session the person let in may have the feed written for them: it
+    is told where the file is and how many items it holds, and none of it."""
+    if not let:
+        return {"state": "refused", "code": "no_grant",
+                "why": "a feed is made only for a session let in"}  # fmt: skip
+    since = arg.get("since") if isinstance(arg, dict) else arg
+    got = feed(box, {"since": since} if since else {})
+    return {**got, "by": "grant"} if got["state"] == "written" else got
+
+
 def event(box: Path, sent) -> dict:
     """A moment of the assistant's session, as its host sent it, decided
     here for every door that carries one.
@@ -3415,6 +3620,10 @@ VERBS = {
         "grants": lambda box, arg, **kw: grants_listed(box),
         # sharing with another person: the identity, whom to send to, and
         # every send, receive and forward are the person's own
+        # files to hand on: one matter in date order, and a feed of what
+        # was sealed
+        "timeline": lambda box, arg, **kw: timeline(box, arg),
+        "feed": lambda box, arg, **kw: feed(box, arg),
         "share_id": lambda box, arg, **kw: share_id(box),
         "share_person": lambda box, arg, **kw: share_person(box, arg),
         "share_send": lambda box, arg, **kw: share_send(
@@ -3504,6 +3713,9 @@ VERBS = {
             box, arg if isinstance(arg, dict) else {}
         ),
         "share_received": lambda box, arg, **kw: share_received(box, let_in(box, kw)),
+        # for a session let in: a timeline of one matter, and the feed
+        "timeline": lambda box, arg, **kw: timeline_to_model(box, arg, let_in(box, kw)),
+        "feed": lambda box, arg, **kw: feed_to_model(box, arg, let_in(box, kw)),
         # the one yes of a session: asked for, or where it stands
         "grant": lambda box, arg, **kw: grant_ask(
             box, kw.get("where"), kw.get("session")

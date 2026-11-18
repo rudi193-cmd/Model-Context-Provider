@@ -4,6 +4,16 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Two files to hand on.** `timeline` writes one matter from the folder
+  in date order, each line cited (Willow's `timeline`); `feed` writes the
+  sentences the person sealed as an RSS file (Willow's `rss-out`), or
+  everything sealed on their word. Both are on the person's door, and a
+  session they let in can have either made for them; a timeline comes
+  back to it withheld, a feed not at all. The pin now covers both add-ons.
+  A long timeline comes to a session in parts of whole lines, by date if
+  it asks, without what the person leaves out of reports. The pin moves to
+  Willow's `timeline` 0.1.2: `--every`, used first here, and no line that
+  holds no letter or digit (found reading a 787-line timeline, 2026-11-18).
 - **A job that travels, and corrections.** On the person's door,
   `job_write`, `job_take`, `job_run` and `job_gather` carry Willow's kart
   round trip: a job sealed and sent, taken and sealed where it lands, run

@@ -51,12 +51,14 @@ ADD_ONS = (
     "on-this-day",
     "openai-compatible",  # local-model loads it
     "people",  # loads only the kernel
+    "rss-out",  # loads only the kernel
     "pieces",  # coming-up loads it from beside it
     "privacy",
     "sentence-check",
     "session-seal",
     "share",  # kart loads it: a job that came in a package, a result sent back
     "stale-answers",  # digest loads it; it loads pieces
+    "timeline",  # loads only the kernel
     "todo",  # batch-ask's scan loads it
 )
 
