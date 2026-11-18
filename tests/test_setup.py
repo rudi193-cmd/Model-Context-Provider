@@ -1,4 +1,4 @@
-"""Setup checks, prints what to paste, and changes nothing of the client's."""
+"""Setup checks, prints what to paste, and with --write finishes a client."""
 
 import json
 import os
@@ -66,9 +66,12 @@ def test_naming_a_model_on_this_machine_writes_model_json(box):
 
 
 def test_what_it_says_to_paste_starts_a_door_that_answers(box):
-    """The JSON a client is given, started exactly as a client would start it."""
-    entry = json.loads(setup.paste(box).split("3. Any other client")[1]
-                       .split("\n", 2)[2].rsplit("\n\nYour door", 1)[0])["mcpServers"]["model-context-provider"]  # fmt: skip
+    """Cursor's JSON, started exactly as Cursor would start it."""
+    import hosts as hosts_mod
+
+    entry = hosts_mod.places("cursor", box, sys.executable)[0][2]["mcpServers"][
+        "model-context-provider"
+    ]
     env = {**os.environ, **entry["env"]}
     msgs = [{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
             {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}]  # fmt: skip
@@ -79,8 +82,47 @@ def test_what_it_says_to_paste_starts_a_door_that_answers(box):
     assert {t["name"] for t in listed} == set(runtime.VERBS["model"])
 
 
-def test_setup_writes_nothing_of_the_clients(box, tmp_path, monkeypatch):
+def test_paste_names_cursor_and_the_other_hosts(box):
+    out = setup.paste(box)
+    assert "### Cursor (`cursor`)" in out
+    assert "~/.cursor/mcp.json" in out
+    assert "--write cursor" in out
+    for name in ("copilot", "codex-cli", "gemini-cli", "opencode", "windsurf", "zed"):
+        assert f"`{name}`" in out
+
+
+def test_setup_without_write_writes_nothing_of_the_clients(box, tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     (tmp_path / "home").mkdir()
     run("--box", box)
     assert list((tmp_path / "home").iterdir()) == []
+
+
+def test_write_cursor_finishes_setup(box, tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    code, out = run("--box", box, "--write", "cursor")
+    assert code == 0, out
+    assert (home / ".cursor" / "mcp.json").is_file()
+    assert (home / ".cursor" / "hooks.json").is_file()
+    assert "wrote" in out
+
+
+def test_the_hooks_it_says_to_paste_include_the_session_door(box):
+    text = setup.paste(box).split("2. The hooks")[1].split("\n\n3. Cursor")[0]
+    hooks = json.loads(text[text.index("{") :])["hooks"]
+    (start,) = hooks["SessionStart"][0]["hooks"]
+    (end,) = hooks["SessionEnd"][0]["hooks"]
+    assert "doors/session.py" in start["command"] and start["command"] == end["command"]
+    assert end["timeout"] == 60
+    assert "doors/hook.py" in hooks["UserPromptSubmit"][0]["hooks"][0]["command"]
+
+
+def test_setup_says_so_when_willow_is_not_the_pinned_one(box, tmp_path, monkeypatch):
+    monkeypatch.setattr(runtime, "PIN", tmp_path / "no-pin.json")
+    rows = setup.check(box)
+    assert rows[-1][0] == "Willow is the pinned one" and rows[-1][1] is False
+    assert "your record" not in [r[0] for r in rows]
+    monkeypatch.undo()
+    assert ("Willow is the pinned one", True) in [r[:2] for r in setup.check(box)]

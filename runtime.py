@@ -13,8 +13,8 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import json
-import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -24,8 +24,11 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+import willow_pin
+
 HERE = Path(__file__).resolve().parent
-WILLOW = Path(os.environ.get("WILLOW", HERE.parent / "Willow"))
+WILLOW = willow_pin.default_root()
+PIN = willow_pin.PIN
 
 
 def willow(*args: str) -> subprocess.CompletedProcess:
@@ -101,8 +104,11 @@ def waiting(box: Path) -> dict:
         except (OSError, ValueError):
             out.append({"seal": subject, "claim": "its file can't be read"})
             continue
-        out.append({"seal": subject, "claim": prop.get("claim", ""),
-                    "path": prop.get("path", ""), "words": str(prop.get("data", ""))[:500]})  # fmt: skip
+        item = {"seal": subject, "claim": prop.get("claim", ""),
+                "path": prop.get("path", ""), "words": str(prop.get("data", ""))[:500]}  # fmt: skip
+        if subject in scopes(box):  # its words are a hash: the page says what it is
+            item["preview"] = {"preview": subject}
+        out.append(item)
     return {"state": "waiting" if out else "empty", "waiting": out}
 
 
@@ -163,6 +169,52 @@ def backup(box: Path, to: Path) -> dict:
         }
     return {"state": "kept", "box": made.group(0) if made else run.stdout.strip(),
             "runtime": zip_to.name, "files": [f.name for f in files]}  # fmt: skip
+
+
+def restore(box: Path, frm: Path) -> dict:
+    """The runtime's zip from a backup, put back beside the box. The zip is
+    checked first, as Willow's restore-drill checks a box backup: flat names
+    only, every CRC, no key, no box, the sent log's chain. Nothing is ever
+    written over: a file already there that differs refuses the whole restore,
+    and one that is the same is left alone. What is written is read back."""
+    if not (box / "kernel.json").is_file():
+        return {"state": "refused", "code": "no_box",
+                "why": f"no box at {box}; restore the box first"}  # fmt: skip
+    try:
+        with zipfile.ZipFile(frm) as z:
+            names = z.namelist()
+            bad = z.testzip()
+            got = {n: z.read(n) for n in names} if bad is None else {}
+    except (OSError, zipfile.BadZipFile) as why:
+        return {"state": "refused", "code": "not_backup",
+                "why": f"{frm}: {type(why).__name__}"}  # fmt: skip
+    if (
+        bad is not None
+        or not names
+        or any(Path(n).name != n or n in ("", ".", "..") for n in names)
+        or any(
+            n.endswith(".key") or n in ("kernel.json", "record.jsonl") for n in names
+        )
+        or not chain_holds(got.get("sent.jsonl", b"").decode().splitlines())
+    ):
+        return {"state": "refused", "code": "not_backup",
+                "why": f"{frm} isn't a whole copy of the runtime's files"}  # fmt: skip
+    dest = state(box)
+    there = {n: dest / n for n in names if (dest / n).exists()}
+    differ = sorted(
+        n for n, p in there.items() if not p.is_file() or p.read_bytes() != got[n]
+    )
+    if differ:
+        return {"state": "refused", "code": "restore_over",
+                "why": f"already there and not the same: {', '.join(differ)}"}  # fmt: skip
+    new = sorted(n for n in names if n not in there)
+    for n in new:
+        with open(dest / n, "xb") as f:
+            f.write(got[n])
+    if any((dest / n).read_bytes() != got[n] for n in new):
+        return {"state": "refused", "code": "copy_bad",
+                "why": "a restored file didn't read back the same"}  # fmt: skip
+    return {"state": "restored", "files": new, "same": sorted(there)}
 
 
 #: who is on the far side of each door, as a person says it
@@ -257,10 +309,41 @@ def check_sent(box: Path, pin: Path) -> dict:
     return {"state": "holds", "pinned": rows, "since": len(lines) - rows}
 
 
+INDEX_CACHE = "adapters/stdlib/index-cache/index_cache.py"
+INDEXED = "adapters/stdlib/claude-code/hook.py"
+
+
+def index(box: Path) -> Path:
+    """The index of the box's folder, kept beside the box (never in it, and
+    never in a backup: backup takes the runtime's files, not its folders),
+    brought current by Willow's index-cache: a rebuild only when a file in
+    the folder changed. While it is current a bite is answered from it, in
+    seconds on a folder the kernel takes a minute to read."""
+    at = state(box) / "index"
+    try:
+        pile = json.loads((box / "kernel.json").read_text())["pile"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return at  # the kernel's bite says what's wrong with the box
+    willow(INDEX_CACHE, "--from", str(pile), "--to", str(at))
+    return at
+
+
+def bite(box: Path, question: str) -> subprocess.CompletedProcess:
+    """The kernel's bite, from the index while it is current (claude-code's
+    bite: the same JSON, exit code and row), else the kernel reading the
+    folder. A refusal is always the kernel's own, so it says why."""
+    run = willow(
+        INDEXED, "bite", "--box", str(box), "--index", str(index(box)), question
+    )
+    if run.returncode != 2:
+        return run
+    return willow("kernel.py", "bite", "--box", str(box), question)
+
+
 def read(box: Path, question: str) -> dict:
     """Ask the box. Reading never needs a grant: this is the kernel's bite,
     as the kernel answers it."""
-    run = willow("kernel.py", "bite", "--box", str(box), question)
+    run = bite(box, question)
     if run.returncode == 2:
         return {"state": "refused", "code": "record_broken", "why": run.stderr.strip()}
     got = json.loads(run.stdout)
@@ -275,6 +358,11 @@ APPROVED_ONLY = "adapters/stdlib/approved-only/approved_only.py"
 def propose(box: Path) -> dict:
     """Propose what may leave: the passages the last read served, as one scope
     for the person to seal. The runtime only proposes; it never seals."""
+    if not (state(box) / "last-read.json").exists():
+        # no read since the last session closed: the record's last bite is
+        # then session-seal's, and its passages aren't the ones a model read
+        return {"state": "refused", "code": "nothing_to_scope",
+                "why": "no read since the last session closed"}  # fmt: skip
     run = willow(APPROVED_ONLY, "scope", "--box", str(box))
     subject = next((w for w in run.stdout.split() if w.startswith("proposal:")), None)
     if run.returncode == 2 or subject is None:
@@ -493,6 +581,12 @@ PLAIN = {
                "Choose another name or place."),
     "copy_bad": ("The copy didn't check out, so it was deleted.",
                  "Try again, somewhere else."),
+    "no_box": ("There's no record to put this back beside.",
+               "Put your record back first: unzip its backup where it goes, and copy your key back."),
+    "not_backup": ("That file isn't a whole backup of what this keeps beside your record, so nothing was put back.",
+                   "Point restore at the model-context-provider zip that backup made."),
+    "restore_over": ("Something here already differs from the backup, and it's never written over, so nothing was put back.",
+                     "Move the files it names somewhere else first, if you mean the backup's to win."),
     "log_changed": ("Your sent log has been changed since it was written.",
                     "Hold it to your pin (check), and compare it with your backup."),
     "pin_beside": ("A pin kept beside your record can be changed along with it.",
@@ -500,9 +594,14 @@ PLAIN = {
     "stopped": ("You stopped this from being shared.",
                 "To share it again, ask the question in other words, propose it, and seal it anew."),
     "not_a_scope": ("That isn't a question you were asked to share.",
-                    "See them with scopes, and stop one by the seal it shows."),
+                    "See them with scopes: each shows the seal to name."),
     "not_pin": ("That file isn't a pin.",
                 "Point check at the file pin wrote."),
+    "willow_unpinned": ("Your Willow isn't the one this was built on, so nothing was done.",
+                        "Run: python3 willow_pin.py check (it names what differs), then put "
+                        "Willow at the commit it names, or point WILLOW at a copy that is."),
+    "session_failed": ("The step that closes a session couldn't run, so nothing waits on you for it.",
+                       "Check that WILLOW points at your Willow folder."),
 }  # fmt: skip
 
 
@@ -520,7 +619,7 @@ def plain(got: dict, box: Path, faces: str, verbs) -> dict:
 
 #: who is on the far side of each door. A door not named here faces a model:
 #: an unknown door fails closed.
-FACES = {"pipe": "person", "mcp": "model", "hook": "model"}
+FACES = {"pipe": "person", "mcp": "model", "hook": "model", "session": "person"}
 
 
 SENTENCE_CHECK = "adapters/stdlib/sentence-check/sentence_check.py"
@@ -637,6 +736,41 @@ def scope_list(box: Path) -> dict:
     return {"state": "populated" if out else "empty", "scopes": out}
 
 
+def preview(box: Path, subject) -> dict:
+    """What a scope would let leave, before the person seals it: its passages
+    as they were withheld when it was proposed, by place. These are the texts
+    a sealed page is held to before it leaves, so what is shown here is what
+    would go. Nothing is sealed, sent or written down. With no subject, every
+    scope proposed here that waits on the seal."""
+    known = scopes(box)
+    if isinstance(subject, str) and subject.startswith("proposal:"):
+        if subject not in known:
+            return {"state": "refused", "code": "not_a_scope",
+                    "why": f"{subject} isn't a scope proposed here"}  # fmt: skip
+        want = [subject]
+    else:
+        owed = {w["seal"] for w in waiting(box)["waiting"]}
+        want = [s for s in known if s in owed]
+    f = state(box) / "places.json"
+    places = json.loads(f.read_text()) if f.exists() else {}
+    out = []
+    for s in want:
+        by: dict[str, list[tuple[str, str]]] = {}
+        for text in known[s]:
+            where = places.get(hashlib.sha256(text.encode()).hexdigest(), {}).get(
+                "where", "?"
+            )
+            by.setdefault(where.rsplit(":", 1)[0], []).append((where, text))
+        page = "\n".join(
+            f"## {pool}\n\n"
+            + "\n".join(f"{w}\n\n```\n{t}\n```\n" for w, t in sorted(each))
+            for pool, each in sorted(by.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+        )
+        out.append({"seal": s, "passages": len(known[s]), "page": page,
+                    "stopped": s in stopped(box)})  # fmt: skip
+    return {"state": "preview" if out else "empty", "previews": out}
+
+
 def stop(box: Path, subject: str) -> dict:
     """Never let this scope leave again. A stop needs no key: refusing to send
     only ever makes things safer. To share it again, seal it anew."""
@@ -722,6 +856,88 @@ def answer(box: Path, sentence: str) -> dict:
     return {"state": "waiting", "seal": subject, "checks": checks, "path": prop["path"]}
 
 
+SESSION_SEAL = "adapters/stdlib/session-seal/session_seal.py"
+
+
+def close(box: Path) -> dict:
+    """At a session's end, Willow's session-seal: the record's rows since the
+    last bundle, as one proposal for the person to seal once (yes, these were
+    my actions). It only proposes; it never seals. Its bite is now the
+    record's last, so the read a model made goes with the session."""
+    run = willow(SESSION_SEAL, "--box", str(box), "--json", "--index", str(index(box)))
+    if run.returncode == 2 and not run.stdout:  # a session-seal without --index
+        run = willow(SESSION_SEAL, "--box", str(box), "--json")
+    try:
+        doc = json.loads(run.stdout)
+    except ValueError:
+        doc = None
+    why = (run.stderr or run.stdout).strip()
+    if not isinstance(doc, dict) and run.stderr.startswith("refused"):
+        return {"state": "refused", "code": "record_broken", "why": why}
+    if not isinstance(doc, dict):
+        return {"state": "refused", "code": "session_failed", "why": why}
+    if doc.get("state") != "populated":
+        return {"state": "empty"}
+    (state(box) / "last-read.json").unlink(missing_ok=True)
+    rows = [r for g in doc.get("groups", []) for r in g["rows"]]
+    return {"state": "waiting", "seal": rows[0]["what"] if rows else None,
+            "rows": doc.get("said", "")}  # fmt: skip
+
+
+def owed(box: Path) -> dict:
+    """What waits on the person's seal: one line for a session's start, and a
+    card naming each (claim and the seal line), for the client to show them.
+    Also writes BOX.runtime/needs-you.txt when something waits, or clears it."""
+    got = waiting(box)
+    card_path = state(box) / "needs-you.txt"
+    if got["state"] != "waiting":
+        card_path.unlink(missing_ok=True)
+        return got
+    w = got["waiting"]
+    sessions = sum(1 for x in w if str(x.get("path", "")).startswith("sessions/"))
+    other = len(w) - sessions
+    each = []
+    if sessions:
+        each.append(f"{sessions} session{'s' * (sessions != 1)}")
+    if other:
+        each.append(f"{other} page{'s' * (other != 1)} or sentence{'s' * (other != 1)}")
+    pipe = shlex.join(["python3", str(HERE / "doors" / "pipe.py"), "--box", str(box)])
+    say = (f"Waiting on your seal: {' and '.join(each)}. To see what each is and "
+           f"the line that seals it, run {pipe} and type {{\"waiting\": true}}")  # fmt: skip
+    rows = []
+    for x in w:
+        kind = ("session" if str(x.get("path", "")).startswith("sessions/")
+                else "page or sentence")  # fmt: skip
+        claim = str(x.get("claim") or "").strip() or "waiting"
+        if len(claim) > 160:
+            claim = claim[:157] + "…"
+        seal = shlex.join(
+            ["python3", str(WILLOW / "kernel.py"), "seal", "--box", str(box), x["seal"]]
+        )
+        rows.append(f"- {kind}: {claim} — {seal}")
+    card = ("Waiting on your seal:\n" + "\n".join(rows)
+            + f"\nLeave alone by doing nothing. Preview a page: {pipe} and "
+              "{\"preview\": true}.")  # fmt: skip
+    card_path.write_text(card + "\n")
+    return {"state": "waiting", "sessions": sessions, "other": other,
+            "say": say, "card": card}  # fmt: skip
+
+
+def nudge(text: str) -> None:
+    """A desktop notice on this machine when the OS has one. Never reaches a
+    model; never decides anything."""
+    if not text.strip():
+        return
+    try:
+        subprocess.run(
+            ["notify-send", "--app-name=Model Context Provider",
+             "Waiting on your seal", text[:500]],
+            capture_output=True, text=True, check=False, timeout=2,
+        )  # fmt: skip
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
 #: the verbs, the same for every door. There is no verb to seal.
 VERBS = {
     "person": {
@@ -732,12 +948,16 @@ VERBS = {
         "shared": lambda box, arg, **kw: shared(box),
         "scopes": lambda box, arg, **kw: scope_list(box),
         "stop": lambda box, arg, **kw: stop(box, str(arg)),
+        "preview": lambda box, arg, **kw: preview(box, arg),
         "waiting": lambda box, arg, **kw: waiting(box),
         "backup": lambda box, arg, **kw: backup(box, Path(str(arg))),
+        "restore": lambda box, arg, **kw: restore(box, Path(str(arg))),
         "pin": lambda box, arg, **kw: pin_sent(box, Path(str(arg))),
         "check": lambda box, arg, **kw: check_sent(box, Path(str(arg))),
         "models": lambda box, arg, **kw: models(box),
         "draft": lambda box, arg, **kw: draft(box, str(arg), None, kw.get("door", "")),
+        "close": lambda box, arg, **kw: close(box),
+        "owed": lambda box, arg, **kw: owed(box),
     },
     "model": {
         # read is open, but its passages would leave to the model: it gets the
@@ -760,6 +980,11 @@ def call(box: Path, verb: str, arg=None, door: str = "", ask=None) -> dict:
     A refusal comes back in plain words, with the one thing to do next."""
     faces = FACES.get(door, "model")
     verbs = VERBS[faces]
+    off = willow_pin.problems(WILLOW, PIN)
+    if off:  # never run on a Willow this wasn't built on
+        got = {"state": "refused", "code": "willow_unpinned",
+               "why": f"{WILLOW}: " + "; ".join(off[:5])}  # fmt: skip
+        return plain(got, box, faces, verbs)
     if verb not in verbs:
         got = {"state": "refused", "code": "no_verb",
                "why": f"no verb {verb!r}; one of {sorted(verbs)}"}  # fmt: skip

@@ -18,15 +18,26 @@ Two ways, and the choice is the person's, not code's:
   the box; a phone passkey later, if wanted). Willow's `share`, `browse`
   and `static-search` are the parts.
 
-## Restore
-
-`backup` keeps the box and the runtime's zip, checked. Putting the
-runtime's zip back is by hand: unzip it into `BOX.runtime/` beside the box.
-Willow's `restore-drill` proves a backup restores; the runtime's zip wants
-the same.
-
 ## Built since
 
+- **Setup that finishes**: `set_up.py --write HOST` merges the MCP door into
+  the assistant's home settings (Cursor hooks included); refuses a different
+  entry under our name. Paste remains the default.
+- **Something needs you, in the client**: `owed`'s card + `needs-you.txt`;
+  session door `--host cursor` for `user_message` and a desktop notice at
+  session start and after this server's MCP tools. Claude Code stays on
+  `systemMessage` (counts only). Soft decline and seal-without-terminal are
+  still open.
+- **Preview before sealing**: `preview` shows the page a scope would let
+  leave, withheld, by place, from the texts the runtime holds a sealed page
+  to before it leaves; `waiting` points at it, since a scope's own words are
+  a hash. It seals, sends and writes nothing.
+- **Restore**: `restore` puts the runtime's zip back beside the box, after
+  checking it the way Willow's `restore-drill` checks a box backup (flat
+  names, every CRC, no key, no box, the sent log's chain). It never writes
+  over a file: one that differs refuses the whole restore. The box itself
+  is still restored by hand, as Willow's `backup` README says: unzip it,
+  copy the key back.
 - **Two sealed questions**, **a sealed passage that changed**: Willow's
   approved-only now serves a sealed scope by name (`--scope`) and refuses
   one that isn't whole (Willow branch `ccr-cddfc117-zpl0tu`, `d7c40dd`); the

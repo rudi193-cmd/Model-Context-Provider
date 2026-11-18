@@ -19,6 +19,11 @@ Read [README.md](README.md) first: the two lines are the whole design.
   scenario in `tests/test_plain.py`, which fails a code without one.
 - **Willow by its command line only.** Nothing here imports or changes
   Willow's `kernel.py`; when Willow lacks something, the fix goes to Willow.
+- **Willow by its pin.** `willow.pin.json` names the Willow this runs on,
+  every file of it by hash. To move it, commit in Willow, then
+  `python3 willow_pin.py repin`: it says what moved, and the commit goes
+  with the change that needs it. A new add-on the runtime runs goes in
+  `willow_pin.ADD_ONS`, with what it loads from beside it.
 - **Never loosen a check to get green.** No skipped test, no loosened
   assertion.
 

@@ -47,3 +47,80 @@ def test_a_model_cannot_take_a_backup(box, tmp_path_factory):
     usb = tmp_path_factory.mktemp("usb")
     assert runtime.call(box, "backup", str(usb), door="mcp")["state"] == "refused"
     assert list(usb.iterdir()) == []
+
+
+def lost(box, tmp_path_factory):
+    """A backup taken, then everything beside the box gone."""
+    used(box)
+    usb = tmp_path_factory.mktemp("usb")
+    got = runtime.call(box, "backup", str(usb), door="pipe")
+    was = {f.name: f.read_bytes() for f in runtime.state(box).iterdir() if f.is_file()}
+    for f in runtime.state(box).iterdir():
+        if f.is_file():
+            f.unlink()
+    return usb / got["runtime"], was
+
+
+def test_a_backup_puts_back_what_was_lost_byte_for_byte(box, tmp_path_factory):
+    zip_from, was = lost(box, tmp_path_factory)
+    got = runtime.call(box, "restore", str(zip_from), door="pipe")
+    assert got["state"] == "restored", got
+    assert got["files"] == sorted(was)
+    now = {f.name: f.read_bytes() for f in runtime.state(box).iterdir() if f.is_file()}
+    assert now == was
+    assert runtime.call(box, "shared", door="pipe")["state"] != "refused"
+
+
+def test_restoring_twice_changes_nothing(box, tmp_path_factory):
+    zip_from, was = lost(box, tmp_path_factory)
+    runtime.call(box, "restore", str(zip_from), door="pipe")
+    got = runtime.call(box, "restore", str(zip_from), door="pipe")
+    assert got["state"] == "restored" and got["files"] == [], got
+    assert got["same"] == sorted(was)
+
+
+def test_a_file_that_differs_is_never_written_over(box, tmp_path_factory):
+    zip_from, was = lost(box, tmp_path_factory)
+    names = runtime.state(box) / "names.txt"
+    names.write_text("Brigid\n")
+    got = runtime.call(box, "restore", str(zip_from), door="pipe")
+    assert got["state"] == "refused" and got["code"] == "restore_over", got
+    assert "names.txt" in got["why"]
+    assert names.read_text() == "Brigid\n"
+    assert [f.name for f in runtime.state(box).iterdir() if f.is_file()] == [
+        "names.txt"
+    ]
+
+
+def broken(tmp_path, members):
+    z_to = tmp_path / "model-context-provider-bad.zip"
+    with zipfile.ZipFile(z_to, "w") as z:
+        for n, b in members.items():
+            z.writestr(n, b)
+    return z_to
+
+
+def test_a_zip_that_isnt_the_runtimes_is_refused_and_nothing_is_written(box, tmp_path):
+    before = sorted(runtime.state(box).iterdir())
+    for members in (
+        {"../escape.txt": "x"},
+        {"sub/names.txt": "x"},
+        {"test.key": "x"},
+        {"kernel.json": "{}", "record.jsonl": ""},
+        {"sent.jsonl": '{"n": 0, "prev": "not the start"}\n'},
+        {},
+    ):
+        got = runtime.call(box, "restore", str(broken(tmp_path, members)), door="pipe")
+        assert got["code"] == "not_backup", (members, got)
+    (tmp_path / "plain.txt").write_text("hello")
+    assert (
+        runtime.call(box, "restore", str(tmp_path / "plain.txt"), door="pipe")["code"]
+        == "not_backup"
+    )
+    assert sorted(runtime.state(box).iterdir()) == before
+
+
+def test_a_model_cannot_restore(box, tmp_path_factory):
+    zip_from, _ = lost(box, tmp_path_factory)
+    got = runtime.call(box, "restore", str(zip_from), door="mcp")
+    assert got["state"] == "refused" and got["code"] == "no_verb"

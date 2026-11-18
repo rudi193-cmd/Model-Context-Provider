@@ -59,7 +59,11 @@ beside the person's record.
 | `waiting`: what waits on their seal, and what each one is | `answer`: one sentence, checked, then waiting |
 | `scopes`: every question proposed, and where each stands | `draft`: ask a model for that sentence |
 | `stop`: never let a scope leave again | `context`: the sealed page for this question, if there is one |
+| `preview`: the page a scope would let leave, before they seal it | |
 | `shared`: what left, as places, not hashes | |
+| `close`: this session's actions, for one seal | |
+| `owed`: what waits on their seal, in one line | |
+| `restore`: what `backup` kept beside the record, put back, never over a file | |
 | `draft`, `models`, `backup`, `pin`, `check`, `sent` | |
 
 Neither side can seal or decline. Sealing is the person's, with their key,
@@ -68,20 +72,33 @@ the one thing to do next.
 
 ## Set it up
 
-You need Python 3.9 or newer and a Willow checkout whose `approved-only` is
-0.2.0 or later (`--scope`). Make your record in Willow's UI: pick your
-folders, type your own words into the words step, seal it, and press **Start
-it**. Then:
+You need Python 3.9 or newer and a Willow checkout at the commit
+[willow.pin.json](willow.pin.json) names. The pin holds every file of Willow
+this runs (the kernel and twelve add-ons) by its SHA-256, and nothing runs
+on a Willow whose files differ: `python3 willow_pin.py check` says which.
+Nothing else in Willow matters to it. Make your record in Willow's UI: pick
+your folders, type your own words into the words step, seal it, and press
+**Start it**. Then:
 
     python set_up.py --stack PATH/TO/YOUR/STACK
 
 It checks Willow, your record and your words, and prints what to paste:
 
 - the `claude mcp add --scope user …` line for Claude Code;
-- the prompt hook for `~/.claude/settings.json`;
-- the JSON any other MCP client takes.
+- the hooks for `~/.claude/settings.json`: the prompt hook, and the session
+  door on SessionStart and SessionEnd;
+- Cursor and the other assistants from Willow's hosts table
+  (`hosts.py show cursor --box BOX`).
 
-It changes nothing of your client's. To draft answers with a model on this
+By default it changes nothing of your client's. To finish one:
+
+    python set_up.py --box BOX --write cursor
+    python set_up.py --box BOX --write claude-code
+    python set_up.py --box BOX --write all
+
+`--write` merges the MCP door into that assistant's home settings (and for
+Cursor, the session hooks that tell you what waits). It never overwrites an
+entry by our name that already differs. To draft answers with a model on this
 machine (Ollama, llama.cpp, LM Studio…), add `--model
 http://127.0.0.1:11434/v1 NAME`. That writes `model.json` beside your record,
 and nothing else. A model off this machine is refused.
@@ -90,8 +107,10 @@ Your own door, for everything a model can't do:
 
     python doors/pipe.py --box BOX
     {"waiting": true}
+    {"preview": true}
     {"shared": true}
     {"backup": "/media/usb"}
+    {"restore": "/media/usb/model-context-provider-20261117-120000.zip"}
 
 ## The doors
 
@@ -99,7 +118,40 @@ Your own door, for everything a model can't do:
 |---|---|---|
 | `doors/pipe.py` | the person | one JSON request a line in, one answer a line out |
 | `doors/mcp.py` | a model | MCP over stdio, by hand; asks the client's model through sampling when the client offers it |
-| `doors/hook.py` | a model | Claude Code's prompt hook: the sealed page for this question, or one line saying nothing is sealed |
+| `doors/hook.py` | a model | Prompt hook (Claude Code, and `--host` for Gemini/Codex/OpenCode): the sealed page, or one line saying nothing is sealed. Cursor cannot inject; use MCP |
+| `doors/session.py` | the person | Session start/end: each session closed for one seal; at the next start the person is told what waits (Claude `systemMessage`, Cursor `user_message` + desktop notice). Cursor also nudges after this server's MCP tools |
+
+## One seal a session
+
+A seal at every step is a lot to ask. At a session's end the session door
+asks the runtime to `close` it: Willow's `session-seal` bundles the record's
+rows since the last close (each by number, kind and hash, no words) as one
+proposal, "yes, these were my actions". At the next start, the person is
+told what waits on them: a one-line count (Claude Code's `systemMessage`),
+and a card naming each claim with its seal line (Cursor's `user_message`, a
+desktop notice when the OS has one, and `BOX.runtime/needs-you.txt`). Nothing
+of that is put in the model's turn.
+
+It proposes; it never seals. Sealing a session says the actions were the
+person's; it doesn't let a page leave. A page still leaves only on its own
+seal, and a sealed one keeps being given for its question, session after
+session, until it changes in the files or the person stops it. So the seals
+fall away: one a session, and one a question, once.
+
+SessionEnd hooks get 1.5 seconds unless they say otherwise, so the line
+`set_up.py` prints gives it 60, the most Claude Code allows.
+
+## A big folder
+
+The kernel reads every file at every bite: on 190,000 passages, half a
+minute. So the runtime keeps an index of the folder beside the box
+(`BOX.runtime/index`), brought current at each read by Willow's
+`index-cache`, which rebuilds only when a file changed. While it is
+current, `claude-code`'s bite answers from it, the same JSON and the same
+row on the record as the kernel's, and a session closes from it too. Over
+one real folder: a read 27 seconds before, 3 after; the first one, which
+builds the index, 19. The index never goes in a backup, and with a Willow
+too old to have that bite, the kernel reads the folder as before.
 
 A door imports the runtime and nothing that decides, and never calls Willow
 itself. `tests/test_doors.py` fails any door that does. A door the runtime
@@ -150,6 +202,8 @@ named in `model.json`.
 | `sentence-check` | holding the model's sentence to its page |
 | `privacy` | withholding numbers, emails and keys |
 | `backup`, `local-model` | the record's backup, and finding models on this machine |
+| `session-seal` | one seal over a session's actions |
+| `index-cache`, `claude-code`'s `bite` | a bite answered from an index of the folder |
 
 It uses Willow by its command line only, and never imports or changes
 Willow's kernel. When Willow lacks something, the fix goes to Willow:
@@ -162,7 +216,6 @@ this ([willow-memory/Willow#373](https://github.com/willow-memory/Willow/pull/37
   Two ways are open: MCP elicitation, where the client shows the person a
   form, or a page to seal from. That choice is the person's to make.
   [NOTES.md](NOTES.md) has both.
-- **Restore** of the runtime's backup is by hand.
 - **Models off this machine** are refused. Sending even a sealed page to
   someone else's server is a bigger step, and would be the person's
   explicit line in `model.json`.
