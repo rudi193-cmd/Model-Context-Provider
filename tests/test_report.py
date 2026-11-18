@@ -254,3 +254,160 @@ def test_a_report_this_does_not_make_is_refused_in_plain_words(box):
     got = runtime.call(box, "report", "horoscope", door="mcp")
     assert (got["state"], got["code"]) == ("refused", "no_report")
     assert runtime.call(box, "report", None, door="pipe")["code"] == "no_report"
+
+
+# the audits and the minutes: the same report shape, found in Willow's add-ons.
+# Anything shaped like a secret is put together here, so no file of this
+# project holds one.
+LABEL = "".join(["pa", "ss", "wo", "rd"])
+SECRET_PASSWORD = "".join(["hun", "ter", "2xyz"])
+SECRET_KEY = "".join(["sk", "_li", "ve_", "A1b2C3d4E5f6G7h8I9j0K1l2"])
+CARD = " ".join(["4242"] * 4)
+NHS = "943 476 5919"
+SECRETS = (SECRET_PASSWORD, SECRET_KEY, CARD)
+NUMBERS = (CARD, "4242", NHS, "5919", "476")
+
+
+@pytest.fixture
+def leaky(box):
+    """A folder with a password, a key, a card and an NHS number in it, a link
+    that leads nowhere, and a meeting's minutes."""
+    pile = box.parent / "pile"
+    (pile / "wifi.txt").write_text(f"router\n{LABEL}: {SECRET_PASSWORD}\n")
+    (pile / "deploy.md").write_text(f"token {SECRET_KEY} here\ncard {CARD}\n")
+    (pile / "p60.txt").write_text(f"nhs number {NHS}\n")
+    (pile / "index.md").write_text("[trip](trips/2019.md) and [ok](deploy.md)\n")
+    (pile / "board.md").write_text(
+        "# March 2026-03-02\n- Decision: Move the AGM to May.\n"
+        "- Action: Ana to send the figures by 2026-03-09\n"
+    )
+    return box
+
+
+@pytest.mark.parametrize("name", ["ref-check", "pii-audit", "secrets-audit", "minutes"])
+def test_a_folder_with_nothing_for_the_report_to_find_has_none(box, name):
+    assert runtime.call(box, "report", name, door="mcp") == {
+        "state": "empty", "report": name}  # fmt: skip
+    assert runtime.call(box, "report", name, door="pipe")["state"] == "empty"
+    assert runtime.waiting(box)["state"] == "empty"
+
+
+@pytest.mark.parametrize(
+    ("name", "found"),
+    [
+        ("ref-check", "index.md:1  trips/2019.md: not there"),
+        ("pii-audit", "## an NHS number\n  p60.txt:1"),
+        ("secrets-audit", "wifi.txt:2  value not shown"),
+        ("minutes", "board.md:2  2026-03-02  Move the AGM to May."),
+    ],
+)
+def test_each_new_report_is_the_persons_to_read_as_it_is(leaky, name, found):
+    got = runtime.call(leaky, "report", name, door="pipe")
+    assert got["state"] == "populated" and found in got["text"]
+    assert runtime.waiting(leaky)["state"] == "empty"  # their own read asks no seal
+
+
+@pytest.mark.parametrize(
+    ("name", "heard"),
+    [
+        ("ref-check", ("trips", "2019", "index.md")),
+        ("pii-audit", ("p60", "NHS", "deploy.md")),
+        ("secrets-audit", ("wifi", "deploy", "value not shown")),
+        ("minutes", ("AGM", "Ana", "board.md")),
+    ],
+)
+def test_a_model_learns_only_that_there_is_one_of_the_new_reports(leaky, name, heard):
+    got = runtime.call(leaky, "report", name, door="mcp")
+    assert sorted(got) == ["report", "seal", "state"]
+    assert (got["state"], got["report"]) == ("waiting", name)
+    told = json.dumps(got) + (runtime.state(leaky) / "sent.jsonl").read_text()
+    for word in heard + SECRETS + NUMBERS:
+        assert word not in told
+
+
+def test_a_sealed_ref_check_gives_the_places_that_do_not_hold(leaky):
+    got = runtime.call(leaky, "report", "ref-check", door="mcp")
+    (owed,) = runtime.waiting(leaky)["waiting"]
+    assert "which names people" not in owed["claim"]
+    seal(leaky, got["seal"])
+    page = runtime.call(leaky, "report", "ref-check", door="mcp")["page"]
+    assert page == owed["words"]
+    assert page.splitlines()[0] == "ref-check: 2 references checked, 1 doesn't hold"
+    assert "index.md:1  trips/2019.md: not there" in page
+
+
+def test_the_minutes_say_before_the_seal_that_they_name_people(leaky):
+    """The owner of an action is a name. The rows stay decisions and actions:
+    only `people` is a line a person."""
+    got = runtime.call(leaky, "report", "minutes", door="mcp")
+    (owed,) = runtime.waiting(leaky)["waiting"]
+    assert "which names people" in owed["claim"]
+    assert owed["words"].splitlines()[0].endswith(", which names people")
+    seal(leaky, got["seal"])
+    page = runtime.call(leaky, "report", "minutes", door="mcp")["page"]
+    assert page == owed["words"]
+    assert "## decisions" in page and "## actions open" in page
+    assert "board.md:3  2026-03-02  Ana  send the figures" in page
+
+
+def test_a_name_the_person_listed_is_withheld_from_the_minutes(leaky):
+    (runtime.state(leaky) / "names.txt").write_text("Ana\n")
+    got = runtime.call(leaky, "report", "minutes", door="mcp")
+    (owed,) = runtime.waiting(leaky)["waiting"]
+    assert "Ana" not in owed["words"] and "[withheld: name]" in owed["words"]
+    seal(leaky, got["seal"])
+    assert "Ana" not in runtime.call(leaky, "report", "minutes", door="mcp")["page"]
+
+
+@pytest.mark.parametrize("name", ["pii-audit", "secrets-audit"])
+def test_an_audit_never_shows_the_value_it_found_to_anyone(leaky, name):
+    """Willow's audits list where, never what. Nothing here may bring a value
+    back in: not the person's own read, what waits, what is sealed, what a
+    grant is given, nor anything written down on the way. The one thing the
+    person's own door keeps is the last digits of a number, as Willow shows
+    them; a model is never given even those."""
+    mine = runtime.call(leaky, "report", name, door="pipe")["text"]
+    got = runtime.call(leaky, "report", name, door="mcp")
+    (owed,) = runtime.waiting(leaky)["waiting"]
+    seal(leaky, got["seal"])
+    page = runtime.call(leaky, "report", name, door="mcp")["page"]
+    let_in = runtime.report_to_model(leaky, name, let_in=True)["page"]
+    kept = "".join(
+        f.read_text()
+        for f in leaky.rglob("*")
+        if f.is_file() and f.suffix in (".md", ".json", ".jsonl", ".txt")
+    )
+    assert page == owed["words"] and "deploy.md" in page
+    for text in (owed["words"], page, let_in, json.dumps(got), kept):
+        for value in SECRETS + NUMBERS:
+            assert value not in text
+    for value in (*SECRETS, NHS):  # whole, to no one: not even the person's read
+        assert value not in mine
+
+
+def test_the_pii_audit_keeps_the_last_digits_for_the_person_and_never_for_a_model(
+    leaky,
+):
+    lines = runtime.call(leaky, "report", "pii-audit", door="pipe")["text"].splitlines()
+    assert lines[0].startswith("pii-audit: 2 personal numbers in 2 of")
+    assert [ln.split()[0] for ln in lines[1:]] == [
+        "##",
+        "deploy.md:2",
+        "##",
+        "p60.txt:1",
+    ]
+    assert lines[2].endswith("4242") and lines[4].endswith("5919")  # which card it is
+    assert CARD not in "\n".join(lines) and NHS not in "\n".join(lines)  # never whole
+    page = runtime.report_to_model(leaky, "pii-audit", let_in=True)["page"].splitlines()
+    assert page[1:] == [
+        "## a card number", "  deploy.md:2",
+        "## an NHS number", "  p60.txt:1",
+    ]  # fmt: skip
+
+
+def test_the_secrets_audit_gives_a_place_a_kind_and_never_the_value(leaky):
+    text = runtime.call(leaky, "report", "secrets-audit", door="pipe")["text"]
+    assert text.splitlines()[0].endswith("values are never shown")
+    for kind in ("a password typed with its label", "a key or token", "a card number"):
+        assert f"## {kind}" in text
+    assert "wifi.txt:2  value not shown" in text and "deploy.md:1" in text

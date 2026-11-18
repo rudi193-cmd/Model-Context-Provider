@@ -351,15 +351,33 @@ so none is lost. A box is ticked when it is built.
   files, over what dates), from one call to Willow: `people` 0.1.2 has a
   `--json`. Proposed on the task queue, sealed by the owner, and done from
   it: the first task the queue carried. Not yet seen over the real record.
-- [ ] **More reports, cheaply.** `report()` now takes exit 42 as "found
+- [x] **More reports, cheaply.** Built 2026-11-18: `ref-check`,
+  `pii-audit`, `secrets-audit` and `minutes`, with `habits` in the pin for
+  `minutes`. `pii-audit`'s last digits are kept on the person's door and left out for a model. `report()` now takes exit 42 as "found
   something", which is what Willow's audit add-ons say. That opens
   `ref-check`, `pii-audit` and `secrets-audit`; `minutes` fits as it is.
   Each is a line in `runtime.REPORTS` and a pin.
-- [ ] **More importers.** `joplin` takes the same command line as `notes`
-  and `calendar`: a line in `BRING_IN` and a pin.
-- [ ] **The task queue's edges.** Listing tasks has no limit on its whole
+- [x] **More importers.** Built: `joplin`, `evernote` and `google-keep`,
+  each by the command line `notes` takes (a line in `BRING_IN` and a pin),
+  each run by hand on a small made-up export before it was added. Others
+  of Willow's readers also take that command line (`mastodon`, `goodreads`,
+  `karakeep`, `opml`, `takeout`, `mail` and more) and were not built here;
+  each is the same two lines, once run by hand.
+- [x] **The task queue's edges.** Listing tasks has no limit on its whole
   size; each `tasks` or `notes` call asks the kernel once a sealed thing,
   a row on the record each time.
+  - **Note (size limit done):** `tasks` now gives at most `TASKS_MOST`
+    (20,000) characters of words at once: the oldest tasks that fit, then
+    `more: true` and nothing else about the rest (never a count). It is
+    not refused whole, as `notes` is, since a session given no task can
+    take none up. A claimed task's words weigh like an open one's, so
+    many long claimed tasks can crowd out newer open ones until they are
+    finished: the owner's to rule on.
+  - **Note (rows done):** a yes the kernel gave is remembered by the door
+    that asked, in memory, while the proposal it was for reads the same,
+    so a sealed task or a kept note is asked of the kernel once and not on
+    every call; what waits is asked once a call. A third of a day's rows
+    on the real record were those two askings (2026-11-18).
 - [x] **`share`**: built 2026-11-18. The person's door has `share_id`,
   `share_person`, `share_send`, `share_receive`, `share_forward` and
   `shares`; a model's has `share_propose` (a package for the person's
@@ -418,8 +436,16 @@ so none is lost. A box is ticked when it is built.
     secret. Written up for the owner; not this project's code.
   - The privacy filter turns a run of four-digit numbers into
     `[withheld: card]`, so a job that prints years or sizes reads oddly.
-  - A job's output is given up to 20,000 characters; a smaller default,
-    with more on asking, would cost less.
+  - [x] A job's output is given up to 20,000 characters; a smaller default,
+    with more on asking, would cost less. Done: `job` and `job_result` give
+    4,000 characters (`JOB_GIVEN`), cut at a whole line, and say so in
+    `cut`; `more: yes` gives up to the 20,000 (`job` runs again, `result`
+    reads again). Still refused over 20,000.
+    - **Note:** 4,000 was held to what Willow's demos kept of their runs
+      (`kept`, `shared-runs`, `small-models`, `want-finders`: 85 printed
+      outputs, median about 1,000 characters). It gives 89% whole; 8,000
+      gives 92% and 20,000 gives 96%. The owner agreed, 2026-11-18. Three
+      of the 85 are over 20,000 and would be refused whole.
   - The Python the person names for jobs is visible inside the sandbox
     with its packages (said in the README).
   - A fleet on an older Kartikeya (0.3.2) runs a job with no limits when

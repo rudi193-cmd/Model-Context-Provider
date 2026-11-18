@@ -222,9 +222,17 @@ def test_a_job_says_when_it_was_clipped_and_when_it_ran_out_of_time(box, monkeyp
     let_in(box)
     plain = call(box, "job", "echo hi")
     assert "how" not in plain and "clipped" not in plain
-    got = call(box, "job", "seq 1 30000 | sed 's/^/line /'")
+    flood = {"text": "seq 1 30000 | sed 's/^/line /'", "more": True}
+    got = call(box, "job", flood)
     assert got["state"] == "left" and got["clipped"] is True and got["ended"] == "well"
     assert "line 1\n" in got["page"] and got["page"].rstrip().endswith("line 30000")
+    assert "cut" not in got  # all of it was asked for
+    short = call(box, "job", flood["text"])  # not asked for: the head, still clipped
+    assert (
+        short["clipped"] is True
+        and "cut" in short
+        and "line 30000" not in short["page"]
+    )
     # a failed job's last line is on the page, and nowhere else it is told
     got = call(box, "job", "cat {pile}/garden.md; exit 5")
     assert got["how"] == "exited 5" and "frost" in got["page"]
@@ -234,7 +242,108 @@ def test_a_job_says_when_it_was_clipped_and_when_it_ran_out_of_time(box, monkeyp
     assert "time" in got["how"].lower(), got
     rows = [json.loads(x) for x in (box / "record.jsonl").read_text().splitlines()]
     ran = [r for r in rows if r["kind"] == "ran"]
-    assert len(ran) == 4 and "frost" not in json.dumps(ran)
+    assert len(ran) == 5 and "frost" not in json.dumps(ran)
+
+
+LINES = "".join(f"{n:03d} " + "x" * 95 + "\n" for n in range(100))  # 100 whole lines
+
+
+def test_a_long_print_is_given_in_part_at_a_whole_line_and_says_how_to_get_it_all(box):
+    assert len(LINES) > runtime.JOB_GIVEN and len(LINES) < runtime.JOB_MOST
+    got = runtime.job_given(box, LINES, True, "")
+    assert got["state"] == "left" and got["ended"] == "well"
+    assert got["page"].endswith("x\n") and len(got["page"]) <= runtime.JOB_GIVEN
+    assert LINES.startswith(got["page"]) and "039 " in got["page"]  # whole lines only
+    assert "040 " not in got["page"]
+    assert "more: yes" in got["cut"] and str(runtime.JOB_MOST) in got["cut"]
+    assert (
+        f"of its {len(LINES) - 1} characters" in got["cut"]
+    )  # withheld: no last newline
+    assert "again" in got["cut"]
+    asked = runtime.job_given(box, LINES, True, "", more=True)
+    assert asked["page"] == LINES.rstrip("\n") and "cut" not in asked
+    short = runtime.job_given(box, "hello\n", True, "")  # a short print is never cut
+    assert short["page"] == "hello" and "cut" not in short
+    # over the most is still not given, even asked for
+    big = "y\n" * (runtime.JOB_MOST // 2 + 1)
+    for more in (False, True):
+        got = runtime.job_given(box, big, True, "", more=more)
+        assert (got["state"], got["code"]) == ("refused", "job_too_long")
+
+
+def test_a_print_is_withheld_before_it_is_cut_and_a_cut_keeps_clipped_and_how(box):
+    (runtime.state(box) / "names.txt").write_text("Aoife\n")
+    printed = (
+        "Ring Aoife on 07700 900123.\n" + LINES + "[kart: 50 chars clipped]\nAoife\n"
+    )
+    got = runtime.job_given(box, printed, False, "exited 3: Aoife", more=False)
+    assert (
+        "cut" in got and "Aoife" not in json.dumps(got) and "900123" not in got["page"]
+    )
+    assert "[withheld: name]" in got["page"]
+    assert got["clipped"] is True  # the marker is past the cut, and is still said
+    assert got["how"] == "exited 3" and got["ended"] == "badly"
+    whole = runtime.job_given(box, printed, False, "exited 3", more=True)
+    assert "Aoife" not in json.dumps(whole) and whole["clipped"] is True
+
+
+def test_a_first_line_longer_than_the_part_gives_no_half_line(box):
+    printed = "z" * (runtime.JOB_GIVEN + 5) + "\nnext\n"
+    got = runtime.job_given(box, printed, True, "")
+    assert got["page"] == "" and "cut" in got and "more: yes" in got["cut"]
+    assert runtime.job_given(box, printed, True, "", more=True)[
+        "page"
+    ] == printed.rstrip("\n")
+
+
+def test_more_is_asked_for_in_the_tool_and_a_no_is_a_no(box, monkeypatch):
+    seen = []
+
+    def stand_in(box, arg, where, session):
+        seen.append(arg)
+        return {"state": "left"}
+
+    monkeypatch.setattr(runtime, "job", stand_in)
+    monkeypatch.setattr(runtime, "job_result", stand_in)
+    let_in(box)
+    job = "0" * 12 + "-" + "0" * 8
+    for name, given in (("run", {"text": "ls", "more": "yes"}),
+                        ("result", {"id": job, "more": "yes"})):  # fmt: skip
+        asked = {"name": "job", "arguments": {"action": name, **given}}
+        assert call(box, "tool", asked)["state"] == "left"
+    assert seen == [{"text": "ls", "more": "yes"}, {"id": job, "more": "yes"}]
+    assert all(runtime.asked_more(a) for a in seen)
+    assert not any(runtime.asked_more(a) for a in (
+        None, "ls", {"text": "ls"}, {"more": "no"}, {"more": "false"}, {"more": "0"},
+        {"more": ""}))  # fmt: skip
+
+
+@pytest.mark.skipif(not HAS_KART, reason="needs Kartikeya, Python 3.11+")
+def test_a_long_job_is_cut_at_a_whole_line_and_all_of_it_comes_on_asking(box):
+    let_in(box)
+    got = call(box, "job", "seq 1 2000 | sed 's/^/line /'")
+    assert got["ended"] == "well" and "cut" in got and "line 2000" not in got["page"]
+    assert got["page"].endswith("\n") and len(got["page"]) <= runtime.JOB_GIVEN
+    assert "runs again" in got["cut"]
+    all_of = call(box, "job", {"text": "seq 1 2000 | sed 's/^/line /'", "more": True})
+    assert "cut" not in all_of and all_of["page"].rstrip().endswith("line 2000")
+
+
+@pytest.mark.skipif(not HAS_KART, reason="needs Kartikeya, Python 3.11+")
+def test_a_long_result_is_read_again_for_all_of_it_and_never_run_again(
+    box, monkeypatch
+):
+    let_in(box)
+    started = work_now(monkeypatch)
+    queued = call(box, "job_later", "seq 1 2000 | sed 's/^/line /'")
+    got = call(box, "job_result", queued["job"])
+    assert (
+        "cut" in got and "line 2000" not in got["page"] and got["job"] == queued["job"]
+    )
+    assert "read again, not run again" in got["cut"]
+    all_of = call(box, "job_result", {"id": queued["job"], "more": "yes"})
+    assert "cut" not in all_of and all_of["page"].rstrip().endswith("line 2000")
+    assert len(started) == 1  # one worker, started by the one job_later
 
 
 def work_now(monkeypatch):

@@ -38,6 +38,9 @@ ADD_ONS = (
     "claude-code",
     "coming-up",  # loads pieces
     "digest",  # loads coming-up and stale-answers
+    "evernote",  # an importer: loads only the kernel
+    "google-keep",  # an importer: loads only the kernel
+    "habits",  # minutes loads it; it loads only the kernel
     "hook-errors",
     "hook-feedback",
     "hook-guard",
@@ -46,15 +49,20 @@ ADD_ONS = (
     "hook-read-first",
     "hook-shell",
     "index-cache",
+    "joplin",  # an importer: loads only the kernel
     "local-model",
+    "minutes",  # loads habits
     "notes",  # an importer: loads only the kernel
     "on-this-day",
     "openai-compatible",  # local-model loads it
     "people",  # loads only the kernel
-    "rss-out",  # loads only the kernel
     "pieces",  # coming-up loads it from beside it
-    "privacy",
+    "pii-audit",  # loads only the kernel
+    "privacy",  # secrets-audit loads it
+    "ref-check",  # loads only the kernel
     "removed",  # loads only the kernel
+    "rss-out",  # loads only the kernel
+    "secrets-audit",  # loads privacy
     "sentence-check",
     "session-seal",
     "share",  # kart loads it: a job that came in a package, a result sent back

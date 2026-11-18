@@ -12,6 +12,36 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   for, and stands only while that file reads the same (Willow's forge:
   put to the person once and remembered; stale seals, asked again). A no
   is never remembered. What waits is asked once while a call is answered.
+- **Four more reports.** `ref-check` (links and `file:line` places that no
+  longer hold), `pii-audit` (where personal numbers sit), `secrets-audit`
+  (where passwords and keys sit) and `minutes` (decisions and actions from
+  meeting notes), each one of Willow's add-ons, each a line in the reports
+  and in the pin (with `habits`, which `minutes` loads; `privacy` was
+  already there). The audits list a kind and a place and never the value:
+  Willow's `pii-audit` shows the last digits of a number; the person's own
+  door keeps them, and for a model this leaves
+  them out, and a test fails if any digit or secret comes back. `minutes`
+  names who owns each action, so it says it names people, like `people`,
+  but its rows stay decisions and actions.
+- **Three more things to bring in: Joplin, Evernote and Google Keep.**
+  `bring_in` takes `joplin` (a `.jex` export), `evernote` (`.enex` files)
+  and `google-keep` (the `.json` notes of a Takeout), each by Willow's
+  add-on of that name, run by its command line as `notes` is: a text mirror
+  in `brought-in/KIND-NAME/`, the original never changed, and the same
+  folder again under the same name safe. Still the person's door only. The
+  three add-ons load only the kernel, and join the pin.
+- **A limit on the whole task list.** `tasks` gives a model at most 20,000
+  characters of words at once. Over it, the oldest tasks that fit are given
+  and the answer says `more: true`: never how many, and only tasks that
+  session may see are weighed. Not refused whole, as the notes are, since a
+  session given no task can take none up. Finish a task and ask again for
+  the rest. Tasks are now given oldest first.
+- **A smaller default for what a job prints.** `job` and `job_result` give
+  4,000 characters, not 20,000. A longer print is cut at a whole line and
+  says so, and how to get the rest: `more: yes` gives up to 20,000 (`run`
+  runs the job again; `result` reads the same print again). It is still
+  withheld before it is cut, and `clipped` and `how` are unchanged.
+
 - **A page for the tool groups.** The seal page's fifth page, **What a
   model is offered**, shows each group, the tools in it, whether it is on
   and why, with a button to switch it. It is held to the same table as

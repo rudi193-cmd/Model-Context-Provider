@@ -43,6 +43,8 @@ def test_the_list_names_reports_the_last_page_and_this_projects_shelf(box, tmp_p
     assert uris(box, tmp_path) == [
         "provider://report/todo", "provider://report/on-this-day",
         "provider://report/coming-up", "provider://report/people",
+        "provider://report/ref-check", "provider://report/pii-audit",
+        "provider://report/secrets-audit", "provider://report/minutes",
         "provider://page/last",
     ]  # fmt: skip
     runtime.call(box, "shelf_add", {"name": "report.md", "text": REPORT},

@@ -1,8 +1,11 @@
-"""A notes vault or a calendar brought into the folder the box reads, by the
-person, through Willow's notes and calendar add-ons."""
+"""A notes vault, a calendar, or a Joplin, Evernote or Google Keep export
+brought into the folder the box reads, by the person, through Willow's
+add-ons for each."""
 
 import hashlib
+import io
 import json
+import tarfile
 import zipfile
 
 import pytest
@@ -22,6 +25,66 @@ LOCATION:Studio 2
 END:VEVENT
 END:VCALENDAR
 """
+
+
+FROST = "when should the tomatoes be planted out after the last frost"
+BEANS = "which plot gets the beans"
+MILK = "what is on the shopping list"
+
+ENEX = (
+    "<en-export><note><title>Allotment plan</title><content><![CDATA["
+    "<en-note><div>Plot 14 gets the beans.</div></en-note>]]></content>"
+    "<created>20240303T101500Z</created><tag>garden</tag></note></en-export>"
+)
+KEEP = (
+    '{"isTrashed":false,"title":"Shopping","userEditedTimestampUsec":1710000000000000,'
+    '"createdTimestampUsec":1709380000000000,"labels":[{"name":"home"}],'
+    '"listContent":[{"text":"milk","isChecked":false}]}'
+)
+
+
+def jex(files):
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w") as tar:
+        for name, text in files.items():
+            data = text.encode()
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+    return buf.getvalue()
+
+
+JEX = jex(
+    {
+        "a.md": "Garden\n\nid: a\nparent_id: \ntype_: 2",
+        "n1.md": "Tomato notes\n\nPlant out after the last frost.\n\nid: n1\nparent_id: a\n"
+        "created_time: 2024-03-02T08:00:00.000Z\ndeleted_time: 0\ntype_: 1",
+    }
+)
+
+
+@pytest.fixture
+def joplin(tmp_path):
+    j = tmp_path / "joplin-export"
+    j.mkdir()
+    (j / "export.jex").write_bytes(JEX)
+    return j
+
+
+@pytest.fixture
+def evernote(tmp_path):
+    e = tmp_path / "evernote-export"
+    e.mkdir()
+    (e / "Garden.enex").write_text(ENEX)
+    return e
+
+
+@pytest.fixture
+def keep(tmp_path):
+    k = tmp_path / "keep-export"
+    k.mkdir()
+    (k / "shopping.json").write_text(KEEP)
+    return k
 
 
 @pytest.fixture
@@ -82,8 +145,37 @@ def test_a_calendar_is_mirrored_and_its_event_is_found(box, cal):
     assert "2026-10-28 14:00  Dentist appointment" in mirror.read_text()
 
 
-def test_the_original_is_never_changed(box, vault, cal):
-    for kind, src in (("notes", vault), ("calendar", cal)):
+@pytest.mark.parametrize(
+    "kind, fixture, question, mirror_file, words",
+    [
+        ("joplin", "joplin", FROST, "export.jex.txt", "notebook: Garden"),
+        ("evernote", "evernote", BEANS, "Garden.enex.txt", "tags: garden"),
+        ("google-keep", "keep", MILK, "shopping.json.txt", "[ ] milk"),
+    ],
+)
+def test_an_export_is_mirrored_and_a_question_then_finds_it(
+    box, request, kind, fixture, question, mirror_file, words
+):
+    src = request.getfixturevalue(fixture)
+    assert found(box, question) == []
+    got = bring(box, kind, src, "mine")
+    assert got["state"] == "brought", got
+    assert got["wrote"] == 1 and got["skipped"] == 0
+    assert got["to"].endswith(f"pile/brought-in/{kind}-mine")
+    mirror = box.parent / "pile" / "brought-in" / f"{kind}-mine" / mirror_file
+    assert words in mirror.read_text()
+    where = found(box, question)
+    assert where and where[0].startswith(f"brought-in/{kind}-mine/{mirror_file}")
+
+
+def test_the_original_is_never_changed(box, vault, cal, joplin, evernote, keep):
+    for kind, src in (
+        ("notes", vault),
+        ("calendar", cal),
+        ("joplin", joplin),
+        ("evernote", evernote),
+        ("google-keep", keep),
+    ):
         before = snapshot(src)
         assert bring(box, kind, src, kind)["state"] == "brought"
         assert bring(box, kind, src, kind)["state"] == "brought"
@@ -116,7 +208,7 @@ def test_a_name_that_is_not_one_plain_folder_name_is_refused(box, vault, name):
     assert not (box.parent / "pile" / "brought-in").exists()
 
 
-def test_a_kind_that_is_not_notes_or_calendar_is_refused(box, vault):
+def test_a_kind_it_does_not_bring_in_is_refused(box, vault):
     assert bring(box, "photos", vault)["code"] == "bring_what"
     got = runtime.call(box, "bring_in", "nonsense", door="pipe")
     assert got["code"] == "bring_what"
@@ -176,6 +268,27 @@ def test_a_second_run_over_a_calendar_behaves_the_same(box, cal):
     assert "Dr Haddad" in mirror.read_text()
 
 
+def test_a_second_run_over_an_export_behaves_the_same(box, joplin, evernote, keep):
+    for kind, src, file in (
+        ("joplin", joplin, "export.jex"),
+        ("evernote", evernote, "Garden.enex"),
+        ("google-keep", keep, "shopping.json"),
+    ):
+        assert bring(box, kind, src)["again"] is False
+        got = bring(box, kind, src)
+        assert got["state"] == "brought" and got["again"] is True and got["times"] == 2
+        mirror = box.parent / "pile" / "brought-in" / f"{kind}-mine" / f"{file}.txt"
+        assert mirror.is_file()
+    assert [r["times"] for r in brought_rows(box)] == [2, 2, 2]
+
+
+def test_a_folder_with_nothing_an_export_reader_can_read_is_refused(box, vault):
+    for kind in ("joplin", "evernote", "google-keep"):
+        got = bring(box, kind, vault, kind)  # only .md files: not this kind's
+        assert got["state"] == "refused" and got["code"] == "bring_nothing", got
+    assert brought_rows(box) == []
+
+
 def test_what_was_brought_in_is_listed_with_where_from_and_when(box, vault, cal):
     assert runtime.call(box, "brought_in", door="pipe")["state"] == "empty"
     bring(box, "notes", vault, "vault")
@@ -200,8 +313,9 @@ def test_status_says_what_was_brought_in(box, vault):
 
 @pytest.mark.parametrize("door", ["mcp", "hook", "guard", "unknown-door"])
 def test_a_models_door_and_a_hosts_door_are_refused_the_verb(box, vault, door):
-    for verb, arg in (("bring_in", {"kind": "notes", "from": str(vault), "as": "x"}),
-                      ("brought_in", None)):  # fmt: skip
+    kinds = ("notes", "calendar", "joplin", "evernote", "google-keep")
+    asks = [("bring_in", {"kind": k, "from": str(vault), "as": "x"}) for k in kinds]
+    for verb, arg in [*asks, ("brought_in", None)]:
         got = runtime.call(box, verb, arg, door=door)
         assert got["state"] == "refused" and got["code"] == "no_verb", got
     assert not (box.parent / "pile" / "brought-in").exists()

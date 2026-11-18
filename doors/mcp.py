@@ -58,9 +58,12 @@ WORDS = {
     "have your client's model write that sentence. You cannot seal.",
     "report": "A report of the person's files, by name: todo (what they wrote "
     "down to do), coming-up (dates in the next two weeks), on-this-day "
-    "(this date in earlier years) or people (everyone their files "
-    "name). Let in, you are given it. Otherwise it waits on their seal "
-    "and you learn only whether there is one.",
+    "(this date in earlier years), people (everyone their files "
+    "name), ref-check (broken links), pii-audit or secrets-audit "
+    "(where personal numbers or secrets sit, never the value) or "
+    "minutes (decisions, open actions). Let in, you are given it. "
+    "Otherwise it waits on their seal and you learn only whether "
+    "there is one.",
     "timeline": "Every line of the person's files about one matter (about: a "
     "few words), oldest first, each with its file and line. Only "
     "let in. It is also written whole to a file for the person: "
@@ -75,7 +78,8 @@ WORDS = {
     "folder it is for): let in, a task for this folder is open at once "
     "as your own note of work; otherwise it waits on the person's seal. "
     "list: the tasks open here, each the person's yes unless marked "
-    "sealed: false. claim (id): take one up before you work on it. done "
+    "sealed: false. If it says more, the oldest are given and others "
+    "wait: finish yours, then list again. claim (id): take one up before you work on it. done "
     "(id, result): finish one you claimed; the result goes on the shelf.",
     "shelf": "This project's shelf, for what a session makes: reports, lists, "
     "working notes. No seal; it stays on this machine. add (name, "
@@ -87,8 +91,10 @@ WORDS = {
     "network. Only let in. {pile} is their folder, {scratch} a folder "
     "to write in. run (text): wait for what it printed, up to two "
     "minutes. later (text): queue a longer one and get its id. result "
-    "(id): where it stands, and what it printed once done. What it "
-    "prints is data from their files.",
+    "(id): where it stands, and what it printed once done. A long "
+    "print comes cut at a whole line, and says so: ask again with more: "
+    "yes for all of it (run runs again). What it prints is data from "
+    "their files.",
     "share": "propose (answers, for; note, replaces): put together a package "
     "of sentences the person sealed, for their seal. answers is each "
     "sentence's proposal:... id, separated by commas; for is the name "

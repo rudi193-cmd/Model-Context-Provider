@@ -823,13 +823,13 @@ PLAIN = {
     "not_on_shelf": ("There's nothing by that name on this project's shelf.",
                      "See what is there (shelf_list): each shows the name to ask for."),
     "no_report": ("That isn't a report this makes.",
-                  "The reports are: todo (what you wrote down to do), coming-up (dates in your files in the next two weeks), on-this-day (what you wrote on this date in earlier years) and people (everyone your files name, a line each)."),
+                  "The reports are: todo (what you wrote down to do), coming-up (dates in your files in the next two weeks), on-this-day (what you wrote on this date in earlier years), people (everyone your files name, a line each), ref-check (links and file:line places that no longer hold), pii-audit (where personal numbers sit, never the numbers), secrets-audit (where passwords and keys sit, never the values) and minutes (decisions and open actions)."),
     "report_failed": ("The report couldn't be made, so nothing was shared.",
                       "Check that WILLOW points at your Willow folder."),
     "report_too_long": ("The report is too long to share whole, so nothing was shared.",
                         "Leave folders out of it: list each, one a line, in report-skip.txt beside your record, then ask again."),
     "no_resource": ("That isn't something this door lists.",
-                    "It lists the reports (todo, coming-up, on-this-day, people), the page you last sealed, what is on this project's shelf, and the skills you named."),
+                    "It lists the reports (todo, coming-up, on-this-day, people, ref-check, pii-audit, secrets-audit, minutes), the page you last sealed, what is on this project's shelf, and the skills you named."),
     "no_prompt": ("That prompt can't be started.",
                   "The prompts are plate (what's on your plate), ask (a question for your files), question_me (be questioned about your notes) and wrap_up (keep what a session found)."),
     "no_skill": ("There's no skill by that name.",
@@ -838,18 +838,18 @@ PLAIN = {
                       "Point at a text file of instructions outside your record, and give it one plain name (letters, digits, dots and dashes)."),
     "skill_too_long": ("That skill is too long to read before sealing it, so it wasn't proposed.",
                        "Split it into smaller skills, each a file of its own."),
-    "bring_what": ("That isn't a notes vault or a calendar to bring in.",
-                   'Say what, where from and what to call it: {{"kind": "notes" or "calendar", "from": "/path/to/the/folder", "as": "a-plain-name"}}.'),
+    "bring_what": ("That isn't something it can bring in.",
+                   'Say what, where from and what to call it: {{"kind": "notes", "calendar", "joplin", "evernote" or "google-keep", "from": "/path/to/the/folder", "as": "a-plain-name"}}.'),
     "bring_name": ("That name isn't one plain folder name.",
                    "Use letters, digits, dots, dashes and underscores, starting with a letter or digit, at most 64: vault-2024."),
     "bring_no_folder": ("There's no folder of yours to bring this into.",
                         "Check that your record points at the folder it reads."),
     "bring_inside": ("That folder is inside your record or your folder, or holds them, so nothing was brought in.",
-                     "Point at the original vault or calendar folder, kept somewhere else."),
+                     "Point at the original folder of your files, kept somewhere else."),
     "bring_exists": ("There's already a copy by that name that isn't of this folder, and it's never written over.",
                      "Choose another name, or bring in the same folder again under the same name."),
     "bring_nothing": ("There was nothing in that folder it could read, so nothing was brought in.",
-                      "Check it holds a notes vault (.md files) or calendar files (.ics, .vcf) as plain text."),
+                      "Check it holds what that kind reads: a notes vault (.md files), calendar files (.ics, .vcf), a Joplin export (.jex), Evernote exports (.enex) or Google Keep notes (.json)."),
     "bring_failed": ("The step that brings files in couldn't run, so nothing was brought in.",
                      "Check that the folder is there and that WILLOW points at your Willow folder."),
     "bring_record": ("The list of what you brought in can't be read.",
@@ -1095,6 +1095,10 @@ REPORTS = {
     "on-this-day": "adapters/stdlib/on-this-day/on_this_day.py",
     "coming-up": "adapters/stdlib/coming-up/coming_up.py",
     "people": "adapters/stdlib/people/people.py",
+    "ref-check": "adapters/stdlib/ref-check/ref_check.py",
+    "pii-audit": "adapters/stdlib/pii-audit/pii_audit.py",
+    "secrets-audit": "adapters/stdlib/secrets-audit/secrets_audit.py",
+    "minutes": "adapters/stdlib/minutes/minutes.py",
 }
 
 #: a report that names people. It is said so in its first line and in what
@@ -1103,7 +1107,16 @@ REPORTS = {
 #: they are mentioned: that is far more than a person reads before sealing.
 #: No name is hidden for not being on names.txt: the person reads and seals
 #: the exact words, and a name they listed is withheld as anywhere else.
-NAMES_PEOPLE = frozenset({"people"})
+#: `minutes` names who owns each action, so it says so too, but its rows are
+#: decisions and actions, not people: only `people` is a line a person.
+NAMES_PEOPLE = frozenset({"people", "minutes"})
+ONE_A_PERSON = frozenset({"people"})
+
+#: reports whose rows say where, and never what, to a model: an audit of
+#: personal numbers shows it the kind and the place, and not even the last
+#: digits of a number. The person's own door keeps them, as Willow shows
+#: them, to tell which card it is (the owner, 2026-11-18)
+PLACES_ONLY = frozenset({"pii-audit"})
 DATED = re.compile(r"\d{4}-\d\d-\d\d")
 
 
@@ -1114,10 +1127,12 @@ def reports(box: Path) -> dict:
     return json.loads(f.read_text()) if f.exists() else {}
 
 
-def report(box: Path, name) -> dict:
+def report(box: Path, name, for_model: bool = False) -> dict:
     """One of Willow's reports over the person's files, as its own words:
     a line saying how much, then each line it found, by file and line.
-    Reading needs no grant, so this is the person's to read as it is."""
+    Reading needs no grant, so this is the person's to read as it is. For a
+    model, a report of places only (PLACES_ONLY) is given without what
+    each row found."""
     script = REPORTS.get(name) if isinstance(name, str) else None
     if script is None:
         return {"state": "refused", "code": "no_report",
@@ -1138,7 +1153,7 @@ def report(box: Path, name) -> dict:
     for g in doc.get("groups", []):
         rows = [r for r in g["rows"] if not is_left_out(r["where"], skip)]
         total, kept = total + len(g["rows"]), kept + len(rows)
-        if rows and name in NAMES_PEOPLE:  # one line a person
+        if rows and name in ONE_A_PERSON:  # one line a person
             files = len({r["where"].rsplit(":", 1)[0] for r in rows})
             dated = sorted(d for r in rows for d in DATED.findall(r["what"][:10]))
             span = f", {dated[0]} to {dated[-1]}" if dated else ""
@@ -1148,13 +1163,16 @@ def report(box: Path, name) -> dict:
             continue
         if rows and g.get("name") is not None:
             out.append(f"## {g['name']}")
-        out += [f"  {r['where']}  {r['what']}".rstrip() for r in rows]
+        bare = for_model and name in PLACES_ONLY
+        out += [f"  {r['where']}  {'' if bare else r['what']}".rstrip() for r in rows]
     if not kept:
         return {"state": "empty", "report": name, "left_out": total}
     # Willow's own first line when nothing was left out; else only what is here
     said = doc.get("said", "") if kept == total else f"{kept} line{'s' * (kept != 1)}"
-    if name in NAMES_PEOPLE:  # always plain that it names people
+    if name in ONE_A_PERSON:  # always plain that it names people
         said = f"names {who} {'person' if who == 1 else 'people'}, by how often your files do"  # fmt: skip
+    elif name in NAMES_PEOPLE:
+        said += ", which names people"
     return {"state": "populated", "report": name, "left_out": total - kept,
             "text": "\n".join([f"{name}: {said}", *out]) + "\n"}  # fmt: skip
 
@@ -1197,7 +1215,7 @@ def report_to_model(box: Path, name, let_in: bool = False) -> dict:
 
     Under a session's grant (let_in) nothing is proposed and nothing waits:
     the report is given as it reads now, withheld and under the same most."""
-    got = report(box, name)
+    got = report(box, name, for_model=True)
     if got["state"] == "refused":
         return got
     if got["state"] != "populated":  # nothing to report: that, and no count
@@ -1809,7 +1827,10 @@ def captured(box: Path) -> dict:
 #: the importers, and the folder inside the person's own that each mirror goes
 #: in. They only read the original and write the mirror; the person's act.
 BRING_IN = {"notes": "adapters/stdlib/notes/notes.py",
-            "calendar": "adapters/stdlib/calendar/cal.py"}  # fmt: skip
+            "calendar": "adapters/stdlib/calendar/cal.py",
+            "joplin": "adapters/stdlib/joplin/joplin.py",
+            "evernote": "adapters/stdlib/evernote/evernote.py",
+            "google-keep": "adapters/stdlib/google-keep/google_keep.py"}  # fmt: skip
 BROUGHT_IN = "brought-in"
 BRING_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
 
@@ -1829,10 +1850,11 @@ def brought(box: Path) -> list[dict] | None:
 
 
 def bring_in(box: Path, arg) -> dict:
-    """Write a text mirror of a notes vault (Obsidian, Logseq) or of calendar
-    and contact files into the folder the box reads, so the next question
-    finds them: the person's act on their own files, so no model's door and no
-    host's door has it. Willow's notes or calendar add-on does the writing, by
+    """Write a text mirror of a notes vault (Obsidian, Logseq), of calendar
+    and contact files, or of a Joplin, Evernote or Google Keep export, into
+    the folder the box reads, so the next question finds them: the person's
+    act on their own files, so no model's door and no host's door has it.
+    Willow's add-on for that kind does the writing, by
     its command line, into PILE/brought-in/KIND-NAME/; it never writes inside
     the original, and neither does this.
 
@@ -1846,7 +1868,7 @@ def bring_in(box: Path, arg) -> dict:
     kind, src, name = asked.get("kind"), asked.get("from"), asked.get("as")
     if kind not in BRING_IN or not isinstance(src, str) or not src.strip():
         return {"state": "refused", "code": "bring_what",
-                "why": 'wanted {"kind": "notes" or "calendar", "from": PATH, "as": NAME}'}  # fmt: skip
+                "why": 'wanted {"kind": "notes", "calendar", "joplin", "evernote" or "google-keep", "from": PATH, "as": NAME}'}  # fmt: skip
     if not isinstance(name, str) or not BRING_NAME.fullmatch(name) or ".." in name:
         return {"state": "refused", "code": "bring_name",
                 "why": f"{name!r} is not one plain folder name"}  # fmt: skip
@@ -2163,6 +2185,10 @@ def shelves(box: Path) -> dict:
 
 #: a task's words, at most; a task is a line or two, not a document
 TASK_MOST = 2_000
+#: the most of the tasks' words a model is given at once; over it the oldest
+#: that fit are given and the rest wait (not refused whole: a session that
+#: is given no task can take none up)
+TASKS_MOST = 20_000
 
 
 def task_folder(where) -> str:
@@ -2308,11 +2334,21 @@ def tasks_to_model(box: Path, where, let_in: bool = False) -> dict:
     person dropped or one for another project. A sealed task is given as the
     kernel holds it, withheld, with whether it is open, claimed or done.
     A session the person let in is also given the tasks a model added
-    under a grant for this folder, each marked as not sealed."""
+    under a grant for this folder, each marked as not sealed.
+
+    The words given at once are at most TASKS_MOST. Over it the oldest tasks
+    that fit are given and the rest are left off, with more: true. That says
+    only that tasks this session may take up were left off, never how many,
+    and never of one it isn't given anyway: only tasks it may see are
+    weighed. Finishing a task frees its words, so asking again after is how
+    the rest come."""
     owed_now, out, texts = waiting_seals(box), [], []
     mine = {t: e for t, e in tasks_known(box).items()
             if task_visible(e, where) and not e.get("dropped")}  # fmt: skip
-    for tid, e in sorted(mine.items()):
+    # oldest first (an id is only a name and a hash)
+    for tid, e in sorted(
+        mine.items(), key=lambda kv: (str(kv[1].get("ts", "")), kv[0])
+    ):
         got, sealed = task_open(box, tid, e, owed_now, let_in)
         if got is not None and got.get("state") == "refused":
             return got
@@ -2337,8 +2373,14 @@ def tasks_to_model(box: Path, where, let_in: bool = False) -> dict:
         for row in out:
             if row["status"] != "done":
                 row["text"] = next(said)
+    more, used = False, 0
+    for i, row in enumerate(out):  # weighed as given: withheld, which can lengthen
+        used += len(row.get("text", ""))
+        if used > TASKS_MOST and i:  # the first is always given
+            out, more = out[:i], True
+            break
     if out:
-        return {"state": "populated", "tasks": out}
+        return {"state": "populated", "tasks": out, **({"more": True} if more else {})}
     # only that its own task waits: the person's own tasks aren't hinted at
     if any(e["by"] == "model" and e.get("seal") in owed_now for e in mine.values()):
         return {"state": "waiting"}
@@ -2484,6 +2526,11 @@ SESSION = (
 )
 KART = "adapters/deps/kart/kart.py"
 JOB_MOST = 20_000  # characters of a job, and of what it printed, given whole
+#: characters of what it printed given unless more is asked for. Held to
+#: what Willow's demos kept of their runs (85 printed outputs, 2026-11-18):
+#: this gives nine in ten whole, and twice as much gives three more in a
+#: hundred
+JOB_GIVEN = 4_000
 JOB_SECONDS = 120  # how long a job may run: kart ends it there
 JOB_CLIPPED = re.compile(r"\[kart: \d+ chars clipped\]")
 
@@ -2685,16 +2732,25 @@ def kart_python(box: Path) -> str:
     return named or sys.executable
 
 
+def asked_more(arg) -> bool:
+    """Whether more was asked for: a door sends every argument as a string,
+    so "no", "false" and "0" are no."""
+    said = arg.get("more") if isinstance(arg, dict) else None
+    return bool(said) and str(said).strip().lower() not in ("no", "false", "0")
+
+
 def job(box: Path, arg, where, session) -> dict:
     """A job a session wrote, run over the person's folder in Kartikeya's
     sandbox by Willow's kart: the folder read-only, no network, no box, no
     key, none of the person's environment. Only under a grant. What it
     printed comes back withheld; the run is on the record by the job's
-    hash, and nothing is proposed."""
+    hash, and nothing is proposed. A long print is given in part unless more
+    is asked for ({"text": ..., "more": true}: it runs again)."""
     if not granted(box, where, session):
         return {"state": "refused", "code": "no_grant",
                 "why": "this session has no grant that stands"}  # fmt: skip
     text = arg.get("text") if isinstance(arg, dict) else arg
+    more = asked_more(arg)
     if not isinstance(text, str) or not text.strip() or len(text) > JOB_MOST:
         return {"state": "refused", "code": "job_refused",
                 "why": f"a job is text, not empty, at most {JOB_MOST} characters"}  # fmt: skip
@@ -2723,7 +2779,8 @@ def job(box: Path, arg, where, session) -> dict:
         # the word is passed on, since the page already holds what it printed
         said = [ln.strip() for ln in run.stdout.splitlines()[2:] if ln.strip()]
         how = said[0] if said else ""
-    return job_given(box, printed, run.returncode == 0, how)
+    return job_given(box, printed, run.returncode == 0, how, more,
+                     "the job runs again, so it may print something different")  # fmt: skip
 
 
 JOB_ID = re.compile(r"[0-9a-f]{12}-[0-9a-f]{8}")
@@ -2736,9 +2793,13 @@ def jobs_db(box: Path, where, session) -> Path:
     return state(box) / f"jobs-{gid}.db"
 
 
-def job_given(box: Path, printed: str, ended_well: bool, how) -> dict:
+def job_given(box: Path, printed: str, ended_well: bool, how,
+              more: bool = False, again: str = "it runs again") -> dict:  # fmt: skip
     """What a job printed, as it reaches a model: withheld, with how it
-    ended and whether Kartikeya clipped it."""
+    ended and whether Kartikeya clipped it. Over JOB_GIVEN characters,
+    unless more is asked for, the head is given to the last whole line that
+    fits, and cut says so and how to get the rest (up to JOB_MOST). It is
+    cut after it is withheld, so nothing is given that wasn't."""
     if len(printed) > JOB_MOST:
         return {"state": "refused", "code": "job_too_long",
                 "why": f"it printed {len(printed)} characters; at most {JOB_MOST} is given"}  # fmt: skip
@@ -2746,8 +2807,24 @@ def job_given(box: Path, printed: str, ended_well: bool, how) -> dict:
         (page,) = withhold(box, [printed])
     except RuntimeError as why:
         return {"state": "refused", "code": "scrub_failed", "why": str(why)}
+    cut = ""
+    if len(page) > JOB_GIVEN and not more:
+        whole, size = [], 0
+        for ln in page.splitlines(keepends=True):
+            size += len(ln)
+            if size > JOB_GIVEN:
+                break
+            whole.append(ln)
+        cut = (
+            f"Cut at a whole line: {sum(map(len, whole))} of its {len(page)} characters "
+            f"are given. To get all of it (up to {JOB_MOST}), ask again with "
+            f"more: yes; {again}."
+        )
+        page = "".join(whole)
     got = {"state": "left", "page": page, "by": "grant",
            "ended": "well" if ended_well else "badly"}  # fmt: skip
+    if cut:
+        got["cut"] = cut
     if not ended_well:
         got["how"] = str(how or "").split(":", 1)[0][:80] or "it failed"
     if JOB_CLIPPED.search(printed):
@@ -2792,11 +2869,14 @@ def job_later(box: Path, arg, where, session) -> dict:
 
 def job_result(box: Path, arg, where, session) -> dict:
     """Where a queued job of this session stands; once it has ended, what it
-    printed, as job gives it. Another session's job is no job here."""
+    printed, as job gives it: in part, unless {"id": ..., "more": true} (the
+    part is read again; nothing runs again). Another session's job is no
+    job here."""
     if not granted(box, where, session):
         return {"state": "refused", "code": "no_grant",
                 "why": "this session has no grant that stands"}  # fmt: skip
-    tid = arg.get("job") if isinstance(arg, dict) else arg
+    tid = (arg.get("id") or arg.get("job")) if isinstance(arg, dict) else arg
+    everything = asked_more(arg)
     db = jobs_db(box, where, session)
     if not isinstance(tid, str) or not JOB_ID.fullmatch(tid) or not db.is_file():
         return {"state": "refused", "code": "no_such_job",
@@ -2828,7 +2908,8 @@ def job_result(box: Path, arg, where, session) -> dict:
             return {"state": "refused", "code": "job_refused",
                     "why": (run.stderr or run.stdout).strip()[-300:]}  # fmt: skip
         printed = out.read_text(errors="replace")
-    return {**job_given(box, printed, said["status"] == "completed", said.get("how")),
+    return {**job_given(box, printed, said["status"] == "completed", said.get("how"),
+                        everything, "it is read again, not run again"),
             "job": tid}  # fmt: skip
 
 
@@ -4435,9 +4516,9 @@ TOOLS = {
         "remove": ("shelf_remove", ("name",), ()),
     }),
     "job": ("jobs", {
-        "run": ("job", ("text",), ()),
+        "run": ("job", ("text",), ("more",)),
         "later": ("job_later", ("text",), ()),
-        "result": ("job_result", ("id",), ()),
+        "result": ("job_result", ("id",), ("more",)),
     }),
     "share": ("sharing", {
         "propose": ("share_propose", ("answers", "for"), ("note", "replaces")),

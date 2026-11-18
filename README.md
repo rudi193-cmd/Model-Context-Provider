@@ -72,7 +72,7 @@ beside the person's record.
 | `owed`: what waits on their seal, in one line | |
 | `restore`: what `backup` kept beside the record, put back, never over a file | |
 | `draft`, `models`, `backup`, `pin`, `check`, `sent` | |
-| `bring_in`, `brought_in`: bring a notes vault or a calendar into their folder, and list what was brought | |
+| `bring_in`, `brought_in`: bring a notes vault, a calendar, or a Joplin, Evernote or Google Keep export into their folder, and list what was brought | |
 | `timeline`: one matter in date order, each line cited, as a file to hand on; `feed`: what they sealed, as an RSS file | `timeline`, `feed`: the same, made for the person once the session is let in |
 | `stored`, `remove`, `archive`: what is kept beside the record, deleted or packed away, its hole left on the record; `changed`: what is new or gone in their own folder | `shelf_remove`: one thing off its own project's shelf, once the session is let in |
 | `tools`: which groups of tools a model is offered, and the switch for each | |
@@ -203,6 +203,10 @@ each, and a model can ask for one (the person's ruling of 2026-11-17):
 | `coming-up` | every line holding a date in the next 14 days, soonest first, with the repeats of a birthday or a calendar's rule |
 | `on-this-day` | what you wrote on this date in earlier years |
 | `people` | everyone your files name, a line each: how often, in how many files, over what dates. Never every place they are mentioned. Its first line and the seal page say it names people; a name on your list is withheld, and any other is yours to read before you seal |
+| `ref-check` | each link to another of your files, and each `file:line` place, that no longer holds: where it is written, and what it points at. A link that leads out of your folder is counted, never followed |
+| `pii-audit` | where personal numbers sit (a card number, a National Insurance, Social Security, NHS or Medicare number), each by kind and place. Never the whole number. Your own door shows the last digits, as Willow does, so you can tell which card it is; a model is given the kind and the place and not a digit |
+| `secrets-audit` | where a password, a key, a card number or an IBAN sits in plain text, by kind and place; each row says "value not shown", and it is not shown |
+| `minutes` | each decision, and each action still open or closed, from your meeting notes: its place, its day, who owns it. It names those people, and its first line and the seal page say so; a name on your list is withheld |
 
 It goes the way a question goes:
 
@@ -255,7 +259,7 @@ beside it.
 
 | Resource | Reading it is | So |
 |---|---|---|
-| `provider://report/todo`, `…/coming-up`, `…/on-this-day`, `…/people` | `report` | the report once you've sealed it; until then only whether there is one, and it waits on you |
+| `provider://report/todo`, `…/coming-up`, `…/on-this-day`, `…/people`, `…/ref-check`, `…/pii-audit`, `…/secrets-audit`, `…/minutes` | `report` | the report once you've sealed it; until then only whether there is one, and it waits on you |
 | `provider://page/last` | `leave` | the page you last sealed; without a seal, nothing |
 | `provider://shelf/NAME` | `shelf_read` | something a model wrote for this project |
 
@@ -293,7 +297,7 @@ still names what was done by its verb.
 | `note` | `keep`, `list` | notes | yes |
 | `task` | `add`, `list`, `claim`, `done` | tasks | yes |
 | `shelf` | `add`, `list`, `read`, `remove` | shelf | yes |
-| `job` | `run`, `later`, `result` | jobs | yes |
+| `job` | `run`, `later`, `result` (each may ask `more`) | jobs | yes |
 | `share` | `propose`, `received` | sharing | once you use it |
 | `feed` | | sharing | once you use it |
 | `skill` | | skills | once you use it |
@@ -394,6 +398,16 @@ what it printed is not, and nothing is proposed. A job is stopped after two
 minutes. One that ended badly says how (`exited 3`, a timeout); past about
 8,000 characters Kartikeya keeps the head and the tail, and the answer says
 it was clipped.
+
+**A long print comes in part.** What a job printed is given up to 4,000
+characters. Over that, the answer holds the first whole lines that fit, and
+says so (`cut`): how much is given, of how much, and how to get all of it.
+Ask again with `more: yes` for up to 20,000 characters. For `run` that
+runs the job again, so one that prints something different each time may
+differ; for `result` it reads the same print again and runs nothing. Over
+20,000 characters nothing is given, as before, and the model is told to ask
+for less. It is withheld before it is cut, so nothing is given that wasn't
+withheld.
 
 Kartikeya needs Python 3.11 or later and `bwrap`. If the Python your doors
 run on doesn't have it, name one that does, on one line, in `kart-python`
@@ -628,7 +642,15 @@ only to sessions you let in there.
 
 A task you dropped (`task_drop`, which needs no seal of yours) is never given
 to a model again and its claim is freed; one you declined never was. A task
-for another project is refused as one that doesn't exist. Who claimed what,
+for another project is refused as one that doesn't exist. **A long list is
+given in part.** `tasks` gives at most 20,000 characters of words at once:
+the oldest tasks that fit. If more were left off the answer says
+`more: true`, and nothing else about them, never how many. It is not refused
+whole, as the notes are: a session that is given no task can take none up.
+Finishing a task frees its words (a task done has none), so finish the ones
+given, then ask again. Only tasks that session may see are weighed: one still
+waiting on your seal, one you dropped and one for another project make no
+difference to it. Who claimed what,
 and what is done, is kept in `BOX.runtime/tasks/state.json`, beside your
 record and in `backup`: no seal, since it holds none of your words. A claim is
 a convenience, not a lock: the session is the one a host last said was in that
@@ -835,25 +857,35 @@ Claude Code 2.1.326 and nothing else of the person's loaded:
 Claude Code 2.1.326 doesn't offer MCP sampling, so `draft` there uses a model
 named in `model.json`.
 
-## Bringing in a notes vault or a calendar
+## Bringing in your notes, a calendar, or an export
 
-Your Obsidian or Logseq vault, or your calendar and contact files, can be
-written out as plain text in the folder the record reads, so the next
-question finds them. This is yours to do, on your own files, so only your
+Your Obsidian or Logseq vault, your calendar and contact files, or a Joplin,
+Evernote or Google Keep export, can be written out as plain text in the
+folder the record reads, so the next question finds them. This is yours to do, on your own files, so only your
 door has it; a model's door and the assistant's hooks do not, and so can
 never cause a file to be written into your folder.
 
     {"bring_in": {"kind": "notes", "from": "/path/to/vault", "as": "garden"}}
     {"bring_in": {"kind": "calendar", "from": "/path/to/calendars", "as": "family"}}
+    {"bring_in": {"kind": "joplin", "from": "/path/to/folder/with/the/jex", "as": "joplin"}}
     {"brought_in": true}
 
 The mirror goes in `brought-in/KIND-NAME/` inside the folder the record
-reads, made by Willow's `notes` or `calendar` add-on, run by its command
-line. The answer says what it said: how many files were written and how
+reads, made by Willow's add-on for that kind, run by its command line. The answer says what it said: how many files were written and how
 many skipped. The original is never written to or changed, here or by the
 add-on. `brought_in` lists what was brought in, from where and when, and
 `status` shows it under "Brought in". The list is `brought-in.json` beside
 the record, so `backup` and `restore` carry it.
+
+The kinds, and what each reads from the folder you point at:
+
+| Kind | Reads |
+|---|---|
+| `notes` | an Obsidian or Logseq vault (`.md` files) |
+| `calendar` | `.ics` events and `.vcf` contacts |
+| `joplin` | a Joplin export (`.jex`), each note with its notebook and dates; the trash is left out |
+| `evernote` | Evernote exports (`.enex`), each note with its notebook, tags and dates |
+| `google-keep` | Google Keep notes from a Takeout (`.json`), each with its day and labels |
 
 It is refused, in plain words, when `from` is inside the record or your
 folder, or holds them, or is the mirror itself; when the name is not one
@@ -863,8 +895,8 @@ written over, and a folder you made yourself is never taken for one of its
 own).
 
 **A second run** over the same folder, under the same name, is safe, as the
-add-ons make it: each note or calendar is written again with its present
-text, a new one is added, and nothing is removed. A note you deleted from
+add-ons make it: each note, calendar or export is written again with its
+present text, a new one is added, and nothing is removed. A note you deleted from
 the vault since stays in the mirror until you delete the mirror file
 yourself. Nothing needs doing about the index: every question brings it
 current first, and rebuilds it only when a file in the folder changed.
@@ -873,7 +905,7 @@ current first, and rebuilds it only when a file in the folder changed.
 
 | From Willow | Used for |
 |---|---|
-| `notes`, `calendar` | bringing in a vault or calendar files, as a text mirror in the folder |
+| `notes`, `calendar`, `joplin`, `evernote`, `google-keep` | bringing in a vault, calendar files or an export, as a text mirror in the folder |
 | the kernel: `bite`, `propose`, `seal`, the record | reading, proposing, and the person's seal |
 | `approved-only` | the sealed scope as one page, by name, only whole |
 | `sentence-check` | holding the model's sentence to its page |
@@ -881,7 +913,7 @@ current first, and rebuilds it only when a file in the folder changed.
 | `backup`, `local-model` | the record's backup, and finding models on this machine |
 | `session-seal` | one seal over a session's actions |
 | `index-cache`, `claude-code`'s `bite` | a bite answered from an index of the folder |
-| `todo`, `coming-up` (with `pieces`), `on-this-day`, `people` | the reports of the person's files |
+| `todo`, `coming-up` (with `pieces`), `on-this-day`, `people`, `ref-check`, `pii-audit`, `secrets-audit` (with `privacy`), `minutes` (with `habits`) | the reports of the person's files |
 | `hook-guard`, `hook-leaks`, `hook-shell`, `hook-read-first`, `hook-errors` | the rules a tool call is held to before it runs |
 | `hook-handoff`, `hook-feedback` | where a session ended, and a correction kept for the person's seal |
 | `digest` (with `stale-answers`), `box-health` | what the folder needs from the person, and whether the record is all right, in `status` |

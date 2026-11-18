@@ -299,6 +299,80 @@ def test_what_a_model_is_given_of_a_task_is_withheld_as_a_page_is(box, here):
     assert "Aoife" in runtime.call(box, "tasks", door="pipe")["tasks"][0]["words"]
 
 
+def tasks_aged(box, order):
+    """The tasks, proposed in this order, one a day apart: the oldest first."""
+    known = runtime.tasks_known(box)
+    for day, tid in enumerate(order, 1):
+        known[tid]["ts"] = f"2026-01-{day:02d}T00:00:00Z"
+    runtime.tasks_keep(box, known)
+
+
+def test_a_long_list_gives_the_oldest_that_fit_and_says_only_that_more_wait(
+    box, here, monkeypatch
+):
+    monkeypatch.setattr(runtime, "TASKS_MOST", 120)
+    session(box, here, "s1")
+    made = [sealed_task(box, here, f"Task {n} " + "w" * 44) for n in range(1, 5)]
+    tasks_aged(box, list(reversed(made)))  # the last made is the oldest
+    got = model(box, "tasks", where=here)
+    assert got["state"] == "populated" and got["more"] is True
+    assert [t["id"] for t in got["tasks"]] == [made[3], made[2]]  # the oldest two fit
+    assert sum(len(t["text"]) for t in got["tasks"]) <= 120
+    told = json.dumps(got)
+    assert "Task 1 " not in told and "Task 2 " not in told  # none of the rest
+    assert not any(k in got for k in ("count", "total", "left", "waiting"))
+    # finishing one frees its words, and the next oldest is given
+    model(box, "task_claim", made[3], here)
+    model(box, "task_done", {"id": made[3], "result": "ok"}, here)
+    got = model(box, "tasks", where=here)
+    assert [t["id"] for t in got["tasks"]] == [made[3], made[2], made[1]]
+    assert got["more"] is True
+    for tid in (made[2], made[1]):
+        model(box, "task_claim", tid, here)
+        model(box, "task_done", {"id": tid, "result": "ok"}, here)
+    got = model(box, "tasks", where=here)  # all of them now, and nothing says more
+    assert [t["id"] for t in got["tasks"]] == [made[3], made[2], made[1], made[0]]
+    assert "more" not in got
+
+
+def test_a_list_that_fits_has_no_more_and_what_isnt_given_never_makes_one(
+    box, here, elsewhere, monkeypatch
+):
+    monkeypatch.setattr(runtime, "TASKS_MOST", 120)
+    session(box, here, "s1")
+    one = sealed_task(box, here, "Task one " + "w" * 40)
+    two = sealed_task(box, here, "Task two " + "w" * 40)
+    tasks_aged(box, [one, two])
+    add(box, here, "Waiting on the seal " + "w" * 90)  # unsealed: not weighed
+    sealed_task(box, elsewhere, "Another project's " + "w" * 90)  # not this one's
+    got = model(box, "tasks", where=here)
+    assert [t["id"] for t in got["tasks"]] == [one, two] and "more" not in got
+    # and a model's own task under a grant weighs with the rest
+    other = runtime.call(box, "grant", door="mcp", where=here, session="s1")
+    seal(box, other["seal"])
+    own = runtime.call(
+        box,
+        "task_add",
+        {"text": "Mine " + "w" * 60},
+        door="mcp",
+        where=here,
+        session="s1",
+    )
+    assert own["state"] == "open"
+    got = runtime.call(box, "tasks", door="mcp", where=here, session="s1")
+    assert len(got["tasks"]) == 2 and got["more"] is True
+    assert own["task"] not in [t["id"] for t in got["tasks"]]
+
+
+def test_the_first_task_is_always_given_even_over_the_most(box, here, monkeypatch):
+    monkeypatch.setattr(
+        runtime, "TASKS_MOST", 10
+    )  # a session must be able to take one up
+    task = sealed_task(box, here)
+    got = model(box, "tasks", where=here)
+    assert [t["id"] for t in got["tasks"]] == [task] and "more" not in got
+
+
 def test_a_task_a_model_cannot_name_in_words_or_folder_is_refused_plainly(box, here):
     for bad in ("", "   ", "x" * (runtime.TASK_MOST + 1)):
         assert add(box, here, bad)["code"] == "task_refused"
