@@ -32,10 +32,15 @@ Read [README.md](README.md) first: the two lines are the whole design.
 - **Never loosen a check to get green.** No skipped test, no loosened
   assertion.
 
-## Before you push
+## Before a change lands
 
-    ruff check . && ruff format --check .
-    WILLOW=/path/to/Willow python -m pytest -q
+    WILLOW=/path/to/Willow python check.py
+
+It holds Willow to its pin and runs `ruff check`, `ruff format --check` and
+the tests, here on this machine; `--python PY` (as often as wanted) names
+the Pythons to run the tests under. That is the check that counts. The
+workflow on GitHub runs the same, as a second opinion, and `check.py hook
+--write` holds `main` to it in a checkout with no server asked.
 
 `ruff format` reflows lines, so a scripted find-and-replace written against
 the text before formatting can match nothing, silently: check that each one

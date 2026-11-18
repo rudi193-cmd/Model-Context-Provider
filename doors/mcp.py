@@ -52,6 +52,10 @@ TOOLS = [
      "description": "One sentence about the page you were given, citing each passage "
                     "by its id in brackets, like [a1b2c3d4e5f6]. Code checks it; if it "
                     "stands it waits for the person's seal. Add nothing the page lacks."},
+    {"name": "capture", "arg": "note",
+     "description": "Hand in one thing worth keeping: a note, a decision, a finding. "
+                    "It waits for the person's seal; sealed, it is kept in their "
+                    "record. You cannot seal it, and you cannot read it back."},
 ]  # fmt: skip
 
 

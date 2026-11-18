@@ -4,6 +4,33 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **The check runs here.** `python check.py` is the check a change is held
+  to, on this machine: Willow at its pin, lint, format, and the tests under
+  each Python named. `--commit REV` checks a commit as committed, unpacked
+  elsewhere. `check.py hook --write` saves a git hook that checks whatever
+  is about to become `main` and refuses it when the check fails, with no
+  server asked; the workflow on GitHub is a second opinion.
+- **One place to keep things.** `capture` hands in one thing to keep (a
+  note, a finding), from a model's door or the person's: it is proposed
+  under a question of its own and waits on the seal. Sealed, the kernel
+  writes it under `written/captured/` in the box, and `captured`, on the
+  person's door only, reads it there. A model can't read it back. A moment
+  of the session named in `capture.txt` beside the record (say
+  `PostToolUseFailure`) is kept the same way, whole, as the host sent it.
+- **A guard door.** `doors/guard.py` carries Claude Code's hooks around what
+  the assistant does to one new verb, `event`, decided in the runtime by
+  seven of Willow's hooks, now pinned. Before a tool call: `hook-guard` (the
+  key, the record), `hook-leaks` (a secret in what is written), `hook-shell`
+  (the commands in `deny.txt` beside the record), `hook-read-first` (an edit
+  of a file not read) and `hook-errors` (a command that failed twice). At a
+  prompt, through the prompt hook: `hook-feedback` proposes a correction for
+  the person's seal. At a turn's end and the next start: `hook-handoff`. At
+  a session's start and before a summary the model is told how many things
+  wait on the seal, as a count. A blocked call goes on the sent log; a guard
+  that can't run blocks; only a tool call is ever blocked. The two hook
+  doors now face a host, with `context` and `event` and none of a model's
+  verbs. `set_up.py` prints and writes the hooks. Not yet seen in a real
+  client.
 - **A seal page.** `python seal_page.py --box DIR` prints a link and opens a
   page, on this machine only, showing what waits on the person's seal: a
   session's actions, a page as it would leave, a model's sentence, each with

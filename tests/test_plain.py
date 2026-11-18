@@ -124,6 +124,15 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         made = runtime.call(box, "backup", str(usb), door="pipe")["runtime"]
         (runtime.state(box) / "names.txt").write_text("Brigid\n")
         return runtime.call(box, "restore", str(usb / made), door="pipe")
+    if code == "capture_refused":
+        return runtime.call(box, "capture", "  ", door="mcp")
+    if code == "event_unread":
+        return runtime.call(box, "event", "not json", door="guard")
+    if code == "guard_failed":
+        monkeypatch.setattr(runtime, "HOOK_GUARD", "no/such/guard.py")
+        call = {"hook_event_name": "PreToolUse", "tool_name": "Bash",
+                "tool_input": {"command": "ls"}}  # fmt: skip
+        return runtime.call(box, "event", call, door="guard")
     if code == "willow_unpinned":
         monkeypatch.setattr(runtime, "PIN", usb / "no-pin.json")
         return runtime.call(box, "read", FROST, door="pipe")

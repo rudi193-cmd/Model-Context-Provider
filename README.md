@@ -59,7 +59,8 @@ beside the person's record.
 | `waiting`: what waits on their seal, and what each one is | `answer`: one sentence, checked, then waiting |
 | `scopes`: every question proposed, and where each stands | `draft`: ask a model for that sentence |
 | `stop`: never let a scope leave again | `context`: the sealed page for this question, if there is one |
-| `preview`: the page a scope would let leave, before they seal it | |
+| `preview`: the page a scope would let leave, before they seal it | `capture`: one thing to keep, waiting on the person; never read back |
+| `capture`, `captured`: hand in a thing to keep, and read what was kept | |
 | `later`, `back`: not now, and bring it back; never on the record | |
 | `shared`: what left, as places, not hashes | |
 | `close`: this session's actions, for one seal | |
@@ -76,7 +77,7 @@ next.
 
 You need Python 3.9 or newer and a Willow checkout at the commit
 [willow.pin.json](willow.pin.json) names. The pin holds every file of Willow
-this runs (the kernel and twelve add-ons) by its SHA-256, and nothing runs
+this runs (the kernel and eighteen add-ons) by its SHA-256, and nothing runs
 on a Willow whose files differ: `python3 willow_pin.py check` says which.
 Nothing else in Willow matters to it. Make your record in Willow's UI: pick
 your folders, type your own words into the words step, seal it, and press
@@ -87,8 +88,9 @@ your folders, type your own words into the words step, seal it, and press
 It checks Willow, your record and your words, and prints what to paste:
 
 - the `claude mcp add --scope user …` line for Claude Code;
-- the hooks for `~/.claude/settings.json`: the prompt hook, and the session
-  door on SessionStart and SessionEnd;
+- the hooks for `~/.claude/settings.json`: the prompt hook, the session
+  door on SessionStart and SessionEnd, and [the guard door](#the-guard-door)
+  around what the assistant does;
 - Cursor and the other assistants from Willow's hosts table
   (`hosts.py show cursor --box BOX`).
 
@@ -120,8 +122,67 @@ Your own door, for everything a model can't do:
 |---|---|---|
 | `doors/pipe.py` | the person | one JSON request a line in, one answer a line out |
 | `doors/mcp.py` | a model | MCP over stdio, by hand; asks the client's model through sampling when the client offers it |
-| `doors/hook.py` | a model | Prompt hook (Claude Code, and `--host` for Gemini/Codex/OpenCode): the sealed page, or one line saying nothing is sealed. Cursor cannot inject; use MCP |
+| `doors/hook.py` | a model, through its host | Prompt hook (Claude Code, and `--host` for Gemini/Codex/OpenCode): the sealed page, or one line saying nothing is sealed. Cursor cannot inject; use MCP |
+| `doors/guard.py` | a model, through its host | Claude Code's hooks around what the assistant does: before and after a tool call, at a turn's end, at a session's start, before a summary |
 | `doors/session.py` | the person | Session start/end: each session closed for one seal; at the next start the person is told what waits (Claude `systemMessage`, Cursor `user_message` + desktop notice). Cursor also nudges after this server's MCP tools |
+
+## The guard door
+
+The two hook doors face the assistant's own program, calling at a moment of
+its session. They have two verbs, `context` and `event`, and none of a
+model's. `event` is decided in the runtime, by Willow's own hooks, each a
+fixed rule and never a reading of what the assistant meant:
+
+| When | What happens | Willow's |
+|---|---|---|
+| before a tool call | blocked if it names your key, or changes a file in your record other than through the kernel | `hook-guard` |
+| | blocked if what it writes or runs holds a key, a password or a card number; the value is never shown | `hook-leaks` |
+| | blocked if it runs a command you denied, read the way the shell reads it | `hook-shell` |
+| | blocked if it edits a file the assistant hasn't read this session, or that changed since | `hook-read-first` |
+| | blocked if the same command already failed twice this session the same way | `hook-errors` |
+| after a command | a failure is kept on your record by the command's hash and exit code, never its words | `hook-errors` |
+| at a prompt | a correction ("no", "wrong", "I said") is proposed, and waits on your seal like anything else | `hook-feedback` |
+| at a turn's end | where the session ended is kept: its id and folder | `hook-handoff` |
+| at the next session's start, or first prompt | the model is told that, once: "session S ended in FOLDER" | `hook-handoff` |
+| at a session's start, and before a summary | the model is told how many things wait on your seal: a count, and nothing of what they are | the runtime |
+
+A blocked call is told why, in the guard's own words, and that goes on the
+sent log (by hash). An allowed call says nothing and logs nothing. A guard
+that can't run blocks the call: one that broke can't say it is safe. Only a
+tool call is ever blocked; a turn can always end.
+
+The commands you deny are yours to list, one a line, in `deny.txt` beside
+your record (`BOX.runtime/deny.txt`): `rm -rf`, `git push --force`. With no
+such file that guard isn't asked.
+
+What these hand a model is a rule's name, a session's id and folder, or a
+count. None of them hands it a word of your files: Willow's `hook-start`,
+`hook-compact` and `hook-impact`, which do, are not used.
+
+Seen in Claude Code on 2026-11-17, over a real record: a session opened
+with the count and no words; a write holding a made-up key was blocked by
+`hook-leaks`; a second edit of a file without reading it again was blocked
+by `hook-read-first`; and the third try of a command that had failed twice
+was blocked by `hook-errors`. That last one failed at first: Claude Code
+sends a failed command as `PostToolUseFailure` with `"error": "Exit code
+2\n…"` and no `exit_code` field, where Willow's `hook-errors` looked. The
+payload was kept with `capture`, the fix went to Willow (`hook-errors`
+0.1.2, commit `14efe16d`, not yet in a Willow pull request), and the pin
+moved to it. A correction and a denied command have not been tried.
+
+## One place to keep things
+
+`capture` hands in one thing to keep: a note, a decision, a finding. It is
+proposed under a question of its own, so it never stands in for a page you
+sealed for a question, and it waits on your seal like anything else. Sealed,
+the kernel writes it under `written/captured/` in your record, and
+`{"captured": true}` on your door reads what is there and what still waits.
+A model can hand a note in; it can't seal it, and it can't read it back.
+
+To see what the assistant's host sends at a moment of the session, name the
+moment in `capture.txt` beside your record, one a line
+(`PostToolUseFailure`). Each one is then handed in whole, for your seal,
+until you take the line out. It holds the command that ran.
 
 ## The seal page
 
@@ -195,7 +256,8 @@ proposal, "yes, these were my actions". At the next start, the person is
 told what waits on them: a one-line count (Claude Code's `systemMessage`),
 and a card naming each claim with its seal line and the seal page's command
 (Cursor's `user_message`, a desktop notice when the OS has one, and
-`BOX.runtime/needs-you.txt`). Nothing of that is put in the model's turn.
+`BOX.runtime/needs-you.txt`). Nothing of that is put in the model's turn:
+the model gets a count, from [the guard door](#the-guard-door).
 
 It proposes; it never seals. Sealing a session says the actions were the
 person's; it doesn't let a page leave. A page still leaves only on its own
@@ -269,6 +331,8 @@ named in `model.json`.
 | `backup`, `local-model` | the record's backup, and finding models on this machine |
 | `session-seal` | one seal over a session's actions |
 | `index-cache`, `claude-code`'s `bite` | a bite answered from an index of the folder |
+| `hook-guard`, `hook-leaks`, `hook-shell`, `hook-read-first`, `hook-errors` | the rules a tool call is held to before it runs |
+| `hook-handoff`, `hook-feedback` | where a session ended, and a correction kept for the person's seal |
 
 It uses Willow by its command line only, and never imports or changes
 Willow's kernel. When Willow lacks something, the fix goes to Willow:
@@ -305,8 +369,24 @@ person seals while code only proposes.
 
 ## Working on it
 
-    ruff check . && ruff format --check .
-    WILLOW=/path/to/Willow python -m pytest -q
+    WILLOW=/path/to/Willow python check.py
+
+That is the check a change is held to, and it runs here: Willow held to
+its pin, `ruff check`, `ruff format --check`, and the tests. Name each
+Python to run the tests under (`--python PY`, as often as wanted; Willow's
+kernel promises 3.9). `--commit REV` checks that commit as it was
+committed, unpacked somewhere else, so a change not yet committed can't
+pass for it.
+
+To hold `main` to it on this machine, with no server asked:
+
+    python check.py hook --python PY --python PY39 --write
+
+That saves a git hook in this checkout. Whatever is about to become `main`
+(by a commit, a merge, a fast-forward or a pull) is checked first, and
+refused if it fails. A commit that passed is remembered and not checked
+twice. The workflow on GitHub runs the same commands, as a second opinion:
+it can only see a Willow commit that has been pushed.
 
 [CONTRIBUTING.md](CONTRIBUTING.md) has the rules a change is held to;
 [AGENTS.md](AGENTS.md) is the short form for an agent;

@@ -34,6 +34,13 @@ ADD_ONS = (
     "backup",
     "batch-ask",  # index-cache and claude-code load its scan
     "claude-code",
+    "hook-errors",
+    "hook-feedback",
+    "hook-guard",
+    "hook-handoff",
+    "hook-leaks",  # loads privacy
+    "hook-read-first",
+    "hook-shell",
     "index-cache",
     "local-model",
     "openai-compatible",  # local-model loads it

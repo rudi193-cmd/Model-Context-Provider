@@ -63,6 +63,10 @@ def sent(box: Path, door: str, verb: str, got: dict) -> dict:
         ]
     if got.get("to"):
         row["to"] = got["to"]
+    if got.get("by"):
+        row["by"] = got["by"]
+    if got.get("says"):  # words put in a model's turn: their hash, never them
+        row["says"] = hashlib.sha256(got["says"].encode()).hexdigest()
     with f.open("a") as out:
         out.write(json.dumps(row, sort_keys=True) + "\n")
     return got
@@ -243,7 +247,8 @@ def restore(box: Path, frm: Path) -> dict:
 
 #: who is on the far side of each door, as a person says it
 FAR_SIDE = {"pipe": "you", "mcp": "the AI assistant (MCP)",
-            "hook": "the AI assistant (prompt hook)"}  # fmt: skip
+            "hook": "the AI assistant (prompt hook)",
+            "guard": "the AI assistant (tool hook)"}  # fmt: skip
 
 
 def shared(box: Path) -> dict:
@@ -267,9 +272,17 @@ def shared(box: Path) -> dict:
         elif r["verb"] in ("answer", "draft"):
             what = {"waiting": "a sentence back, waiting on your seal",
                     "struck": "a sentence back, struck by the check"}.get(r["state"], r["state"])  # fmt: skip
+        elif r["verb"] == "capture":
+            what = "a note handed in to keep, waiting on your seal"
         elif r["verb"] == "propose":
             what = "a question to share, " + (
                 "already sealed" if r["state"] == "sealed" else "waiting on your seal"
+            )
+        elif r["verb"] == "event" and r["state"] == "blocked":
+            what = f"one of its tool calls was stopped, and why ({r.get('by', '?')})"
+        elif r["verb"] == "event":
+            what = (
+                "a note: where the last session ended, or how much waits on your seal"
             )
         else:
             what = f"{r['verb']}: {r['state']}"
@@ -628,6 +641,12 @@ PLAIN = {
                         "Willow at the commit it names, or point WILLOW at a copy that is."),
     "session_failed": ("The step that closes a session couldn't run, so nothing waits on you for it.",
                        "Check that WILLOW points at your Willow folder."),
+    "event_unread": ("The assistant's hook sent something that can't be read, so nothing was let through.",
+                     "Run set_up.py again and paste the hooks it prints."),
+    "guard_failed": ("One of the checks on what the assistant does couldn't run, so nothing was let through.",
+                     "Check that WILLOW points at your Willow folder; if you keep a deny.txt beside your record, check each line is a command."),
+    "capture_refused": ("That couldn't be handed in to keep.",
+                        "Say it in other words: an empty note isn't kept, and the same note is only handed in once."),
 }  # fmt: skip
 
 
@@ -638,15 +657,18 @@ def plain(got: dict, box: Path, faces: str, verbs) -> dict:
         return got
     say, nxt = PLAIN.get(got.get("code", ""), (got.get("why", "Refused."), ""))
     nxt = nxt.format(box=box, verbs=", ".join(sorted(verbs)))
-    if faces == "model" and nxt:
+    if faces != "person" and nxt:
         nxt = "Tell the person: " + nxt
     return {**got, "say": say, "next": nxt}
 
 
-#: who is on the far side of each door. A door not named here faces a model:
-#: an unknown door fails closed.
-FACES = {"pipe": "person", "mcp": "model", "hook": "model", "session": "person",
-         "page": "person"}  # fmt: skip
+#: who is on the far side of each door. A host is the assistant's own program
+#: calling at a moment of its session (a prompt, a tool call, a turn's end):
+#: what it is answered can land in the model's turn, so it is written down as
+#: a model's is, and it has only the two verbs made for it. A door not named
+#: here faces a model: an unknown door fails closed.
+FACES = {"pipe": "person", "mcp": "model", "hook": "host", "guard": "host",
+         "session": "person", "page": "person"}  # fmt: skip
 
 
 SENTENCE_CHECK = "adapters/stdlib/sentence-check/sentence_check.py"
@@ -974,6 +996,179 @@ def nudge(text: str) -> None:
         pass
 
 
+HOOK_GUARD = "adapters/stdlib/hook-guard/hook_guard.py"
+HOOK_LEAKS = "adapters/stdlib/hook-leaks/hook_leaks.py"
+HOOK_SHELL = "adapters/stdlib/hook-shell/hook_shell.py"
+HOOK_READ_FIRST = "adapters/stdlib/hook-read-first/hook_read_first.py"
+HOOK_ERRORS = "adapters/stdlib/hook-errors/hook_errors.py"
+HOOK_HANDOFF = "adapters/stdlib/hook-handoff/hook_handoff.py"
+HOOK_FEEDBACK = "adapters/stdlib/hook-feedback/hook_feedback.py"
+
+
+def hooked(sent: dict, *args: str) -> subprocess.CompletedProcess:
+    """One of Willow's hooks, handed what the assistant's host sent."""
+    return subprocess.run(
+        [sys.executable, *args], cwd=WILLOW, input=json.dumps(sent),
+        capture_output=True, text=True, check=False,
+    )  # fmt: skip
+
+
+def guards(box: Path) -> list[tuple[str, tuple[str, ...]]]:
+    """Willow's guards on a tool call, in the order they are asked. Each
+    judges by fixed rule, never by what the assistant meant: the key and the
+    record (hook-guard), a secret in what is written (hook-leaks), the
+    commands the person denies in deny.txt beside the box, one a line
+    (hook-shell, asked only when there is one), an edit of a file not read
+    (hook-read-first), and a command that already failed twice
+    (hook-errors)."""
+    at = ("--box", str(box))
+    out = [("hook-guard", (HOOK_GUARD, "run", *at)), ("hook-leaks", (HOOK_LEAKS, "run"))]  # fmt: skip
+    deny = state(box) / "deny.txt"
+    if deny.is_file() and any(
+        ln.strip() and not ln.lstrip().startswith("#")
+        for ln in deny.read_text().splitlines()
+    ):
+        out.append(("hook-shell", (HOOK_SHELL, "run", "--rules", str(deny))))
+    out += [("hook-read-first", (HOOK_READ_FIRST, "run", *at)),
+            ("hook-errors", (HOOK_ERRORS, "run", *at))]  # fmt: skip
+    return out
+
+
+def judged(sent: dict, asked: list[tuple[str, tuple[str, ...]]]) -> dict:
+    """A tool call put to each guard in turn. The first that refuses stops
+    it, in that guard's own words. A guard that can't run stops it too: one
+    that broke can't say the call is safe."""
+    for name, argv in asked:
+        run = hooked(sent, *argv)
+        why = run.stderr.strip()
+        if run.returncode == 2 and why.startswith(("refused:", "blocked:")):
+            return {"state": "blocked", "by": name, "says": why}
+        if run.returncode != 0:
+            return {"state": "refused", "code": "guard_failed",
+                    "why": f"{name}: {why[-300:] or run.returncode}"}  # fmt: skip
+    return {"state": "allowed"}
+
+
+def holds_open(box: Path) -> str:
+    """How much waits on the person's seal, as a count and nothing else: no
+    claim, no words, no place. What they set aside isn't counted."""
+    n = sum(1 for w in waiting(box).get("waiting", []) if not w.get("later"))
+    if not n:
+        return ""
+    return (f"The person's willow box holds {n} thing{'s' * (n != 1)} waiting on "
+            "their seal. Say so when it fits; only the person seals, and an "
+            "assistant never does.")  # fmt: skip
+
+
+def capture(box: Path, note, kind: str = "note") -> dict:
+    """One thing to keep, handed in for the person's seal: a note, a
+    finding, what a host sent. It is proposed through the kernel under a
+    question of its own, so it stands for no question a page was sealed
+    for, and it waits like anything else. Sealed, the kernel writes it
+    under written/captured/ in the box: the one place kept things go.
+    Nothing is kept until the person seals it, and no door reads it back."""
+    text = str(note or "").strip()
+    if not text:
+        return {"state": "refused", "code": "capture_refused",
+                "why": "there was nothing to keep"}  # fmt: skip
+    kind = re.sub(r"[^a-z0-9]+", "-", str(kind).lower()).strip("-") or "note"
+    digest = hashlib.sha256(text.encode()).hexdigest()[:12]
+    asked = bite(box, f"captured {kind} {digest}")
+    if asked.returncode == 2:
+        return {"state": "refused", "code": "record_broken",
+                "why": asked.stderr.strip()}  # fmt: skip
+    # that bite is now the record's last, and it isn't one a model read: a
+    # propose after it must not scope what an earlier read served
+    (state(box) / "last-read.json").unlink(missing_ok=True)
+    prop = {"path": f"captured/{kind}-{digest}.md", "data": text + "\n",
+            "cites": [], "claim": f"a {kind} to keep"}  # fmt: skip
+    with tempfile.TemporaryDirectory() as d:
+        f = Path(d) / "suggestions.jsonl"
+        f.write_text(json.dumps(prop) + "\n")
+        run = willow("kernel.py", "propose", "--box", str(box), "--file", str(f))
+    subject = next((w for w in run.stdout.split() if w.startswith("proposal:")), None)
+    if run.returncode == 2 or "refused" in run.stdout or subject is None:
+        return {"state": "refused", "code": "capture_refused",
+                "why": (run.stderr or run.stdout).strip()}  # fmt: skip
+    return {"state": "waiting", "seal": subject, "path": prop["path"]}
+
+
+def captured(box: Path) -> dict:
+    """The one place, as the person reads it: what they sealed to keep, with
+    its words, and what was handed in and still waits on their seal."""
+    d = box / "written" / "captured"
+    kept = [{"path": f"captured/{p.name}", "words": p.read_text()}
+            for p in sorted(d.glob("*.md"))] if d.is_dir() else []  # fmt: skip
+    owed_now = [w for w in waiting(box).get("waiting", [])
+                if str(w.get("path", "")).startswith("captured/")]  # fmt: skip
+    return {"state": "populated" if kept or owed_now else "empty",
+            "kept": kept, "waiting": owed_now}  # fmt: skip
+
+
+def capturing(box: Path) -> set[str]:
+    """The moments the person asked to see as the host sends them, one name
+    a line in capture.txt beside the box (PostToolUseFailure, Stop). With
+    no such file, none."""
+    f = state(box) / "capture.txt"
+    if not f.is_file():
+        return set()
+    return {ln.strip() for ln in f.read_text().splitlines() if ln.strip()}
+
+
+def event(box: Path, sent) -> dict:
+    """A moment of the assistant's session, as its host sent it, decided
+    here for every door that carries one.
+
+    Before a tool call: the guards, and the call is allowed or blocked.
+    After one: a failed command is kept, by hash. At a prompt: a correction
+    ("no", "wrong", "I said") is proposed for the person's seal, and a new
+    session is told where the last one ended. At a turn's end: where it
+    ended is kept. At a session's start, and before a summary: how much
+    waits on the person's seal, as a count.
+
+    What it says goes into the model's turn, so it is only ever a guard's
+    reason, a session's id and folder, or a count: never the files' words."""
+    if isinstance(sent, str):
+        try:
+            sent = json.loads(sent)
+        except ValueError:
+            sent = None
+    if not isinstance(sent, dict):
+        return {"state": "refused", "code": "event_unread",
+                "why": "the hook's input is not a JSON object"}  # fmt: skip
+    name, at = sent.get("hook_event_name"), ("--box", str(box))
+    if isinstance(name, str) and name in capturing(box):
+        # the person asked to see what the host sends at this moment: kept
+        # whole, for their seal. It can't stop the moment itself.
+        capture(box, json.dumps(sent, indent=1, sort_keys=True), f"event-{name}")
+    if name == "PreToolUse":
+        return judged(sent, guards(box))
+    if name in ("PostToolUse", "PostToolUseFailure"):
+        return judged(sent, [("hook-errors", (HOOK_ERRORS, "run", *at))])
+    says = []
+    if name == "UserPromptSubmit":
+        run = hooked(sent, HOOK_FEEDBACK, "run", *at)
+        if run.returncode != 0:
+            return {"state": "refused", "code": "guard_failed",
+                    "why": f"hook-feedback: {run.stderr.strip()[-300:]}"}  # fmt: skip
+    if name in ("Stop", "SessionStart", "UserPromptSubmit"):
+        run = hooked(sent, HOOK_HANDOFF, "run", *at)
+        if run.returncode != 0:
+            return {"state": "refused", "code": "guard_failed",
+                    "why": f"hook-handoff: {run.stderr.strip()[-300:]}"}  # fmt: skip
+        if run.stdout.strip():
+            says.append(str(json.loads(run.stdout)["additionalContext"]))
+    if name in ("SessionStart", "PreCompact"):
+        owed_now = holds_open(box)
+        if owed_now and name == "PreCompact":
+            owed_now = ("Before this conversation is summarised: " + owed_now
+                        + " Keep this in the summary.")  # fmt: skip
+        says += [owed_now] if owed_now else []
+    if says:
+        return {"state": "handed", "says": "\n".join(says)}
+    return {"state": "empty"}
+
+
 #: the verbs, the same for every door. There is no verb to seal or decline:
 #: those are the person's, with their key, by the kernel's own command (typed,
 #: or clicked on seal_page.py, which is no door and which no door imports).
@@ -998,8 +1193,12 @@ VERBS = {
         "draft": lambda box, arg, **kw: draft(box, str(arg), None, kw.get("door", "")),
         "close": lambda box, arg, **kw: close(box),
         "owed": lambda box, arg, **kw: owed(box),
+        "capture": lambda box, arg, **kw: capture(box, arg),
+        "captured": lambda box, arg, **kw: captured(box),
     },
     "model": {
+        # a model hands a note in; it waits on the seal, and never comes back
+        "capture": lambda box, arg, **kw: capture(box, arg),
         # read is open, but its passages would leave to the model: it gets the
         # state alone, never a passage, a place or a count
         "read": lambda box, arg, **kw: {"state": read(box, str(arg))["state"]},
@@ -1010,6 +1209,10 @@ VERBS = {
         "draft": lambda box, arg, **kw: draft(
             box, str(arg), kw.get("ask"), kw.get("door", "")
         ),
+    },
+    "host": {
+        "context": lambda box, arg, **kw: context(box, str(arg)),
+        "event": lambda box, arg, **kw: event(box, arg),
     },
 }
 
@@ -1030,6 +1233,8 @@ def call(box: Path, verb: str, arg=None, door: str = "", ask=None) -> dict:
                "why": f"no verb {verb!r}; one of {sorted(verbs)}"}  # fmt: skip
         return plain(got, box, faces, verbs)
     got = verbs[verb](box, arg, ask=ask, door=door)
-    if got.get("state") != "refused" and (faces == "model" or verb == "leave"):
+    # a host's event is written down when it put words in the model's turn
+    reaches = faces == "model" or verb in ("leave", "context") or got.get("says")
+    if got.get("state") != "refused" and reaches:
         sent(box, door or "unknown", verb, got)
     return plain(got, box, faces, verbs)

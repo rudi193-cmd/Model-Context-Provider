@@ -13,7 +13,10 @@ Cursor's beforeSubmitPrompt can only continue or block — never inject — so
 use MCP for Cursor (hosts.py show cursor). At each prompt this asks the
 runtime what the model may be given. What it prints goes into the turn:
 the sealed page framed as data; or one line saying nothing is sealed; or
-nothing. It always exits 0, since a hook that fails would stop the person
+nothing. Before that it hands the prompt to the runtime as a moment of the
+session: a correction ("no", "wrong", "I said") is proposed for the person's
+seal, and a new session gets one line saying where the last one ended. It
+always exits 0, since a hook that fails would stop the person
 typing, and it never crashes on what it is sent.
 """
 
@@ -100,7 +103,16 @@ def main(argv: list[str]) -> int:
         sent = json.loads(sys.stdin.read() or "{}")
         text = str(sent.get("prompt", "")).strip() if isinstance(sent, dict) else ""
         if text:
+            # the prompt as a moment of the session first (a correction kept
+            # for the person's seal, where the last session ended), so that
+            # the read for this question is the last one on the record
+            note = runtime.call(box, "event", sent, door="hook")
             body = said(runtime.call(box, "context", text, door="hook"))
+            if note.get("state") == "handed":
+                body = note["says"] + "\n" + body
+            elif note.get("state") == "refused":
+                print(f"model-context-provider hook: {note.get('say', '')}",
+                      file=sys.stderr)  # fmt: skip
             sys.stdout.write(wrap(host, body))
     except Exception as why:  # noqa: BLE001 - a crashed hook stops the person typing
         # stderr, which the host shows the person, never the turn
