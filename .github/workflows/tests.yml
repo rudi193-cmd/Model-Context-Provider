@@ -33,7 +33,7 @@ jobs:
       # the Willow this was built on, by the commit willow.pin.json names;
       # the tests then hold every file of it to its pin
       - name: Willow at its pin
-        run: git -C Willow checkout -q "$(python3 -c 'import json; print(json.load(open("unnamed/willow.pin.json"))["commit"])')"
+        run: git -C Willow checkout -q "$(python3 -c 'import json; print(json.load(open("model-context-provider/willow.pin.json"))["commit"])')"
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
