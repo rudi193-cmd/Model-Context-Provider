@@ -158,7 +158,15 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         )
         return runtime.call(box, "job", "ls", door="mcp", where="/w", session="s")
     if code == "no_skill":
+        runtime.call(box, "tools", {"on": ["skills"]}, door="pipe")
         return runtime.call(box, "skill", "nope", door="mcp")
+    if code == "tool_off":
+        runtime.call(box, "tools", {"off": ["shelf"]}, door="pipe")
+        return runtime.call(box, "shelf_list", door="mcp", where="/w")
+    if code == "tool_refused":
+        return runtime.call(box, "tool", {"name": "shelf"}, door="mcp")
+    if code == "tools_refused":
+        return runtime.call(box, "tools", {"off": ["core"]}, door="pipe")
     if code == "remove_refused":
         return runtime.call(box, "remove", {"kind": "made"}, door="pipe")
     if code == "timeline_refused":
@@ -172,6 +180,7 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
     if code == "no_such_person":
         from test_share import sentence
 
+        runtime.call(box, "tools", {"on": ["sharing"]}, door="pipe")
         asked = {"answers": sentence(box), "for": "Nobody"}
         return runtime.call(box, "share_propose", asked, door="mcp")
     if code == "skill_refused":

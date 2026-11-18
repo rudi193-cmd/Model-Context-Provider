@@ -112,7 +112,7 @@ def test_what_is_listed_is_not_a_tool(box, tmp_path):
         ask(2, "tools/call", name="resources", arguments={}),
     )  # fmt: skip
     names = [t["name"] for t in tools["result"]["tools"]]
-    assert sorted(names) == sorted(runtime.VERBS["model"])
+    assert names == [t["name"] for t in runtime.call(box, "tools", door="mcp")["tools"]]
     assert not set(names) & set(runtime.LISTED["model"])
     assert called["result"]["isError"]
     assert called["result"]["structuredContent"]["code"] == "no_verb"

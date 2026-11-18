@@ -171,6 +171,8 @@ def test_the_feed_holds_the_sentences_the_person_sealed_and_nothing_else(box, tm
 
 def test_a_session_let_in_has_the_feed_written_and_is_given_none_of_it(box):
     sentence(box)
+    assert model(box, "feed")["code"] == "tool_off"  # not offered until it is wanted
+    pipe(box, "tools", {"on": ["sharing"]})
     assert model(box, "feed")["code"] == "no_grant"
     seal(box, model(box, "grant")["seal"])
     got = model(box, "feed")

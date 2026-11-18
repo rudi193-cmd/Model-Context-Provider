@@ -377,6 +377,15 @@ so none is lost. A box is ticked when it is built.
 - [x] **`timeline` and `rss-out`**: built 2026-11-18 as `timeline` and
   `feed`, on both doors. Not yet tried over the real record.
 
+- [x] **Too many tools** (the owner, 2026-11-18: "we're up to 26 tools,
+  and I know there is an upper limit on what most models can keep track
+  of").
+  - **Note:** built the same day. Twelve tools over the same 26 verbs,
+    nine on by default, in groups the person switches (`tools`); a group
+    that is off is refused, not only unlisted. Not yet seen in a client
+    other than Claude Code, which loads tool definitions only when needed
+    and so hid the cost.
+
 ## Still loose
 
 - [ ] The guard beside the record stops careless tool writes, not code a

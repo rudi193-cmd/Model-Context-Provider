@@ -75,7 +75,11 @@ beside the person's record.
 | `bring_in`, `brought_in`: bring a notes vault or a calendar into their folder, and list what was brought | |
 | `timeline`: one matter in date order, each line cited, as a file to hand on; `feed`: what they sealed, as an RSS file | `timeline`, `feed`: the same, made for the person once the session is let in |
 | `stored`, `remove`, `archive`: what is kept beside the record, deleted or packed away, its hole left on the record; `changed`: what is new or gone in their own folder | `shelf_remove`: one thing off its own project's shelf, once the session is let in |
+| `tools`: which groups of tools a model is offered, and the switch for each | |
 | `share_id`, `share_person`, `share_send`, `share_receive`, `share_forward`, `share_rotate`, `share_witness`, `shares`: an identity for sharing, whom to send to, every send, receive and passing on, a new key, and the record held to what others kept; `job_write`, `job_take`, `job_run`, `job_gather`: a job that travels in a package, run once sealed, and only its numbers sent back | `share_propose`: a package put together for their seal; `share_received`: what arrived, once the session is let in |
+
+A model's client is not shown 26 verbs. It is offered twelve tools, nine
+of them unless you say otherwise: [the tools a model is offered](#the-tools-a-model-is-offered).
 
 Neither side can seal or decline. Sealing is the person's, with their key,
 outside every door: typed, or clicked on [the seal page](#the-seal-page).
@@ -269,6 +273,50 @@ gets back. They hold nothing of yours:
 | `ask` (a question) | the question's whole path: the sealed page and one cited sentence, or a page proposed for your seal, or that your files hold nothing |
 | `question_me` (what about) | being questioned, not answered: three questions over a page you sealed, one at a time, each naming the passage it came from; or a page proposed for your seal |
 | `wrap_up` | what this session found, written up and put on this project's shelf |
+
+## The tools a model is offered
+
+A model keeps track of a short list better than a long one, and every
+tool's description is sent to it at the start of every session. So its
+verbs are grouped into tools: one for the shelf, with an action, where
+there were four. The verbs are unchanged underneath; each action is one of
+them, decided and written down exactly as before, and your shared page
+still names what was done by its verb.
+
+| Tool | Actions | Group | On |
+|---|---|---|---|
+| `grant` | | core | always |
+| `context` | | core | always |
+| `page` | `read`, `propose`, `leave`, `answer`, `draft` | page | yes |
+| `report` | | reports | yes |
+| `timeline` | | reports | yes |
+| `note` | `keep`, `list` | notes | yes |
+| `task` | `add`, `list`, `claim`, `done` | tasks | yes |
+| `shelf` | `add`, `list`, `read`, `remove` | shelf | yes |
+| `job` | `run`, `later`, `result` | jobs | yes |
+| `share` | `propose`, `received` | sharing | once you use it |
+| `feed` | | sharing | once you use it |
+| `skill` | | skills | once you use it |
+
+Nine tools and about 1,200 tokens by default, where there were 26 and
+about 3,000.
+
+**The groups are yours to switch.** `{"tools": true}` lists each group,
+whether it is on and why; `{"tools": {"off": ["jobs"], "on": ["sharing"]}}`
+changes it, kept in `tools.txt` beside your record. Sharing comes on by
+itself when you make a sharing identity, and skills when you name one;
+what you say wins either way. The core can't be turned off: without it a
+session could never ask.
+
+**Off means refused, not only unlisted.** A model that calls a tool of a
+group you turned off is refused, by any door that faces a model, and so is
+reading it as a listed resource; its prompts are not offered. A client
+that has the list open is told when it changes. Your own door is not
+affected: the switch is about what a model is offered.
+
+A call that names no action, an action the tool doesn't take, or leaves
+out what the action needs is refused before any verb is reached, and says
+which.
 
 ## One yes for a session
 

@@ -97,7 +97,7 @@ def tool(i, name, **arguments):
     }
 
 
-def test_mcp_lists_the_runtimes_verbs_and_no_seal(box):
+def test_mcp_lists_the_tools_the_runtime_offers_and_no_seal(box):
     (init, listed) = mcp(
         box,
         {
@@ -110,14 +110,17 @@ def test_mcp_lists_the_runtimes_verbs_and_no_seal(box):
     )
     assert init["result"]["protocolVersion"] == "2025-06-18"
     names = [t["name"] for t in listed["result"]["tools"]]
-    assert sorted(names) == sorted(runtime.VERBS["model"])
+    offered = runtime.call(box, "tools", door="mcp")["tools"]
+    assert names == [t["name"] for t in offered]  # the runtime's, in its order
     assert "seal" not in names
 
 
 def test_a_model_learns_whether_the_files_hold_it_never_what_they_say(box):
     q = "when does the first frost come"
     assert pipe(box, {"read": q})[0]["served"]  # the person's door: passages
-    got = mcp(box, tool(1, "read", question=q))[0]["result"]["structuredContent"]
+    got = mcp(box, tool(1, "page", action="read", question=q))[0]["result"][
+        "structuredContent"
+    ]
     assert got == {"state": "populated"}  # the model's: no text, place or count
 
 
@@ -125,9 +128,14 @@ def test_a_sealed_scope_is_the_one_page_the_model_gets(box):
     from test_leave import seal
 
     q = "when does the first frost come"
-    mcp(box, tool(1, "read", question=q))
-    seal(box, mcp(box, tool(2, "propose"))[0]["result"]["structuredContent"]["seal"])
-    got = mcp(box, tool(3, "leave"))[0]["result"]
+    mcp(box, tool(1, "page", action="read", question=q))
+    seal(
+        box,
+        mcp(box, tool(2, "page", action="propose"))[0]["result"]["structuredContent"][
+            "seal"
+        ],
+    )
+    got = mcp(box, tool(3, "page", action="leave"))[0]["result"]
     assert not got["isError"]
     assert "first frost comes in late October" in got["structuredContent"]["page"]
     assert "MOT" not in got["structuredContent"]["page"]
@@ -141,8 +149,8 @@ def test_a_door_the_runtime_does_not_know_is_treated_as_facing_a_model(box):
 def test_mcp_cannot_leave_unsealed_any_more_than_the_pipe(box):
     got = mcp(
         box,
-        tool(1, "read", question="when does the first frost come"),
-        tool(2, "propose"),
-        tool(3, "leave"),
+        tool(1, "page", action="read", question="when does the first frost come"),
+        tool(2, "page", action="propose"),
+        tool(3, "page", action="leave"),
     )
     assert [g["result"]["isError"] for g in got] == [False, False, True]

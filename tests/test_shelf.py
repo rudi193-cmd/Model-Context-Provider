@@ -175,12 +175,12 @@ def test_the_mcp_door_shelves_under_the_folder_the_client_started_it_in(box, tmp
     proj.mkdir()
     put_, listed, got = mcp(
         box, proj,
-        tool(1, "shelf_add", {"name": "report.md", "text": REPORT}),
-        tool(2, "shelf_list"),
-        tool(3, "shelf_read", {"name": "report.md"}),
+        tool(1, "shelf", {"action": "add", "name": "report.md", "text": REPORT}),
+        tool(2, "shelf", {"action": "list"}),
+        tool(3, "shelf", {"action": "read", "name": "report.md"}),
     )  # fmt: skip
     assert put_["state"] == "shelved" and listed["project"] == str(proj)
     assert got["says"] == REPORT
     other = tmp_path / "other"
     other.mkdir()
-    assert mcp(box, other, tool(1, "shelf_list"))[0]["items"] == []
+    assert mcp(box, other, tool(1, "shelf", {"action": "list"}))[0]["items"] == []

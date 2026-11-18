@@ -200,7 +200,7 @@ def test_the_question_me_prompt_asks_and_never_answers(box):
     assert got["text"].startswith(
         "The person wants to be questioned about their own notes on: the frost\n\n")  # fmt: skip
     for must in ("Use the context tool", "do not answer for them", "one at a time",
-                 "by its id in square brackets", "use the propose tool"):  # fmt: skip
+                 "by its id in square brackets", "use the page tool, action propose"):  # fmt: skip
         assert must in got["text"]
     bare = runtime.call(box, "prompt", {"name": "question_me"}, door="mcp")
     assert "Ask them what about" in bare["text"] and "{about}" not in bare["text"]

@@ -4,6 +4,14 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Twelve tools, not 26.** A model's verbs are grouped into tools with an
+  action each (`shelf`, `task`, `job`, `page`, `note`, `share`), in groups
+  the person switches with `tools`: nine tools and about 1,200 tokens by
+  default, from 26 and about 3,000. Sharing and skills come on when they
+  are used. A group that is off is refused at every door that faces a
+  model, not only left off the list; its resources and prompts go with it;
+  a client is told when the list changes. The verbs, and what is written
+  down, are unchanged. Refusals and prompts name the tool a model has.
 - **What is kept, and taking it away.** `stored` shows what is kept beside
   the record; `remove` deletes what the person names and `archive` packs
   it into a tarball first. Before a file goes, its name, size and

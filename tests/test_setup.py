@@ -79,7 +79,8 @@ def test_what_it_says_to_paste_starts_a_door_that_answers(box):
                        input="".join(json.dumps(m) + "\n" for m in msgs),
                        capture_output=True, text=True)  # fmt: skip
     listed = json.loads(p.stdout.splitlines()[1])["result"]["tools"]
-    assert {t["name"] for t in listed} == set(runtime.VERBS["model"])
+    offered = runtime.call(box, "tools", door="mcp")["tools"]
+    assert [t["name"] for t in listed] == [t["name"] for t in offered]
 
 
 def test_paste_names_cursor_and_the_other_hosts(box):
