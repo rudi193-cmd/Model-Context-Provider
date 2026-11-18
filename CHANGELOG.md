@@ -14,6 +14,14 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   table of who can reach it (127.0.0.1 only, a secret for each start as
   cookie and form field, Origin and Host checked, never framed, no script),
   in the tests and in a real Chrome.
+- **What you've shared, on the seal page.** A second page lists each page
+  the person was asked to share and where it stands, with **Stop sharing
+  this** (the runtime's `stop`), and what has left, to whom and when (its
+  `shared`). Held to the same table as the first.
+- **A launcher for the seal page.** `seal_page.py launcher --box DIR` prints
+  a double-click file for macOS, Windows and Linux; `--write` saves this
+  machine's, never over one that differs. **Close this page** stops the
+  page, and `--idle MINUTES` stops it when nobody has asked for that long.
 - **Not now.** The person's `later` sets one waiting thing aside, beside
   the record and never on it, and `back` brings it back. `owed` and the
   needs-you card leave out what was set aside; `waiting` still shows it. One

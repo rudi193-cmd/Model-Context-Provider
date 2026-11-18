@@ -144,6 +144,24 @@ signs, and three buttons:
 | **Decline** | the kernel's own `decline`, proved with your key, and final; it asks for a tick first |
 | **Not now** | nothing on your record and no key: it still waits, and you aren't told about it again until you bring it back |
 
+A second page, **What you've shared**, lists every page you were asked to
+share, by file and line, and where each stands: waiting, sealed, changed in
+your files since, or stopped. **Stop sharing this** is the runtime's `stop`:
+the page is never given to a model again, by any door, and it needs no key.
+Under them is what has left, to whom and when (the runtime's `shared`).
+
+**Close this page** stops it. To start it with a double-click:
+
+    python seal_page.py launcher --box BOX --write
+
+That saves a launcher for this machine: on Linux an entry named "Seal page"
+in your applications menu, on macOS and Windows a file on your Desktop.
+Without `--write` it prints all three and where each goes, and writes
+nothing. It never writes over a file that differs. A page started that way
+stops itself after half an hour with nobody asking (`--idle 30`). The
+launcher holds no secret: each start makes its own. Only the Linux one has
+been run; the macOS and Windows files are untried.
+
 It is not a door, and it decides nothing. The decision is your click; the
 seal is the kernel's, run by its command line as if you had typed it; the
 kernel reads your key, and this project never does. No door imports the

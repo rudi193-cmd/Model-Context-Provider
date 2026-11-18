@@ -25,7 +25,10 @@ client a model runs in, on a model's door.
   what it is, with the preview for a page; Seal and Decline are the
   kernel's own, by its command line, proved with the key the kernel reads;
   Not now is kept beside the record (`later`, `back`), which is the soft
-  decline. The needs-you card names it.
+  decline. The needs-you card names it. Its second page lists what was
+  shared, with Stop; `launcher --write` saves a double-click file for it.
+  Still by JSON line on the pipe: backup, restore, the sent log's pin and
+  check, and the names to withhold (`names.txt`, by hand).
 - **Setup that finishes**: `set_up.py --write HOST` merges the MCP door into
   the assistant's home settings (Cursor hooks included); refuses a different
   entry under our name. Paste remains the default.

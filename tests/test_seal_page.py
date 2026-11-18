@@ -1,6 +1,7 @@
 """The seal page: the person's click carries out the kernel's own seal, and
 nothing but the person's browser, on this machine, can make that click."""
 
+import html
 import http.client
 import json
 import re
@@ -22,6 +23,7 @@ class Browser:
     secret off the page, and says where it is posting from."""
 
     def __init__(self, server, link):
+        self.server = server
         self.port = server.server_address[1]
         self.link = urllib.parse.urlsplit(link)
         self.cookie = ""
@@ -183,11 +185,13 @@ REFUSED = {
 def test_a_click_that_is_not_the_persons_gets_403_and_seals_nothing(box, browser, how):
     subject = a_scope(box)
     browser.open()
-    for act in ("seal", "decline", "later"):
+    for act in ("seal", "decline", "later", "stop", "quit"):
         got, _ = browser.click(act, subject, sure="yes", **REFUSED[how])
         assert got.status == 403, (how, act)
     assert {"seal", "decline"}.isdisjoint(kinds(box))
     assert not (runtime.state(box) / "later.json").exists()
+    assert not (runtime.state(box) / "stopped.json").exists()
+    assert browser.server.done is False
     assert runtime.call(box, "leave", door="mcp")["state"] == "refused"
 
 
@@ -280,3 +284,110 @@ def test_a_model_can_neither_set_aside_nor_bring_back(box):
     for verb in ("later", "back"):
         assert runtime.call(box, verb, subject, door="mcp")["state"] == "refused"
     assert not (runtime.state(box) / "later.json").exists()
+
+
+def test_what_you_shared_is_listed_and_a_click_stops_it(box, browser):
+    from test_leave import seal
+
+    subject = a_scope(box)
+    seal(box, subject)
+    assert runtime.call(box, "leave", door="mcp")["state"] == "left"
+    browser.open()
+    got, text = browser.ask("GET", "/shared")
+    assert got.status == 200
+    assert "garden.md:1" in text and "Sealed." in text and "late October" in text
+    assert "Stop sharing this" in text
+    assert "the AI assistant (MCP): the page you sealed: garden.md:1" in text
+    got, _ = browser.ask(
+        "POST", "/act",
+        urllib.parse.urlencode({"k": browser.secret(), "act": "stop",
+                                "subject": subject, "at": "/shared"}),
+        Content_Type="application/x-www-form-urlencoded",
+        Origin=f"http://127.0.0.1:{browser.port}",
+    )  # fmt: skip
+    assert got.status == 303 and got.getheader("Location") == "/shared"
+    again = runtime.call(box, "leave", door="mcp")
+    assert (again["state"], again["code"]) == ("refused", "stopped")
+    assert {"decline"}.isdisjoint(kinds(box))  # a stop is beside the record
+    got, text = browser.ask("GET", "/shared")
+    text = html.unescape(text)
+    assert "Stopped. It won't be given to a model again." in text  # said once
+    assert "Stopped: it won't be shared again." in text  # where it stands now
+    assert "Stop sharing this" not in text
+
+
+def test_the_shared_page_is_held_to_the_same_table(box, browser):
+    a_scope(box)
+    got, text = browser.ask("GET", "/shared")
+    assert got.status == 403 and "garden" not in text
+    browser.open()
+    got, text = browser.ask("GET", "/shared")
+    assert got.status == 200 and "<script" not in text
+    assert "frame-ancestors 'none'" in got.getheader("Content-Security-Policy")
+    got, _ = browser.click("seal", "x")  # where a click goes back to is one of two
+    assert got.getheader("Location") == "/"
+
+
+def test_close_this_page_stops_it_and_so_does_nobody_asking(box):
+    server, link = seal_page.serve(box)
+    said = []
+    t = threading.Thread(target=lambda: said.append(seal_page.run(server)))
+    t.start()
+    b = Browser(server, link)
+    b.open()
+    assert "Close this page" in b.page()
+    got, text = b.click("quit", "")
+    assert got.status == 200 and "still waits" in text
+    t.join(10)
+    server.server_close()
+    assert said == ["closed"]
+    assert {"seal", "decline"}.isdisjoint(kinds(box))
+    server, _ = seal_page.serve(box)
+    assert seal_page.run(server, idle=0.01) == "idle"
+    server.server_close()
+
+
+def test_a_launcher_is_printed_for_each_system_and_writes_nothing(box, tmp_path):
+    home = tmp_path / "home"
+    code, said = seal_page.launcher(box, False, home, "Linux")
+    assert code == 0 and not home.exists()
+    for name in ("macOS", "Windows", "Linux"):
+        assert f"{name}: save as" in said
+    assert "seal_page.py" in said and str(box.resolve()) in said
+    assert "--idle 30" in said and "WILLOW=" in said and "Terminal=false" in said
+    assert "?k=" not in said  # a launcher holds no secret: each start makes one
+
+
+def test_the_launcher_is_saved_once_and_never_over_one_that_differs(box, tmp_path):
+    home = tmp_path / "home"
+    code, said = seal_page.launcher(box, True, home, "Linux")
+    (f,) = (home / ".local/share/applications").iterdir()
+    assert code == 0 and str(f) in said and f.stat().st_mode & 0o100
+    assert seal_page.launcher(box, True, home, "Linux") == (0, f"Already there: {f}")
+    kept = f.read_text()
+    f.write_text(kept + "# mine\n")
+    code, said = seal_page.launcher(box, True, home, "Linux")
+    assert code == 2 and "never written over" in said
+    assert f.read_text() == kept + "# mine\n"
+    assert seal_page.launcher(box, True, home, "Plan9")[0] == 2
+    for system, name in (("Darwin", "Seal page.command"), ("Windows", "Seal page.bat")):
+        assert seal_page.launcher(box, True, home, system)[0] == 0
+        assert (home / "Desktop" / name).is_file()
+
+
+def test_a_desktop_files_exec_line_survives_a_space_and_a_percent():
+    assert seal_page.desktop_arg("/my files/50%/box") == '"/my files/50%%/box"'
+    assert seal_page.desktop_arg('a"b$c\\d') == '"a\\\\"b\\\\$c\\\\\\\\d"'
+
+
+def test_the_launcher_starts_the_page(box, tmp_path):
+    import shlex
+    import subprocess
+    import sys
+
+    _, text = seal_page.launchers(box, tmp_path)["Darwin"]
+    line = text.splitlines()[1].replace(" exec ", " ", 1).replace("--idle 30", "--bad")
+    env, *argv = shlex.split(line)
+    assert env.startswith("WILLOW=") and argv[0] == sys.executable
+    run = subprocess.run(argv, capture_output=True, text=True, check=False)
+    assert run.returncode == 2 and "usage: seal_page.py" in run.stderr
