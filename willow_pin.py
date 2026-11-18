@@ -54,12 +54,14 @@ ADD_ONS = (
     "rss-out",  # loads only the kernel
     "pieces",  # coming-up loads it from beside it
     "privacy",
+    "removed",  # loads only the kernel
     "sentence-check",
     "session-seal",
     "share",  # kart loads it: a job that came in a package, a result sent back
     "stale-answers",  # digest loads it; it loads pieces
     "timeline",  # loads only the kernel
     "todo",  # batch-ask's scan loads it
+    "what-changed",  # loads only the kernel
 )
 
 #: add-ons that need a package installed, under adapters/deps: Kartikeya runs

@@ -4,6 +4,21 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **What is kept, and taking it away.** `stored` shows what is kept beside
+  the record; `remove` deletes what the person names and `archive` packs
+  it into a tarball first. Before a file goes, its name, size and
+  fingerprint are written on the record by Willow's new `removed` add-on,
+  never its words; if that row can't be written, nothing is removed. A
+  session the person let in can take a thing off its own shelf
+  (`shelf_remove`). `changed`, and every session's start (at most once an
+  hour), runs Willow's `what-changed`, so a file deleted from the folder
+  leaves its hole too. (The owner, 2026-11-18: it is the person's data to
+  delete or archive; the hole stays in the record.)
+- **Faster over a big folder.** The pin moves to Willow's `timeline` 0.1.3
+  and `todo` 0.1.3, which read only the files that matter for dates: 35
+  seconds to 8, and 18 to 7, over 190,000 passages, the output unchanged.
+  `pile-store` was measured and left out: reading the folder takes 1.4
+  seconds, loading a store 2.3.
 - **Two files to hand on.** `timeline` writes one matter from the folder
   in date order, each line cited (Willow's `timeline`); `feed` writes the
   sentences the person sealed as an RSS file (Willow's `rss-out`), or

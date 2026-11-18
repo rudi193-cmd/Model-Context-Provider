@@ -7,6 +7,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import runtime
 
 
+#: the check of the folder a session's start sets going on its own: kept
+#: here so the one test of it can put it back
+CHANGED_AT_START = runtime.changed_at_start
+
+
+@pytest.fixture(autouse=True)
+def no_check_let_go(monkeypatch):
+    """A session's start sets a program going on its own to fingerprint the
+    folder. No test leaves one running behind it."""
+    monkeypatch.setattr(runtime, "changed_at_start", lambda box: False)
+
+
 @pytest.fixture
 def box(tmp_path):
     """A box over a small pile, its key a test key in tmp_path: never a real one."""

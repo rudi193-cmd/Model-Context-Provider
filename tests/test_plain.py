@@ -159,6 +159,8 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         return runtime.call(box, "job", "ls", door="mcp", where="/w", session="s")
     if code == "no_skill":
         return runtime.call(box, "skill", "nope", door="mcp")
+    if code == "remove_refused":
+        return runtime.call(box, "remove", {"kind": "made"}, door="pipe")
     if code == "timeline_refused":
         return runtime.call(box, "timeline", " ", door="pipe")
     if code == "feed_refused":

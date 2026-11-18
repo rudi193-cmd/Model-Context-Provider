@@ -74,6 +74,7 @@ beside the person's record.
 | `draft`, `models`, `backup`, `pin`, `check`, `sent` | |
 | `bring_in`, `brought_in`: bring a notes vault or a calendar into their folder, and list what was brought | |
 | `timeline`: one matter in date order, each line cited, as a file to hand on; `feed`: what they sealed, as an RSS file | `timeline`, `feed`: the same, made for the person once the session is let in |
+| `stored`, `remove`, `archive`: what is kept beside the record, deleted or packed away, its hole left on the record; `changed`: what is new or gone in their own folder | `shelf_remove`: one thing off its own project's shelf, once the session is let in |
 | `share_id`, `share_person`, `share_send`, `share_receive`, `share_forward`, `share_rotate`, `share_witness`, `shares`: an identity for sharing, whom to send to, every send, receive and passing on, a new key, and the record held to what others kept; `job_write`, `job_take`, `job_run`, `job_gather`: a job that travels in a package, run once sealed, and only its numbers sent back | `share_propose`: a package put together for their seal; `share_received`: what arrived, once the session is let in |
 
 Neither side can seal or decline. Sealing is the person's, with their key,
@@ -464,6 +465,35 @@ written beside your record for you to read, and stays there. `share_send`
 refuses a result that isn't numbers even if you sealed it by hand. A job
 itself may be sent: it is a shell task, not a word of your files. A model
 can write, take, run or send none of this.
+
+## What is kept, and taking it away
+
+Things pile up beside your record: what sessions shelved, timelines and
+feeds, packages, old job queues. They are yours to delete or pack away,
+and the record keeps the hole: before a file goes, its name, size and
+fingerprint are written on a row (Willow's `removed`), never its words.
+
+| On your door | What it does |
+|---|---|
+| `{"stored": true}` | each kind kept beside your record: how many files, how big, the oldest and the newest. `{"stored": "made"}` lists one kind's files by name |
+| `{"remove": {"kind": "made", "names": ["made/..."]}}` | deletes those. Or `"older": "2026-11-01"` for everything last changed before a day, or `"all": true` |
+| `{"archive": {"kind": "shelf", "all": true, "to": "FILE.tar.gz"}}` | the same, packed into a tarball first; the row keeps the archive's own fingerprint, so it can be held to your record later |
+| `{"changed": true}` | what is new, edited or gone in your own folder since the last check (Willow's `what-changed`), one row of paths and fingerprints |
+
+- **The kinds** are `shelf`, `made`, `packages`, `identities`, `jobs` and
+  `index`. The index leaves no hole: it holds nothing your folder doesn't,
+  and is built again when next needed. The runtime's own books (the log
+  of what left, what you sealed to share, your names list) are never
+  removed this way.
+- **If the hole can't be written, nothing is removed.**
+- **A session you let in can take a thing off its own project's shelf**
+  (`shelf_remove`), and nothing else: it made those. The hole is recorded
+  the same way.
+- **Your own folder is checked at a session's start**, at most once an
+  hour, on its own so the session never waits. So a file you deleted with
+  any tool of yours leaves its hole, and `stale-answers` can say which
+  sealed answer cited it. The first check fingerprints every file, in one
+  row as large as the folder's list of names.
 
 ## Two files to hand on
 

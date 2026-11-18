@@ -1,7 +1,7 @@
 {
   "_what": "The Willow this runtime was built on: its commit, and every file of what runs, by SHA-256. willow_pin.py refuses a checkout whose files differ; repin is the one way to move it.",
   "willow": "https://github.com/willow-memory/Willow",
-  "commit": "e183b6c951a88e050edec685fe1108fed3f64eb9",
+  "commit": "e2d539ce8919ce852fabc4f8145aec23bc1c0f42",
   "add_ons": [
     "approved-only",
     "backup",
@@ -27,12 +27,14 @@
     "rss-out",
     "pieces",
     "privacy",
+    "removed",
     "sentence-check",
     "session-seal",
     "share",
     "stale-answers",
     "timeline",
-    "todo"
+    "todo",
+    "what-changed"
   ],
   "deps": [
     "kart"
@@ -87,6 +89,8 @@
     "adapters/stdlib/pieces/pieces.py": "e71b21b32270ac656211503861ede104c07e6fe5f843d189486faa8b365e3506",
     "adapters/stdlib/privacy/README.md": "51332bdf225568cff942398fbdc2290714a02a466dab73611d7ea87fdc3b8120",
     "adapters/stdlib/privacy/privacy.py": "c07a3982be404522e81c6059199d97faa0a9d4b2ddc299c73124ef844ab53884",
+    "adapters/stdlib/removed/README.md": "30a53c79710195f2aec1bbe87285b1a55a5811c60ce6bd0649f4914d517e4d1a",
+    "adapters/stdlib/removed/removed.py": "9ad7d8b2a9e7250a3ceaeaf4cbe52acfa1bf7b2fb7df1c704e2080f0d2711acd",
     "adapters/stdlib/sentence-check/LICENSE-willows-grove": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
     "adapters/stdlib/sentence-check/NOTICE": "1c09cf74031779ce43c5e62aa07ba9cf16957329126b9ed336e41a0e942041e7",
     "adapters/stdlib/sentence-check/README.md": "0b57f011e6ceaaa05e0f0386ea1a585154255d1941dd3c646718c7c45256c660",
@@ -99,10 +103,12 @@
     "adapters/stdlib/share/share.py": "08134908e7e6ce83e6c173a5fbe109032385398ad0d820e7e1ee8ada6c28208b",
     "adapters/stdlib/stale-answers/README.md": "637f866eb51b2e032d89c28193365def5f80750202a26b6504d175c5985a687c",
     "adapters/stdlib/stale-answers/stale_answers.py": "54616e180d41e4e812b01cf5db98556e2f53298a47c73a71ff3421ee250be5d1",
-    "adapters/stdlib/timeline/README.md": "0eacebaea13462b588f8855f6c415720f1c253f975e2e1737f7ae14e1be62d01",
-    "adapters/stdlib/timeline/timeline.py": "3ede7b9718b88986164e671827e03f28dcb887954b1a0672be0feb611b6d866e",
-    "adapters/stdlib/todo/README.md": "051e37ce0904f2c1dc79ccc7ab32703262fb6700c84d768fa9519b6c02cafdb1",
-    "adapters/stdlib/todo/todo.py": "186f227770f8eaf7b0d2ed42c8b93da1facd72766f1ae3d2e59aed2385f72bab",
+    "adapters/stdlib/timeline/README.md": "2fb5c08cd7968f844ddacfe0efbbf70d6951c1c0b8837c3d4a98b43b101dcc28",
+    "adapters/stdlib/timeline/timeline.py": "95c31ec2f45861e12cdef67166033aeb42611bc98273a37af899847ab1d6e39a",
+    "adapters/stdlib/todo/README.md": "fe351ee0b315bbc23af4e154b4112cf0980019c1306ac92ee48dcea4c99a1927",
+    "adapters/stdlib/todo/todo.py": "1ae6976825829b5c3f13db5f0b4c599bfe06115acf70fe06f408221c961aee88",
+    "adapters/stdlib/what-changed/README.md": "a3390ebca1ca4c829731b1accd75f52d1e368f66d6abfccf1b31b01406a74e5c",
+    "adapters/stdlib/what-changed/what_changed.py": "2b0fdd8c7c386352a2b403ec818ca77f8973b021ecbd6a95b3e20f4c4375cb94",
     "adapters/deps/kart/README.md": "ee31892e1598f5782e70215b756c7b9cbfbc611375c8dac80a5c1a2b69f3c968",
     "adapters/deps/kart/kart.py": "af6099a3f915410e6a5d57068d6268ea3f9cd9f583c9ae1fdae49a67fb372ebf",
     "adapters/deps/kart/requirements-floor.txt": "d04d431fa4e26567611c60c8ca21ba35315ac5199a80e3a2ef1c427a4becc9a8",

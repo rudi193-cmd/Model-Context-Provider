@@ -123,8 +123,15 @@ pattern:
   - **Note:** already in the pin; index-cache and claude-code load its
     scan. Nothing more to wire unless asking many questions at once is
     wanted.
-- [ ] **pile-store / pile-serve** (performance)
-  - **Note:** not looked at yet.
+- [x] **pile-store / pile-serve** (performance)
+  - **Note:** measured on the real folder 2026-11-18 (13,875 files,
+    190,367 passages) and left out: reading the folder takes 1.4 seconds,
+    loading a store and checking it 2.3. The time was elsewhere: `timeline`
+    and `todo` dated every line of the folder, fixed in Willow (35 seconds
+    to 8, 18 to 7). `on-this-day`, `coming-up` and `people` still take 16
+    to 22 seconds, in the kernel's date reader; an early exit for a line
+    with no four digits in a row would speed all three, and is the owner's
+    to decide, being the kernel.
 - [x] **share** (needs careful "leave" design)
   - **Note:** built 2026-11-18 on three rulings of the owner's: the person
     sends, and a model may put a package together for their seal; only
@@ -205,7 +212,7 @@ pattern:
   - **Note:** held, with one stated exception: a job needs the `kartikeya`
     package and `bwrap`, on a Python the person names beside the record;
     without them `job` is refused and everything else runs. The pin is at
-    Willow `e183b6c9`, which so far exists only on this machine.
+    Willow `e2d539ce`, which so far exists only on this machine.
 
 ### Open design questions
 
@@ -246,8 +253,10 @@ pattern:
   it lives beside the record.
   - **Note:** seen in a real Claude Code session on 2026-11-17: a report
     shelved, listed and read back with no seal; the same name again kept
-    as `NAME.2`; a name climbing out of the shelf refused. There is no
-    verb to take a thing off a shelf: that is done by hand.
+    as `NAME.2`; a name climbing out of the shelf refused.
+  - **Note:** `shelf_remove` built 2026-11-18, for a session let in, with
+    `stored`, `remove`, `archive` and `changed` on the person's door. The
+    hole of what was removed goes on the record (Willow's new `removed`).
 
 - [x] **Hooks around what the assistant does** (`doors/guard.py`, the
   `event` verb): hook-guard, hook-leaks, hook-shell, hook-read-first,
@@ -331,8 +340,8 @@ so none is lost. A box is ticked when it is built.
     was built. The other three demos have not been read.
 - [x] **Depend on GitHub less.** The check and the hook that holds `main`
   are built and run here, and the check is the gate.
-  - **Note:** the thirteen Willow commits this pin stands on (the hook
-    add-ons, `todo`, `people`, `hook-guard`, `kart`, `timeline`) are on this machine
+  - **Note:** the fifteen Willow commits this pin stands on (the hook
+    add-ons, `todo`, `people`, `hook-guard`, `kart`, `timeline`, `removed`) are on this machine
     only; the owner said to save that pull request for later.
 - [ ] **Quoted speech in the todo report.** About a dozen of the 91 lines
   are the owner quoted saying "I need to…" in a past session, not tasks.

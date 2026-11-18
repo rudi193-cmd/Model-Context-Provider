@@ -16,8 +16,10 @@ import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import time
 import urllib.parse
@@ -301,6 +303,7 @@ SHELF_SAID = {
     "shelf_add": "something it wrote, put on its project's shelf",
     "shelf_list": "the names on its project's shelf",
     "shelf_read": "something read back from its project's shelf",
+    "shelf_remove": "something taken off its project's shelf, its hole on your record",
 }
 #: what each task or note verb is, as a person reads it on the sent log, by
 #: the state it ended in: never a word of a task or a note, only what happened
@@ -835,6 +838,8 @@ PLAIN = {
                    "Leave it alone. To give it to someone else, the person drops it (task_drop) and it is added again."),
     "task_not_held": ("This session hasn't claimed that task, so it wasn't marked done.",
                       "Claim it first (task_claim), then mark it done with what you found."),
+    "remove_refused": ("Nothing was removed.",
+                       "See what is kept (stored), then say which kind and which of it: the names, everything older than a day, or all of it. An archive goes in a new file outside your record and your folder."),
     "timeline_refused": ("That timeline couldn't be made, so nothing was written.",
                          "Say what it is about in a few words (a name, a place, a thing). If you named a file, it must be a new one outside your folder and your record."),
     "feed_refused": ("That feed couldn't be written.",
@@ -3323,6 +3328,201 @@ def shares_listed(box: Path) -> dict:
             "log": willow(SHARE, "log", "--box", str(box)).stdout.splitlines()}  # fmt: skip
 
 
+# ── what is kept beside the record: seen, removed, archived ────────────────
+#: The person's data is theirs to delete or pack away. What the record
+#: keeps is the hole: Willow's `removed` writes each file's name, size and
+#: fingerprint on a row before it goes, and never its words.
+REMOVED = "adapters/stdlib/removed/removed.py"
+WHAT_CHANGED = "adapters/stdlib/what-changed/what_changed.py"
+KEPT_KINDS = {
+    "shelf": "what sessions put on their projects' shelves",
+    "made": "timelines and feeds made to hand on",
+    "packages": "packages sent and received, and what jobs printed",
+    "identities": "sharing identities rotated away from",
+    "jobs": "queues of jobs, and what their workers said",
+    "index": "the index of your folder; it is rebuilt when next needed",
+}
+REMOVE_AT_ONCE = 200  # names on one row of the record
+CHANGED_EVERY = 3600  # seconds between automatic checks of the folder
+
+
+def kept_files(box: Path, kind: str) -> list[Path]:
+    """The files of one kind kept beside the box. Never the runtime's own
+    books (the sent log, the scopes, the names list): those aren't cleared."""
+    s = state(box)
+
+    def under(d: Path) -> list[Path]:
+        return sorted(p for p in d.rglob("*") if p.is_file()) if d.is_dir() else []
+
+    if kind == "shelf":  # the things on a shelf, not its card
+        return [p for p in under(s / "shelf") if p.parent != s / "shelf"]
+    if kind in ("made", "packages", "index"):
+        return under(s / kind)
+    if kind == "identities":
+        return sorted(s.glob("share.id.was-*"))
+    if kind == "jobs":
+        return sorted(p for p in s.glob("jobs-*") if p.is_file())
+    return []
+
+
+def stored(box: Path, arg) -> dict:
+    """What is kept beside the record, for the person: each kind, how many
+    files and how big, the oldest and the newest; or, for one kind, each
+    file by the name to remove it by."""
+    s = state(box)
+    day = lambda t: time.strftime("%Y-%m-%d", time.gmtime(t))  # noqa: E731
+    kind = arg.get("kind") if isinstance(arg, dict) else arg
+    if isinstance(kind, str) and kind in KEPT_KINDS:
+        items = [{"name": p.relative_to(s).as_posix(), "bytes": p.stat().st_size,
+                  "when": day(p.stat().st_mtime)} for p in kept_files(box, kind)]  # fmt: skip
+        return {"state": "listed" if items else "empty", "kind": kind, "items": items}
+    kinds = []
+    for k, what in KEPT_KINDS.items():
+        files = kept_files(box, k)
+        if files:
+            times = [p.stat().st_mtime for p in files]
+            kinds.append({"kind": k, "what": what, "files": len(files),
+                          "bytes": sum(p.stat().st_size for p in files),
+                          "oldest": day(min(times)), "newest": day(max(times))})  # fmt: skip
+    return {"state": "listed" if kinds else "empty", "kinds": kinds}
+
+
+def remove_no(why: str) -> dict:
+    return {"state": "refused", "code": "remove_refused", "why": why}
+
+
+def remove(box: Path, arg, archive: bool = False) -> dict:
+    """Delete what the person names from beside the record, or (archive)
+    pack it into a tarball where they say first. {"kind": KIND} with one of
+    "names" (as `stored` lists them), "older" (a day: everything last
+    changed before it) or "all". Before anything goes, Willow's `removed`
+    writes the hole on the record: each name, its size and its fingerprint,
+    and the archive's own when there is one. If the row can't be written,
+    nothing is removed. The index leaves no hole: it holds nothing the
+    folder doesn't, and is built again when next needed."""
+    asked = arg if isinstance(arg, dict) else {}
+    kind, s = asked.get("kind"), state(box)
+    if kind not in KEPT_KINDS:
+        return remove_no(f"say which kind: one of {', '.join(KEPT_KINDS)}")
+    have = {p.relative_to(s).as_posix(): p for p in kept_files(box, kind)}
+    names, older = asked.get("names"), str(asked.get("older") or "")
+    names = [names] if isinstance(names, str) else names
+    if names:
+        if not all(isinstance(x, str) and x in have for x in names):
+            return remove_no(
+                f"a name that is not one of the {kind} files kept (see stored)"
+            )
+        chosen = sorted(set(names))
+    elif older:
+        if not DAY.fullmatch(older):
+            return remove_no("older is a day, written year-month-day")
+        chosen = [x for x, p in have.items()
+                  if time.strftime("%Y-%m-%d", time.gmtime(p.stat().st_mtime)) < older]  # fmt: skip
+    elif asked.get("all") is True:
+        chosen = list(have)
+    else:
+        return remove_no('say which: "names", "older" (a day) or "all": true')
+    size = sum(have[x].stat().st_size for x in chosen)
+    if not chosen:
+        return {"state": "empty", "kind": kind}
+    if kind == "index":
+        if archive:
+            return remove_no(
+                "the index is rebuilt from your folder; there is nothing to archive"
+            )
+        shutil.rmtree(s / "index")
+        return {"state": "removed", "kind": kind, "files": len(chosen), "bytes": size}
+    to = None
+    if archive:
+        to = Path(str(asked.get("to") or "")).expanduser()
+        pile = Path(json.loads((box / "kernel.json").read_text()).get("pile", box))
+        inside = any(to.resolve().is_relative_to(d.resolve()) for d in (box, pile, s))
+        if (
+            not asked.get("to")
+            or inside
+            or to.exists()
+            or not to.resolve().parent.is_dir()
+        ):
+            return remove_no("an archive is a new file in a folder that exists, outside "
+                             "your record, what is beside it, and your folder")  # fmt: skip
+        with tarfile.open(to, "w:gz") as tar:
+            for x in chosen:
+                tar.add(have[x], arcname=x)
+    for i in range(0, len(chosen), REMOVE_AT_ONCE):
+        part = chosen[i : i + REMOVE_AT_ONCE]
+        run = willow(REMOVED, "--box", str(box), "--root", str(s), "--what", kind,
+                     "--how", "archived" if to else "deleted",
+                     *(("--to", str(to)) if to else ()), *part)  # fmt: skip
+        if run.returncode != 0:  # no hole written: these stay where they are
+            if to and i == 0:
+                to.unlink(missing_ok=True)
+            return remove_no((run.stderr or run.stdout).strip()[-300:])
+        for x in part:
+            have[x].unlink()
+            if kind == "shelf":  # and off its shelf's card
+                card = have[x].parent.with_suffix(".json")
+                if card.is_file():
+                    doc = json.loads(card.read_text())
+                    doc.get("items", {}).pop(have[x].name, None)
+                    card.write_text(json.dumps(doc, sort_keys=True))
+    forget_read(box)  # the record's last row is the hole, not a read
+    return {"state": "removed", "kind": kind, "files": len(chosen), "bytes": size,
+            **({"to": str(to)} if to else {})}  # fmt: skip
+
+
+def shelf_remove(box: Path, where, name, let: bool) -> dict:
+    """A session the person let in takes one thing off its own project's
+    shelf: something a session made, never the person's files. The hole
+    goes on the record as with anything removed."""
+    if not let:
+        return {"state": "refused", "code": "no_grant",
+                "why": "only a session let in may take a thing off its shelf"}  # fmt: skip
+    at = shelf_at(box, where)
+    ok = isinstance(name, str) and SHELF_NAME.fullmatch(name)
+    if at is None or not ok or not (at[0] / name).is_file():
+        return {"state": "refused", "code": "not_on_shelf",
+                "why": f"no {name!r} on the shelf of {where or 'no folder'}"}  # fmt: skip
+    rel = (at[0] / name).relative_to(state(box)).as_posix()
+    got = remove(box, {"kind": "shelf", "names": [rel]})
+    return {"state": "removed", "name": name} if got["state"] == "removed" else got
+
+
+def changed(box: Path) -> dict:
+    """What is new, edited or gone in the person's own folder since the
+    last check, by Willow's what-changed: one row on the record of paths
+    and fingerprints, so a file they deleted themselves leaves its hole.
+    The first check fingerprints every file."""
+    run = willow(WHAT_CHANGED, "--box", str(box))
+    if run.returncode not in (0, 42):
+        return {"state": "refused", "code": "record_broken",
+                "why": (run.stderr or run.stdout).strip()[-300:]}  # fmt: skip
+    forget_read(box)
+    (state(box) / "changed.stamp").write_text("")
+    lines = [ln.split(None, 1) for ln in run.stdout.splitlines() if ln.startswith("  ")]
+    got = {k: [p for w, p in lines if w == k] for k in ("new", "edited", "deleted")}
+    if run.stdout.startswith("First check"):
+        return {"state": "first", "said": run.stdout.strip()}
+    if not any(got.values()):
+        return {"state": "unchanged"}
+    return {"state": "changed", "new": len(got["new"]), "edited": len(got["edited"]),
+            "deleted": got["deleted"][:200]}  # fmt: skip
+
+
+def changed_at_start(box: Path) -> bool:
+    """At a session's start, the same check started on its own and let go,
+    so the session never waits on it; not more than once an hour, since a
+    session starts again on every resume. Whether it was started."""
+    stamp = state(box) / "changed.stamp"
+    if stamp.exists() and time.time() - stamp.stat().st_mtime < CHANGED_EVERY:
+        return False
+    stamp.write_text("")
+    try:
+        launch([sys.executable, WHAT_CHANGED, "--box", str(box)], cwd=WILLOW)
+    except OSError:
+        return False
+    return True
+
+
 # ── made to hand on: a timeline of one matter, a feed of what was sealed ────
 #: Willow's timeline and rss-out write each; this decides who may ask, and
 #: where the file goes. The file is the person's to hand on or to put where
@@ -3556,6 +3756,7 @@ def event(box: Path, sent) -> dict:
         grant_end(box, sent.get("session_id"))
         return {"state": "empty"}
     if name == "SessionStart":
+        changed_at_start(box)  # a file deleted from the folder leaves its hole
         asked = grant_ask(box, sent.get("cwd"), sent.get("session_id"))
         if asked.get("state") == "waiting":
             says.append("Model Context Provider: this session has asked to read from "
@@ -3624,6 +3825,12 @@ VERBS = {
         # was sealed
         "timeline": lambda box, arg, **kw: timeline(box, arg),
         "feed": lambda box, arg, **kw: feed(box, arg),
+        # what is kept beside the record, theirs to delete or pack away;
+        # and what changed in their own folder since it was last looked at
+        "stored": lambda box, arg, **kw: stored(box, arg),
+        "remove": lambda box, arg, **kw: remove(box, arg),
+        "archive": lambda box, arg, **kw: remove(box, arg, archive=True),
+        "changed": lambda box, arg, **kw: changed(box),
         "share_id": lambda box, arg, **kw: share_id(box),
         "share_person": lambda box, arg, **kw: share_person(box, arg),
         "share_send": lambda box, arg, **kw: share_send(
@@ -3687,6 +3894,10 @@ VERBS = {
         ),
         "shelf_list": lambda box, arg, **kw: shelf(box, kw.get("where")),
         "shelf_read": lambda box, arg, **kw: take(box, kw.get("where"), arg),
+        # and, once let in, takes one off: the hole goes on the record
+        "shelf_remove": lambda box, arg, **kw: shelf_remove(
+            box, kw.get("where"), arg, let_in(box, kw)
+        ),
         # read is open, but its passages would leave to the model: it gets the
         # state alone, never a passage, a place or a count
         "read": lambda box, arg, **kw: {"state": read(box, str(arg))["state"]},
