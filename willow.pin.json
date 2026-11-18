@@ -1,7 +1,7 @@
 {
   "_what": "The Willow this runtime was built on: its commit, and every file of what runs, by SHA-256. willow_pin.py refuses a checkout whose files differ; repin is the one way to move it.",
   "willow": "https://github.com/willow-memory/Willow",
-  "commit": "14efe16db8b16238a7bf9f16a00303de1124f8c7",
+  "commit": "fca526196213307565df60e834cd4c422d9f2e6d",
   "add_ons": [
     "approved-only",
     "backup",
@@ -16,6 +16,7 @@
     "hook-shell",
     "index-cache",
     "local-model",
+    "on-this-day",
     "openai-compatible",
     "privacy",
     "sentence-check",
@@ -50,6 +51,8 @@
     "adapters/stdlib/index-cache/index_cache.py": "15a76ce4b978175840becb483825a5d1b3b89b7e663f16ab82efe3ce55071fb2",
     "adapters/stdlib/local-model/README.md": "29dfe2d896652da660e984f1041902219eaafd0ba42677f980e0730e400db166",
     "adapters/stdlib/local-model/local_model.py": "6f460b811e340c74f2b0e8ffc22f6de64283c8a6637f7295c3bc50644f40b909",
+    "adapters/stdlib/on-this-day/README.md": "24dca329eb7773444c3578f265c6579c93bbf128100368d5f978b249e4446c9f",
+    "adapters/stdlib/on-this-day/on_this_day.py": "408cfed8d0bca9fee96958390aead03580ccef7892708bd58885358721515500",
     "adapters/stdlib/openai-compatible/README.md": "1b0a2d57c9eb51895b464fbcaa1880ee9a78d4a17126eee03566203a23f915fe",
     "adapters/stdlib/openai-compatible/openai_compatible.py": "65ee0577d711a2aba036eaaadc0269c9748d87b6e3d4a39b42863a5d6c254c9d",
     "adapters/stdlib/privacy/README.md": "51332bdf225568cff942398fbdc2290714a02a466dab73611d7ea87fdc3b8120",
@@ -61,7 +64,7 @@
     "adapters/stdlib/sentence-check/sentence_check.py": "6b3dbcd1021273412def988e69aef62ff9db7c5ad5c2cd9c608e54913f12780f",
     "adapters/stdlib/session-seal/README.md": "b1520317a3df54a3facd90c4f477577dfb3112e2d18678b7b9d85b88268ac8e2",
     "adapters/stdlib/session-seal/session_seal.py": "23fd4eda0302b7db8115b23cc1c162d5bb3bee51f0dcfb09853f37b83c43f458",
-    "adapters/stdlib/todo/README.md": "bd569ee8564325fff7fca1fcba6bda7684597923feea8a83f73c5e4fa35f6059",
-    "adapters/stdlib/todo/todo.py": "003c479acab83c60716cacea97c6b92bf783e7e9a2e38a2797f8844e0de8b193"
+    "adapters/stdlib/todo/README.md": "b60448076658766247f38eafa605e48598b914ed894a1061945b759ddcafea13",
+    "adapters/stdlib/todo/todo.py": "c53f407be7fa95976e7f2a2ea135db97e523c2b637c11a378511c97de7550232"
   }
 }

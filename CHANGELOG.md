@@ -4,6 +4,20 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A report of your files.** `report` gives a model one of Willow's
+  reports over the person's files, `todo` or `on-this-day`, the way a
+  question goes (the person's ruling of 2026-11-17): unsealed, the model
+  learns only that there is one; the report's own words, withheld, are
+  proposed under a question that names those exact words and wait on the
+  seal; sealed, they leave as one page. A report that would read
+  differently now waits on a seal of its own. `stop` covers a report, the
+  seal page shows one as "A report to share", and the person's `report`
+  gives it as it is. `on-this-day` joins the pin. The first real `todo`
+  report ran to 571 lines, most of them prose, so: `report-skip.txt` beside
+  the record leaves folders and files out of every report; a report over
+  20,000 characters is never proposed, and a model is told so without its
+  size; and the pin moves to Willow `fca52619`, where `todo` 0.1.2 counts a
+  mark only as it is written to mark something.
 - **A shelf for each project.** A session puts what it makes (a report, a
   list, working notes) on the shelf of the folder it is working in:
   `shelve`, `shelf` and `take` on a model's door, with no seal, since

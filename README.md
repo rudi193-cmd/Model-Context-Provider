@@ -61,7 +61,8 @@ beside the person's record.
 | `stop`: never let a scope leave again | `context`: the sealed page for this question, if there is one |
 | `preview`: the page a scope would let leave, before they seal it | `capture`: one thing to keep, waiting on the person; never read back |
 | `capture`, `captured`: hand in a thing to keep, and read what was kept | `shelve`, `shelf`, `take`: what it made, on its project's shelf, with no seal |
-| `shelves`, `take`: every project's shelf, and anything on one | |
+| `shelves`, `take`: every project's shelf, and anything on one | `report`: that there is a report of the files; the report itself once sealed |
+| `report`: a report of their files, as it is | |
 | `later`, `back`: not now, and bring it back; never on the record | |
 | `shared`: what left, as places, not hashes | |
 | `close`: this session's actions, for one seal | |
@@ -78,7 +79,7 @@ next.
 
 You need Python 3.9 or newer and a Willow checkout at the commit
 [willow.pin.json](willow.pin.json) names. The pin holds every file of Willow
-this runs (the kernel and eighteen add-ons) by its SHA-256, and nothing runs
+this runs (the kernel and nineteen add-ons) by its SHA-256, and nothing runs
 on a Willow whose files differ: `python3 willow_pin.py check` says which.
 Nothing else in Willow matters to it. Make your record in Willow's UI: pick
 your folders, type your own words into the words step, seal it, and press
@@ -170,6 +171,54 @@ sends a failed command as `PostToolUseFailure` with `"error": "Exit code
 payload was kept with `capture`, the fix went to Willow (`hook-errors`
 0.1.2, commit `14efe16d`, not yet in a Willow pull request), and the pin
 moved to it. A correction and a denied command have not been tried.
+
+## A report of your files
+
+Some things worth asking aren't a question: what did I write down to do,
+what did I write on this day in earlier years. Willow has a report for
+each, and a model can ask for one (the person's ruling of 2026-11-17):
+
+| Report | What it lists |
+|---|---|
+| `todo` | every line marked to do (TODO, FIXME, "need to", "remember to", an open checkbox), oldest first |
+| `on-this-day` | what you wrote on this date in earlier years |
+
+It goes the way a question goes:
+
+1. **The model asks.** It learns that there is a report, or that there is
+   nothing to report. No line, no file name, no count.
+2. **The report waits on you.** Its own words, with names, numbers and
+   addresses withheld, are proposed for your seal. The seal page shows them
+   as "A report to share".
+3. **You seal it, and it leaves** as one page: exactly the words you
+   sealed.
+4. **A report that would read differently now waits again.** Add a line to
+   do and the old seal no longer covers the report; the new one is yours to
+   seal. So does tomorrow's `on-this-day`.
+
+`stop` works on a report as on a page, with no key. On your own door,
+`{"report": "todo"}` gives you the report as it is: reading needs no grant.
+A sealed report is given for its report, never for a question, and it isn't
+a page a model can `answer`.
+
+**Leaving folders out.** A folder of commits, code or exports is full of
+lines that look like things to do. List what to leave out of every report,
+one a line, in `report-skip.txt` beside your record: a folder (`commits`),
+a folder inside one (`code/vendor`), or one file's path. It only takes lines
+out, on your door and a model's alike, and your own `report` says how many
+it left out.
+
+**Too long to read is too long to share.** A report over 20,000 characters
+is never proposed: you'd be sealing more than you would read. A model is
+told to tell you so, without the size, and you still read the whole of it
+on your own door.
+
+Seen in Claude Code on 2026-11-17, over a real record: asked for `todo`, a
+model was told only that it waits; the person sealed it on the seal page;
+asked again, the model was given it. It ran to 571 lines, most of them
+prose about todos in commits and code. That is where the skip list and the
+limit come from, and Willow's `todo` now counts a mark only as it is
+written to mark something (0.1.2).
 
 ## One place to keep things
 
@@ -360,6 +409,7 @@ named in `model.json`.
 | `backup`, `local-model` | the record's backup, and finding models on this machine |
 | `session-seal` | one seal over a session's actions |
 | `index-cache`, `claude-code`'s `bite` | a bite answered from an index of the folder |
+| `todo`, `on-this-day` | the reports of the person's files |
 | `hook-guard`, `hook-leaks`, `hook-shell`, `hook-read-first`, `hook-errors` | the rules a tool call is held to before it runs |
 | `hook-handoff`, `hook-feedback` | where a session ended, and a correction kept for the person's seal |
 

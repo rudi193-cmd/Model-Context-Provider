@@ -282,6 +282,8 @@ def kind_of(w: dict) -> str:
         return "page"
     if path.startswith("answers/"):
         return "sentence"
+    if path.startswith("reports/"):
+        return "report"
     return "suggestion"
 
 
@@ -343,6 +345,17 @@ def card(box: Path, token: str, w: dict) -> str:
             f"record, at {esc(w.get('path', ''))}.</p>"
         )
         sealing = "Seal: keep this sentence"
+    elif kind == "report":
+        body = (
+            '<p class="kind">A report to share</p>'
+            f"<h2>{esc(w.get('claim') or 'A report from your files')}</h2>"
+            '<p class="soft">These are lines of your own files, as they would '
+            "leave, with names, numbers and addresses withheld. Sealing lets a "
+            "model be given exactly this, until the report would read "
+            "differently or you stop it.</p>"
+            f"<pre>{esc(data.strip())}</pre>"
+        )
+        sealing = "Seal: share this report"
     else:
         body = (
             '<p class="kind">A suggestion</p>'

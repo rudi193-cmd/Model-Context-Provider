@@ -56,11 +56,16 @@ trust model:
 High-leverage, already-complete stdlib add-ons that fit the pin + CLI
 pattern:
 
-- [ ] **todo**
+- [x] **todo**
   - **Note:** not a task list. It is a read-only report of TODO, FIXME and
-    "need to" lines already in the folder. Already in the pin (batch-ask
-    loads it), but the runtime never runs it. Needs: a verb on the person's
-    door (small); to reach a model it needs the sealed-report path below.
+    "need to" lines already in the folder. Built as `report todo` on both
+    doors: the person reads it as it is; a model learns there is one and is
+    given it once the person seals it. Seen in a real session on
+    2026-11-17: asked, sealed on the seal page, given. It was 571 lines of
+    mostly prose, so there is now a skip list (`report-skip.txt`), a limit
+    of 20,000 characters, and tighter marks in Willow's `todo` (0.1.2).
+    Needs: the person's `report-skip.txt` for this record (commits, code
+    and graph were 362 of the 571 lines).
 - [ ] **notes**
   - **Note:** an importer, not a notes surface: it mirrors an Obsidian or
     Logseq vault into a folder the box can read. Needs: a decision on
@@ -72,14 +77,19 @@ pattern:
     waits on the seal, then lands under `written/captured/`. A model can
     hand one in and can't read it back.
 - [ ] **people**
-  - **Note:** read-only report: everyone the files name, and where. Needs:
-    the same as todo.
+  - **Note:** read-only report: everyone the files name, and where. The
+    report path is built now, so this is a line in `runtime.REPORTS` and a
+    pin. Held back on purpose: it names everyone in the files, so what
+    leaves deserves a closer look first (the names list withholds only the
+    names the person listed).
 - [ ] **calendar**
   - **Note:** an importer (`.ics` events and `.vcf` contacts as dated
     lines), not a calendar. Needs: the same decision as notes.
-- [ ] **on-this-day**
-  - **Note:** read-only report. Needs: the same as todo. `coming-up`
-    (dates in the next N days) is its sibling and wasn't in the list.
+- [x] **on-this-day**
+  - **Note:** built as `report on-this-day`, the same way as todo. Its
+    sibling `coming-up` (dates in the next N days) wasn't in the list and
+    isn't built: it loads Willow's `pieces` add-on from beside it, so that
+    has to be read and pinned too.
 - [ ] **timeline**
   - **Note:** writes a dated, cited timeline of one matter to a file, to
     hand to someone. That is a way out: it needs the leave rules.
@@ -112,12 +122,12 @@ pattern:
 
 - [ ] First-class **sealed collection / knowledge surface** (model reads
   only after seal; can only propose writes)
-  - **Note:** half built. Proposing writes is `capture`. Reading back is
-    not: today the only thing that can be sealed to leave is the passages
-    the last read served (`approved-only`). A kept note, or any report, is
-    not that. Needs: `approved-only` to scope a given list of passages,
-    which is a change in Willow and a repin. This one gap blocks every
-    report in the list above from reaching a model.
+  - **Note:** half built. Proposing writes is `capture`. Reading a kept
+    note back is not built, but the way is found: reports (2026-11-17) leave
+    by being proposed as their own words under a question that names those
+    words, with no change to Willow. A kept note could be read back the
+    same way. Needs: the person's say on whether a model may read back a
+    note they sealed, since `capture` promised it couldn't.
 - [ ] **Seal-gated task / work queue** (even a minimal one)
   - **Note:** nothing in Willow is this. New design.
 - [ ] Proper **MCP Resources + Prompts**

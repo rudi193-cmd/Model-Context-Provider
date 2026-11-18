@@ -126,6 +126,15 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         return runtime.call(box, "restore", str(usb / made), door="pipe")
     if code == "capture_refused":
         return runtime.call(box, "capture", "  ", door="mcp")
+    if code == "no_report":
+        return runtime.call(box, "report", "horoscope", door="mcp")
+    if code == "report_failed":
+        monkeypatch.setitem(runtime.REPORTS, "todo", "no/such/todo.py")
+        return runtime.call(box, "report", "todo", door="mcp")
+    if code == "report_too_long":
+        (box.parent / "pile" / "chores.md").write_text("TODO: order the tubers.\n")
+        monkeypatch.setattr(runtime, "REPORT_MOST", 10)
+        return runtime.call(box, "report", "todo", door="mcp")
     if code == "shelf_refused":
         return runtime.call(box, "shelve", {"name": "../x", "text": "t"},
                             door="mcp", where=str(usb))  # fmt: skip

@@ -43,6 +43,7 @@ ADD_ONS = (
     "hook-shell",
     "index-cache",
     "local-model",
+    "on-this-day",
     "openai-compatible",  # local-model loads it
     "privacy",
     "sentence-check",

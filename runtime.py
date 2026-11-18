@@ -65,6 +65,8 @@ def sent(box: Path, door: str, verb: str, got: dict) -> dict:
         row["to"] = got["to"]
     if got.get("by"):
         row["by"] = got["by"]
+    if got.get("report"):  # which report, by its name: never a line of it
+        row["report"] = got["report"]
     if got.get("says"):  # words put in a model's turn: their hash, never them
         row["says"] = hashlib.sha256(got["says"].encode()).hexdigest()
     with f.open("a") as out:
@@ -278,7 +280,14 @@ def shared(box: Path) -> dict:
     for r in log["rows"]:
         when = r["ts"].replace("T", " ").removesuffix("Z")[:16]
         who = r.get("to") or FAR_SIDE.get(r["door"], f"the {r['door']} door")
-        if "page" in r:
+        if r["verb"] == "report":
+            name = r.get("report", "a")
+            what = {"left": f"the {name} report you sealed",
+                    "waiting": f"that there is a {name} report, waiting on your seal",
+                    "populated": f"that there is a {name} report, and nothing of it",
+                    "empty": f"that the {name} report holds nothing"}.get(
+                r["state"], f"report: {r['state']}")  # fmt: skip
+        elif "page" in r:
             where = [places.get(h, {}).get("where", "a passage whose place isn't kept")
                      for h in r.get("passages", [])]  # fmt: skip
             what = "the page you sealed: " + "; ".join(where)
@@ -671,6 +680,12 @@ PLAIN = {
                       "Give it a plain file name (letters, digits, dots and dashes, at most 80) and some text, under a million characters."),
     "not_on_shelf": ("There's nothing by that name on this project's shelf.",
                      "See what is there (shelf): each shows the name to ask for."),
+    "no_report": ("That isn't a report this makes.",
+                  "The reports are: todo (what you wrote down to do) and on-this-day (what you wrote on this date in earlier years)."),
+    "report_failed": ("The report couldn't be made, so nothing was shared.",
+                      "Check that WILLOW points at your Willow folder."),
+    "report_too_long": ("The report is too long to share whole, so nothing was shared.",
+                        "Leave folders out of it: list each, one a line, in report-skip.txt beside your record, then ask again."),
 }  # fmt: skip
 
 
@@ -845,17 +860,150 @@ def preview(box: Path, subject) -> dict:
 
 
 def stop(box: Path, subject: str) -> dict:
-    """Never let this scope leave again. A stop needs no key: refusing to send
-    only ever makes things safer. To share it again, seal it anew."""
-    if subject not in scopes(box):
+    """Never let this scope, or this report, leave again. A stop needs no
+    key: refusing to send only ever makes things safer. To share it again,
+    seal it anew."""
+    if subject not in scopes(box) and subject not in reports(box):
         return {
             "state": "refused",
             "code": "not_a_scope",
-            "why": f"{subject} isn't a scope proposed here",
+            "why": f"{subject} isn't a scope or a report proposed here",
         }
     f = state(box) / "stopped.json"
     f.write_text(json.dumps(sorted({*stopped(box), subject})))
     return {"state": "stopped", "seal": subject}
+
+
+#: the reports of the person's own files this can make, each one of Willow's
+#: that only reads and prints the report every report add-on prints
+REPORTS = {
+    "todo": "adapters/stdlib/todo/todo.py",
+    "on-this-day": "adapters/stdlib/on-this-day/on_this_day.py",
+}
+
+
+def reports(box: Path) -> dict:
+    """Each report proposed here, by its subject: which report, and the
+    fingerprint of the words that were proposed."""
+    f = state(box) / "reports.json"
+    return json.loads(f.read_text()) if f.exists() else {}
+
+
+def report(box: Path, name) -> dict:
+    """One of Willow's reports over the person's files, as its own words:
+    a line saying how much, then each line it found, by file and line.
+    Reading needs no grant, so this is the person's to read as it is."""
+    script = REPORTS.get(name) if isinstance(name, str) else None
+    if script is None:
+        return {"state": "refused", "code": "no_report",
+                "why": f"no report {name!r}; one of {sorted(REPORTS)}"}  # fmt: skip
+    run = willow(script, "--box", str(box), "--json")
+    try:
+        doc = json.loads(run.stdout)
+    except ValueError:
+        doc = None
+    if run.returncode != 0 or not isinstance(doc, dict):
+        return {"state": "refused", "code": "report_failed",
+                "why": (run.stderr or run.stdout).strip()[-300:]}  # fmt: skip
+    if doc.get("state") != "populated":
+        return {"state": "empty", "report": name}
+    skip, out, kept, total = left_out(box), [], 0, 0
+    for g in doc.get("groups", []):
+        rows = [r for r in g["rows"] if not is_left_out(r["where"], skip)]
+        total, kept = total + len(g["rows"]), kept + len(rows)
+        if rows and g.get("name") is not None:
+            out.append(f"## {g['name']}")
+        out += [f"  {r['where']}  {r['what']}".rstrip() for r in rows]
+    if not kept:
+        return {"state": "empty", "report": name, "left_out": total}
+    # Willow's own first line when nothing was left out; else only what is here
+    said = doc.get("said", "") if kept == total else f"{kept} line{'s' * (kept != 1)}"
+    return {"state": "populated", "report": name, "left_out": total - kept,
+            "text": "\n".join([f"{name}: {said}", *out]) + "\n"}  # fmt: skip
+
+
+def left_out(box: Path) -> list[str]:
+    """The folders and files the person leaves out of every report, one a
+    line in report-skip.txt beside the box (commits, code/vendor, a file's
+    own path). It only ever takes lines out: less is read back, less waits
+    on the seal, less leaves."""
+    f = state(box) / "report-skip.txt"
+    if not f.is_file():
+        return []
+    return [ln.strip().strip("/") for ln in f.read_text().splitlines()
+            if ln.strip().strip("/") and not ln.lstrip().startswith("#")]  # fmt: skip
+
+
+def is_left_out(where: str, skip: list[str]) -> bool:
+    """Whether a line's place (file:line) is a file left out, or in a folder
+    left out. A folder is matched whole: commits never leaves out commits-old."""
+    path = where.rsplit(":", 1)[0]
+    return any(path == s or path.startswith(s + "/") for s in skip)
+
+
+#: the most of a report that is proposed to leave at once: more than this is
+#: more than a person reads before sealing, and more than a model is given
+REPORT_MOST = 20_000
+
+
+def report_to_model(box: Path, name) -> dict:
+    """A report at a model's door (the person's ruling of 2026-11-17: a
+    model may be told a report exists, and be given it once they seal it).
+
+    Unsealed, the model learns only that there is one: no line, no place,
+    no count. The report's own words, withheld, are proposed through the
+    kernel under a question that names those exact words, and wait on the
+    person's seal. Sealed, the kernel answers that question with them, and
+    they leave as one page. A report that would read differently now is a
+    different question, so it waits on a seal of its own: what leaves is
+    always exactly what was sealed."""
+    got = report(box, name)
+    if got["state"] == "refused":
+        return got
+    if got["state"] != "populated":  # nothing to report: that, and no count
+        return {"state": got["state"], "report": name}
+    try:
+        (text,) = withhold(box, [got["text"]])
+    except RuntimeError as why:  # can't withhold: nothing leaves
+        return {"state": "refused", "code": "scrub_failed", "why": str(why)}
+    if len(text) > REPORT_MOST:  # said without its size: that would be a count
+        return {"state": "refused", "code": "report_too_long",
+                "why": "the report is over the most that is shared at once"}  # fmt: skip
+    digest = hashlib.sha256(text.encode()).hexdigest()[:16]
+    asked = bite(box, f"report {name} {digest}")
+    if asked.returncode == 2:
+        return {"state": "refused", "code": "record_broken",
+                "why": asked.stderr.strip()}  # fmt: skip
+    # that bite is the record's last, and it isn't a question a model read
+    (state(box) / "last-read.json").unlink(missing_ok=True)
+    known, mine = reports(box), {"report": name, "digest": digest}
+    doc = json.loads(asked.stdout)
+    if doc.get("state") == "sealed":
+        by = doc.get("by")
+        if by in stopped(box):
+            return {"state": "refused", "code": "stopped",
+                    "why": "the person stopped this report"}  # fmt: skip
+        if known.get(by) == mine and doc.get("answer") == text:
+            return {"state": "left", "report": name, "page": text}
+        return {"state": "populated", "report": name}  # sealed, but not from here
+    prop = {"path": f"reports/{name}-{digest}.md", "data": text, "cites": [],
+            "claim": f"the {name} report of your files, to share with a model"}  # fmt: skip
+    with tempfile.TemporaryDirectory() as d:
+        f = Path(d) / "suggestions.jsonl"
+        f.write_text(json.dumps(prop) + "\n")
+        run = willow("kernel.py", "propose", "--box", str(box), "--file", str(f))
+    subject = next((w for w in run.stdout.split() if w.startswith("proposal:")), None)
+    if run.returncode == 2:
+        return {"state": "refused", "code": "report_failed",
+                "why": (run.stderr or run.stdout).strip()[-300:]}  # fmt: skip
+    if subject and "refused" not in run.stdout:
+        known[subject] = mine
+        (state(box) / "reports.json").write_text(json.dumps(known, sort_keys=True))
+        return {"state": "waiting", "report": name, "seal": subject}
+    if "already waiting" in run.stdout:
+        return {"state": "waiting", "report": name}
+    # the person said no to these words: the model is told there is one, as before
+    return {"state": "populated", "report": name}
 
 
 def boxes_of(page: str) -> list[dict]:
@@ -1354,6 +1502,7 @@ VERBS = {
         "draft": lambda box, arg, **kw: draft(box, str(arg), None, kw.get("door", "")),
         "close": lambda box, arg, **kw: close(box),
         "owed": lambda box, arg, **kw: owed(box),
+        "report": lambda box, arg, **kw: report(box, arg),
         "capture": lambda box, arg, **kw: capture(box, arg),
         "captured": lambda box, arg, **kw: captured(box),
         "shelves": lambda box, arg, **kw: shelves(box),
@@ -1383,6 +1532,8 @@ VERBS = {
         "draft": lambda box, arg, **kw: draft(
             box, str(arg), kw.get("ask"), kw.get("door", "")
         ),
+        # a report of the person's files: that there is one, until they seal it
+        "report": lambda box, arg, **kw: report_to_model(box, arg),
     },
     "host": {
         "context": lambda box, arg, **kw: context(box, str(arg)),
