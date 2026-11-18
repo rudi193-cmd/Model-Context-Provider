@@ -4,6 +4,20 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **The rest of a model's tools, under that yes.** While a session's grant
+  stands, `report` gives the report as it reads now, `skill` gives a skill
+  the person named as it reads now (never one they declined or stopped),
+  `notes` reads back a note still waiting, marked so, and a task a model
+  adds for its own folder is open at once to sessions the person let in
+  there, marked as not sealed. Nothing is proposed for any of them. A task
+  for another folder, a note to keep, a sentence back and a file that
+  leaves still wait on the seal.
+- **A skill can be a folder.** Naming a folder that holds a `SKILL.md`
+  seals its words and, under them, each other text file by the fingerprint
+  of its words. A model asks for a file by its name on that list and is
+  given it only while it reads as listed; a file changed, added or removed
+  unseals the folder. Links, hidden files, keys and anything outside the
+  folder are never listed.
 - **One yes for a session.** A session asks once, at its start, to read
   from the person's files while it works in its folder; sealed, `context`
   answers it directly, withheld, until the session ends or the person

@@ -4,6 +4,8 @@ The handoff Grok wrote on 2026-11-17, copied out so each line can be ticked
 and noted. Grok's words are kept as they were. A box is ticked when the
 thing is built here. A line starting **Note** was added afterwards: what
 was found when the line was held to the code, and what it still needs.
+Last held to the code on 2026-11-18. What is still open is gathered at the
+end, under "Open now".
 
 ## Handoff: Model-Context-Provider (MCP → Provider)
 
@@ -37,8 +39,11 @@ proposed back and wait for another human seal.
   seals → only then does a page leave. Pure stdlib + pinned Willow. Doors
   decide nothing (enforced by tests).
 
-**Note:** true as written. Since then: `doors/guard.py`, `check.py`, and
-seven of Willow's hook add-ons in the pin (see "Added since" below).
+**Note:** true as written, with one change since: a session the person let
+in (one yes, for one session in one folder) is answered directly, withheld,
+with no page sealed first. Also since: `doors/guard.py`, `check.py`,
+`seal_prompt.py`, seven of Willow's hook add-ons and its `kart` in the pin
+(see "Added since" and "Thrown in" below).
 
 ### Goal for next work
 
@@ -80,12 +85,10 @@ pattern:
     waits on the seal, then lands under `written/captured/`. A model can
     hand one in, and read it back only once the person has sealed it
     (`notes`, below).
-- [ ] **people**
-  - **Note:** read-only report: everyone the files name, and where. The
-    report path is built now, so this is a line in `runtime.REPORTS` and a
-    pin. Held back on purpose: it names everyone in the files, so what
-    leaves deserves a closer look first (the names list withholds only the
-    names the person listed).
+- [x] **people**
+  - **Note:** built as `report people`: a line a person (how often, in how
+    many files, over what dates), and its proposal says plainly that it
+    names people. See "The `people` report" below.
 - [x] **calendar**
   - **Note:** an importer (`.ics` events and `.vcf` contacts as dated
     lines), not a calendar: built with notes, as `bring_in` with
@@ -155,17 +158,21 @@ pattern:
   - **Note:** built as `status` on the person's door and a third page of
     the seal page, on top of Willow's own `digest` and `box-health`. Not
     yet seen on a real record.
-- [ ] Optional sealed/version-pinned skills/behaviours
-  - **Note:** not started.
+- [x] Optional sealed/version-pinned skills/behaviours
+  - **Note:** built as `skill_add`, `skills` and `skill`: a file, or a
+    folder, sealed by its exact words. See "Skills" and "A skill as a
+    folder" below.
 
 ### Suggested near-term order (from last discussion)
 
 1. [x] todo + capture + notes (or thin sealed-collection wrapper)
    - **Note:** capture done; todo as above; kept notes read back as `notes`.
-2. [ ] people + calendar + on-this-day (everyday utility + delight)
+2. [x] people + calendar + on-this-day (everyday utility + delight)
 3. [x] Minimal seal-gated task queue
-4. [ ] MCP Resources for sealed pages + a couple of prompts
+4. [x] MCP Resources for sealed pages + a couple of prompts
 5. [ ] share and/or handover as distinctive Willow flavour
+   - **Note:** `share` is next, with the owner. Kart's `write` and `run`
+     are in the pin for it.
 
 ### Fun / differentiating angles
 
@@ -185,21 +192,27 @@ pattern:
     named test is gone. `shared` still reads the sent log back in plain
     words.
 - [x] Keep pure-stdlib + pin discipline
-  - **Note:** held. The pin is at Willow `14efe16d`, which so far exists
-    only on this machine.
+  - **Note:** held, with one stated exception: a job needs the `kartikeya`
+    package and `bwrap`, on a Python the person names beside the record;
+    without them `job` is refused and everything else runs. The pin is at
+    Willow `b105b459`, which so far exists only on this machine.
 
 ### Open design questions
 
-- [ ] Exact new verbs and how they map into `runtime.call` while preserving
+- [x] Exact new verbs and how they map into `runtime.call` while preserving
   the two lines
-  - **Note:** settled for hooks: a third face, "host", with `context` and
-    `event`. Open for reports.
-- [ ] How much friction is acceptable on the seal path for higher-volume
+  - **Note:** settled: three faces (person, model, host), each with its own
+    verbs, and `call` passes the door's folder and session so a grant can
+    be held to both.
+- [x] How much friction is acceptable on the seal path for higher-volume
   surfaces (todo, calendar, etc.)
-  - **Note:** six things wait on the seal after one day's work. Corrections
-    (`hook-feedback`) and captures each add one.
-- [ ] Whether to expose any of the new surfaces as MCP Resources vs tools
+  - **Note:** the owner's ruling of 2026-11-17: a seal is for what the
+    person truly needs to decide. One yes for a session covers reading;
+    six things waiting after a day's work was too many.
+- [x] Whether to expose any of the new surfaces as MCP Resources vs tools
   only
+  - **Note:** both: reports, the last page, the shelf and skills are listed
+    as resources, and each read is its verb.
 - [ ] How aggressively to lean into Willow's personal-history add-ons vs
   more "work" oriented ones first
 
@@ -246,8 +259,8 @@ so none is lost. A box is ticked when it is built.
   a skill file by its exact words and gives a model only those bytes, so a
   skill that changed after it was vetted waits on a new seal.
   - **Note:** built 2026-11-18 on the owner's go: `skill_add` and `skills`
-    on the person's door, `skill` on a model's. Not yet seen in a real
-    client.
+    on the person's door, `skill` on a model's. The owner named and sealed
+    socratic-fork's `SKILL.md` with it the same day.
 - [ ] **`my-installs`** (from the same pull request): what is installed on
   this machine (skills, plugins, hooks), what each can touch, and what
   changed since last looked. The audit half of the guard gap below.
@@ -256,10 +269,10 @@ so none is lost. A box is ticked when it is built.
   list as an idea: "asks you questions about your own notes instead of
   answering, each citing the passage it asked from". The owner's own
   `socratic-fork` is a skill of 697 questions.
-  - **Note:** the prompt is built 2026-11-18, as `question_me`.
-  - **Needs:** small: a fourth prompt that has a model question the person
-    over a page they sealed, citing each passage, and answer nothing.
-    Larger: `socratic-fork` as the first skill served by the `skill` verb.
+  - **Note:** the prompt is built 2026-11-18, as `question_me`, and
+    `socratic-fork`'s `SKILL.md` is the first skill named and sealed.
+  - **Needs:** the owner to name the folder (`skill_add` with the folder's
+    path), so its question files can be asked for.
 - [x] **Kart** (the owner: "I completely forgot to bring Kart in, and that
   will fix a lot of our issues"; "it's got a card in Willow already").
   Willow's `adapters/deps/kart`: a job someone sent you, run in
@@ -271,34 +284,45 @@ so none is lost. A box is ticked when it is built.
     only approximate. It needs the `kartikeya` package and `bwrap`, run
     through Willow by command line.
   - **Note:** built 2026-11-18. Willow's kart learned `write` (a job of
-    your own, sealed) and `try` (run with no seal, proposing nothing), and
-    stopped a fleet's settings reaching a job. Here: `job` on a model's
-    door, under a session's grant. Not yet seen in a real client.
+    your own, sealed), `try` (run with no seal, proposing nothing) and a
+    queue (`queue`, `work`, `status`), stopped a fleet's settings reaching
+    a job, keeps a failed job's last line off the record, and puts back
+    the limits a reload of systemd empties out of its resource group
+    (0.1.3 to 0.1.7). Here: `job`, and `job_later` with `job_result` for a
+    job too long to wait on, on a model's door, under a session's grant.
+    Seen in a real session the same day: a job run, and three queued jobs
+    worked in order.
 - [x] **One yes for a session** (the owner, 2026-11-17: "the seal should be
   something for the user to really NEED to do, a true exit 42"; "per
   project folder, per session"; "just think of it like a normal mcp").
   - **Note:** `grant`, and `context` and `job` under it, built 2026-11-18
-    beside the per-item seals.
+    beside the per-item seals, and seen in a real session: asked at the
+    session's start, sealed once, and it held across a reconnect.
+  - **Note:** `report`, `skill`, `notes` and the task tools answer under it
+    too (2026-11-18). A task for another folder, a note to keep, a
+    sentence back and a file that leaves still wait on a seal.
   - **Note:** a desktop dialog for the yes (`seal_prompt.py`, pinentry, a
     plain confirm by the owner's choice) built 2026-11-18; off until
     `ask-here` is beside the box. MCP elicitation was looked at and left
     out: a hook can answer it.
-  - **Needs:** `report`, `skill`, `notes` and tasks brought under the grant
-    too; then the per-item path reviewed for what can go. The `SessionEnd`
-    guard hook installed (`set_up.py`), or a grant ends only by `stop`.
-- [ ] **A skill as a folder** (the owner: "yes, build the folder skill after
+  - **Needs:** the per-item paths reviewed with the owner for what can
+    go. The dialog seen once on a real desktop.
+- [x] **A skill as a folder** (the owner: "yes, build the folder skill after
   kart lands"). socratic-fork's `SKILL.md` is a router to question files
-  beside it that nothing can ask for. Under a grant this may be simpler
-  than a sealed list of hashes: decide which with the owner.
+  beside it that nothing could ask for.
+  - **Note:** built 2026-11-18, both ways. Naming a folder seals its
+    `SKILL.md` and, under it, each other text file by the fingerprint of
+    its words; a model asks for a file by its name on that list. Under a
+    session's grant the folder is given as it reads now.
 - [ ] **Willow's demos of sharing** (the owner: "a few demos in Willow as
   well to pull how share should work"): `demo/johnson` (one report, five
   willows), `demo/shared-runs`, `demo/known-gaps`, `demo/craft-assembly`.
   - **Needs:** reading before `share` is designed.
-- [ ] **Depend on GitHub less.** The check and the hook that holds `main`
-  are built and run here. Still on GitHub alone: the four Willow commits
-  this pin stands on (`hook-errors`, two for `todo`, `hook-handoff`), which
-  are on this machine only; the owner said to save that pull request for
-  later.
+- [x] **Depend on GitHub less.** The check and the hook that holds `main`
+  are built and run here, and the check is the gate.
+  - **Note:** the twelve Willow commits this pin stands on (the hook
+    add-ons, `todo`, `people`, `hook-guard`, `kart`) are on this machine
+    only; the owner said to save that pull request for later.
 - [ ] **Quoted speech in the todo report.** About a dozen of the 91 lines
   are the owner quoted saying "I need to…" in a past session, not tasks.
   - **Needs:** the owner's yes; it is a change to Willow's `todo`, and it
@@ -307,10 +331,10 @@ so none is lost. A box is ticked when it is built.
   files, over what dates), from one call to Willow: `people` 0.1.2 has a
   `--json`. Proposed on the task queue, sealed by the owner, and done from
   it: the first task the queue carried. Not yet seen over the real record.
-- [ ] **More reports, cheaply.** `report()` takes any exit but 0 as a
-  failure, and Willow's audit add-ons exit 42 when they find something.
-  Fixing that opens `ref-check`, `pii-audit` and `secrets-audit`;
-  `minutes` fits as it is. Ranked list in the agents' assessment.
+- [ ] **More reports, cheaply.** `report()` now takes exit 42 as "found
+  something", which is what Willow's audit add-ons say. That opens
+  `ref-check`, `pii-audit` and `secrets-audit`; `minutes` fits as it is.
+  Each is a line in `runtime.REPORTS` and a pin.
 - [ ] **More importers.** `joplin` takes the same command line as `notes`
   and `calendar`: a line in `BRING_IN` and a pin.
 - [ ] **The task queue's edges.** Listing tasks has no limit on its whole
@@ -318,14 +342,15 @@ so none is lost. A box is ticked when it is built.
   a row on the record each time.
 - [ ] **`share`**, and with it `timeline` and `rss-out`: ways out to
   another person or place. The owner will take `share` with the main
-  session once the agents' work is merged; each needs a ruling.
+  session; each needs a ruling. `demo/johnson` is the reference.
 
 ## Still loose
 
 - [ ] The guard beside the record stops careless tool writes, not code a
   model runs: a path built at run time (`$VAR`, a substitution, a script it
   writes), a `cd` earlier in the command, and `mv -t DIR src` still get
-  through. Kart's sandbox is the real fix.
+  through. Kart's sandbox is the real fix, and `job` now runs there; the
+  assistant's own shell tool does not.
 - [ ] Push the Willow commits, or the GitHub workflow can't find the pinned
   commit.
 - [ ] `hook-shell` is off until there is a `deny.txt` beside the record.
@@ -341,6 +366,37 @@ so none is lost. A box is ticked when it is built.
   code a model runs that builds a path at run time gets through. The pin
   moved to Willow's `hook-guard` 0.1.1.
 - [ ] `uv.lock` is untracked: commit it or ignore it.
-- [ ] Nothing built on 2026-11-18 by the agents has been seen in a real
-  client yet: the task queue, reading notes back, bringing a vault in, the
-  checks on a sentence, and "What a model can never do".
+- [ ] Not yet seen in a real client: reading notes back, bringing a vault
+  in, the checks on a sentence, "What a model can never do", the desktop
+  dialog, a folder skill, and a task added under a grant.
+- [ ] **From putting kart through its paces (2026-11-18):**
+  - Kartikeya's scan of a job missed a listening socket and a printed
+    secret. Written up for the owner; not this project's code.
+  - The privacy filter turns a run of four-digit numbers into
+    `[withheld: card]`, so a job that prints years or sizes reads oddly.
+  - A job's output is given up to 20,000 characters; a smaller default,
+    with more on asking, would cost less.
+  - The Python the person names for jobs is visible inside the sandbox
+    with its packages (said in the README).
+  - A fleet on an older Kartikeya (0.3.2) runs a job with no limits when
+    its resource group isn't ready, and says nothing.
+  - Not yet seen live: kart putting back its limits after a reload of
+    systemd, and a refused worker's words coming back with `job_result`.
+
+## Open now
+
+What is left, gathered from the lines above, in the order the owner last
+gave:
+
+1. `share`, with `demo/johnson` as the reference; then `timeline` and
+   `rss-out`, each on a ruling.
+2. The per-item seal paths reviewed for what can go, now that a session's
+   yes covers reading.
+3. The paces list above.
+4. Smaller, any time: `ref-check`, `pii-audit`, `secrets-audit` and
+   `minutes` as reports; `joplin` as an importer; a limit on the whole
+   size of `tasks`; quoted speech in the todo report (needs the owner's
+   yes); `milestones`, `projects`, `handover`, `pile-store` not looked at.
+5. The owner's own: name socratic-fork as a folder; an `ask-here` file to
+   turn the dialog on; a `deny.txt` for `hook-shell`; `uv.lock` committed
+   or ignored; the Willow commits pushed when the time comes.

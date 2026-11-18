@@ -281,6 +281,18 @@ here. Day to day there is one yes:
   Names and numbers are withheld from both, and nothing waits on you.
   It is given what it asks for: the prompt hook, which asks at every
   prompt, still adds only a page you sealed for those words.
+- **The rest of its tools answer the same way:**
+
+  | Tool | Under that yes |
+  |---|---|
+  | `report` | the report as it reads now; nothing is proposed |
+  | `skill` | a skill you named, as it reads now, even if its own seal still waits or its file changed; never one you declined or stopped |
+  | `notes` | the notes you sealed, and the ones handed in that still wait, marked as waiting; keeping one is still your seal |
+  | `task_add` | a task for the session's own folder is open at once, kept beside your record as the model's own words, and marked as not sealed by you |
+  | `tasks`, `task_claim`, `task_done` | those tasks too, for sessions you let in to that folder; `{"tasks": true}` lists them and `task_drop` removes one |
+
+  A task for another folder, a note to keep, a sentence back and a page
+  that leaves as a file still wait on your seal.
 - **It ends when the session ends**, and never opens again: a session that
   starts again, resumed or new, asks anew. `stop` ends it sooner, with no
   key. `{"grants": true}` lists each one and where it stands.
@@ -348,6 +360,18 @@ change under you:
   seal stands again.
 - **`stop` works on it**, with no key, and `{"skills": true}` lists each
   skill, its file, and where it stands.
+- **A skill can be a folder.** Name the folder that holds a `SKILL.md`:
+  `{"skill_add": {"path": "FOLDER"}}`. What you seal is the `SKILL.md`
+  followed by a list of every other text file in the folder, each with the
+  fingerprint of its words. A model asks for one by its name on that list
+  (`skill`, with `file`) and is given it only while its words are the ones
+  listed. Change, add or remove a file and the folder is no longer what you
+  sealed. A link, a hidden file, a key, a file that isn't text, and
+  anything outside the folder are never listed; a folder with more than
+  200 files, or one that holds your record, is refused. Naming the
+  `SKILL.md` itself is still a skill of that one file.
+- **Under a session's yes** (above) a skill you named is given as it reads
+  now, and so are a folder's files. Naming it is still yours alone.
 
 Nothing in your record is trusted for this: the words a model is given are
 the ones the kernel holds under your seal. A skill over 40,000 characters
@@ -390,7 +414,10 @@ question of its own at `tasks/` in your record, by you (`task`) or by a model
 like anything else, and the seal page shows it as "A task to do" with a button,
 "Seal: yes, do this". Sealing grants a task nothing else: no tool, no file, no
 leave. The guard door still holds every tool call, and what is done is
-still closed over for one seal.
+still closed over for one seal. A session you let in (one yes for a
+session, above) adds a task for its own folder with no seal: it is that
+session's note of work, shown to you as "not sealed by you", and given
+only to sessions you let in there.
 
 | | Before your seal | After it |
 |---|---|---|

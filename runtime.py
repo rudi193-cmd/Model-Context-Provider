@@ -70,6 +70,8 @@ def sent(box: Path, door: str, verb: str, got: dict) -> dict:
         row["report"] = got["report"]
     if got.get("skill"):  # which skill, by its name: never a word of it
         row["skill"] = got["skill"]
+        if got.get("file"):  # and which of its files, by its name
+            row["file"] = got["file"]
     if got.get("says"):  # words put in a model's turn: their hash, never them
         row["says"] = hashlib.sha256(got["says"].encode()).hexdigest()
     with f.open("a") as out:
@@ -298,12 +300,13 @@ SHELF_SAID = {
 #: the state it ended in: never a word of a task or a note, only what happened
 TASK_SAID = {
     ("task_add", "waiting"): "a task it handed in, waiting on your seal",
-    ("tasks", "populated"): "the tasks you sealed for its project",
+    ("task_add", "open"): "a task it added, open under the yes you gave its session",
+    ("tasks", "populated"): "the tasks open for its project",
     ("tasks", "waiting"): "that a task it handed in still waits on your seal",
     ("tasks", "empty"): "that there are no tasks for its project",
-    ("task_claim", "claimed"): "a task you sealed, taken up by a session",
+    ("task_claim", "claimed"): "a task for its project, taken up by a session",
     ("task_done", "done"): "a task marked done, its result put on its project's shelf",
-    ("notes", "populated"): "the notes you sealed to keep",
+    ("notes", "populated"): "the notes you sealed to keep, or handed in under your yes",
     ("notes", "empty"): "that you have kept no notes",
 }
 SHELF_SAID.update(shelve=SHELF_SAID["shelf_add"], shelf=SHELF_SAID["shelf_list"],
@@ -328,14 +331,18 @@ def shared(box: Path) -> dict:
         who = r.get("to") or FAR_SIDE.get(r["door"], f"the {r['door']} door")
         if r["verb"] == "report":
             name = r.get("report", "a")
-            what = {"left": f"the {name} report you sealed",
+            what = {"left": (f"the {name} report, under the yes you gave its session"
+                             if r.get("by") == "grant" else f"the {name} report you sealed"),
                     "waiting": f"that there is a {name} report, waiting on your seal",
                     "populated": f"that there is a {name} report, and nothing of it",
                     "empty": f"that the {name} report holds nothing"}.get(
                 r["state"], f"report: {r['state']}")  # fmt: skip
         elif r["verb"] == "skill":
             name = r.get("skill", "a")
-            what = {"left": f"the skill {name}, as you sealed it",
+            part = f", its file {r['file']}" if r.get("file") else ""
+            what = {"left": (f"the skill {name}{part}, as it reads now, under the yes "
+                             "you gave its session" if r.get("by") == "grant"
+                             else f"the skill {name}{part}, as you sealed it"),
                     "waiting": f"that the skill {name} waits on your seal",
                     "unsealed": f"that the skill {name} isn't sealed as its file reads now"}.get(
                 r["state"], f"skill: {r['state']}")  # fmt: skip
@@ -1102,7 +1109,7 @@ def is_left_out(where: str, skip: list[str]) -> bool:
 REPORT_MOST = 20_000
 
 
-def report_to_model(box: Path, name) -> dict:
+def report_to_model(box: Path, name, let_in: bool = False) -> dict:
     """A report at a model's door (the person's ruling of 2026-11-17: a
     model may be told a report exists, and be given it once they seal it).
 
@@ -1112,7 +1119,10 @@ def report_to_model(box: Path, name) -> dict:
     person's seal. Sealed, the kernel answers that question with them, and
     they leave as one page. A report that would read differently now is a
     different question, so it waits on a seal of its own: what leaves is
-    always exactly what was sealed."""
+    always exactly what was sealed.
+
+    Under a session's grant (let_in) nothing is proposed and nothing waits:
+    the report is given as it reads now, withheld and under the same most."""
     got = report(box, name)
     if got["state"] == "refused":
         return got
@@ -1125,6 +1135,8 @@ def report_to_model(box: Path, name) -> dict:
     if len(text) > REPORT_MOST:  # said without its size: that would be a count
         return {"state": "refused", "code": "report_too_long",
                 "why": "the report is over the most that is shared at once"}  # fmt: skip
+    if let_in:
+        return {"state": "left", "report": name, "page": text, "by": "grant"}
     digest = hashlib.sha256(text.encode()).hexdigest()[:16]
     asked = bite(box, f"report {name} {digest}")
     if asked.returncode == 2:
@@ -1169,6 +1181,14 @@ SKILL_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
 #: the most of a skill that is proposed: more than this is more than a person
 #: reads before sealing instructions a model will follow
 SKILL_MOST = 40_000
+#: the most files a skill that is a folder may hold, and the most that are
+#: looked at to find them: a skill is a few pages, never a whole disk
+SKILL_FILES = 200
+SKILL_LOOKED_AT = 5_000
+SKILL_LISTED = (
+    "\n\n---\nThe files of this skill, each by the fingerprint of its words. "
+    "Ask for one by its name:\n"
+)
 
 
 def skills_known(box: Path) -> dict:
@@ -1213,6 +1233,74 @@ def skill_words(box: Path, path) -> tuple[str | None, str]:
     return text, ""
 
 
+def skill_files(box: Path, folder: Path) -> dict | None:
+    """The other files of a skill that is a folder, each by its name inside
+    it → its words as they would leave (withheld). Only text that can be
+    read: no link, nothing hidden, nothing that resolves outside the folder,
+    no key, nothing empty or over a skill's most. None when the folder holds
+    more than a skill may; RuntimeError when nothing can be withheld."""
+    root, found, seen = folder.resolve(), {}, 0
+    key = json.loads((box / "kernel.json").read_text()).get("key")
+    key = Path(key).expanduser().resolve() if isinstance(key, str) else None
+    for p in sorted(root.rglob("*")):
+        seen += 1
+        if seen > SKILL_LOOKED_AT:
+            return None
+        rel = p.relative_to(root)
+        if (
+            p.is_symlink()
+            or not p.is_file()
+            or not p.resolve().is_relative_to(root)
+            or any(part.startswith(".") for part in rel.parts)
+            or p.suffix == ".key"
+            or p.resolve() == key
+            or (len(rel.parts) == 1 and p.name.lower() == "skill.md")
+        ):
+            continue
+        try:
+            text = p.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        if not text.strip() or "\x00" in text or len(text) > SKILL_MOST:
+            continue
+        found[rel.as_posix()] = text
+        if len(found) > SKILL_FILES:
+            return None
+    return dict(zip(found, withhold(box, list(found.values())))) if found else {}
+
+
+def skill_reads(box: Path, entry: dict) -> tuple[str | None, dict, str]:
+    """A skill as it reads now: (its words, its other files when it is a
+    folder, "") or (None, {}, why not)."""
+    text, why = skill_words(box, entry.get("path", ""))
+    if text is None or not entry.get("folder"):
+        return text, {}, why
+    try:
+        files = skill_files(box, Path(entry["folder"]))
+    except (OSError, ValueError, RuntimeError) as failed:
+        return None, {}, str(failed)
+    if files is None:
+        return None, {}, f"that folder holds more than {SKILL_FILES} files"
+    return text, files, ""
+
+
+def skill_page(text: str, files: dict) -> str:
+    """What the person seals, and a model is given, for a skill: its words,
+    and for a folder the name of each other file with the fingerprint of its
+    words. So one seal covers the folder as it reads now, and a file that
+    changes afterwards is no longer what was sealed."""
+    if not files:
+        return text
+    return (
+        text.rstrip("\n")
+        + SKILL_LISTED
+        + "".join(
+            f"  {rel}  {hashlib.sha256(words.encode()).hexdigest()[:16]}\n"
+            for rel, words in files.items()
+        )
+    )
+
+
 def skill_add(box: Path, arg) -> dict:
     """Name a skill: a file of instructions the person chose for a model to
     follow. Its words, as the file reads now, are proposed under a question
@@ -1221,24 +1309,36 @@ def skill_add(box: Path, arg) -> dict:
     whose file changes afterwards is a different question: it is given to
     no one until the person names it again and seals what it now says. So a
     skill vetted once can't change under the person. Only the person's door
-    has this: a model must never choose what file is read."""
+    has this: a model must never choose what file is read.
+
+    Naming a folder that holds a SKILL.md names the folder: its SKILL.md is
+    the skill's words, and every other text file in it can be asked for by
+    its name, under the same one seal (skill_page)."""
     asked = arg if isinstance(arg, dict) else {"path": arg}
     path, name = asked.get("path"), asked.get("name")
     if not isinstance(path, str) or not path.strip():
         return {"state": "refused", "code": "skill_refused",
-                "why": 'wanted {"path": FILE} or {"path": FILE, "name": NAME}'}  # fmt: skip
-    p = Path(path).expanduser()
+                "why": 'wanted {"path": FILE or FOLDER}, and "name": NAME to name it'}  # fmt: skip
+    p, folder = Path(path).expanduser(), None
+    if p.is_dir():
+        folder, p = p.resolve(), p / "SKILL.md"
+        if folder.is_relative_to(box.resolve()) or box.resolve().is_relative_to(folder):
+            return {"state": "refused", "code": "skill_refused",
+                    "why": "that folder is the box's own, or holds it"}  # fmt: skip
     if name is None:  # a SKILL.md is named for its folder, any other file for itself
         name = p.resolve().parent.name if p.name.lower() == "skill.md" else p.stem
     if not isinstance(name, str) or not SKILL_NAME.fullmatch(name):
         return {"state": "refused", "code": "skill_refused",
                 "why": f"{name!r} is not one plain name"}  # fmt: skip
-    text, why = skill_words(box, p)
+    here = {"path": str(p), **({"folder": str(folder)} if folder else {})}
+    text, files, why = skill_reads(box, here)
     if text is None:
-        return {"state": "refused", "code": "skill_refused", "why": why}
+        code = "skill_too_long" if "more than" in why else "skill_refused"
+        return {"state": "refused", "code": code, "why": why}
     if len(text) > SKILL_MOST:
         return {"state": "refused", "code": "skill_too_long",
                 "why": f"{len(text)} characters; the most is {SKILL_MOST}"}  # fmt: skip
+    text = skill_page(text, files)
     digest = hashlib.sha256(text.encode()).hexdigest()[:16]
     known = skills_known(box)
     entry = known.get(name) or {"path": "", "seals": {}}
@@ -1256,7 +1356,8 @@ def skill_add(box: Path, arg) -> dict:
         run = willow("kernel.py", "propose", "--box", str(box), "--file", str(f))
     subject = next((w for w in run.stdout.split() if w.startswith("proposal:")), None)
     if subject and "refused" not in run.stdout and run.returncode != 2:
-        entry = {"path": str(p.resolve()), "seals": {**entry["seals"], digest: subject}}
+        entry = {"path": str(p.resolve()), "seals": {**entry["seals"], digest: subject},
+                 **({"folder": str(folder)} if folder else {})}  # fmt: skip
         known[name] = entry
         (state(box) / "skills.json").write_text(json.dumps(known, sort_keys=True))
         return {"state": "waiting", "skill": name, "seal": subject}
@@ -1266,43 +1367,68 @@ def skill_add(box: Path, arg) -> dict:
             "why": (run.stderr or run.stdout).strip()[-300:]}  # fmt: skip
 
 
-def skill_stands(box: Path, name: str, entry: dict) -> tuple[str, str | None]:
-    """Where a skill stands, as its file reads now: (left | waiting |
-    stopped | unsealed | gone, its words when left)."""
-    text, _ = skill_words(box, entry.get("path", ""))
+def skill_stands(box: Path, name: str, entry: dict) -> tuple[str, str | None, dict]:
+    """Where a skill stands, as it reads now: (left | waiting | stopped |
+    changed | unsealed | gone, its words, its other files). changed: these
+    words were never proposed; unsealed: they were, and the person said no."""
+    text, files, _ = skill_reads(box, entry)
     if text is None:
-        return "gone", None
+        return "gone", None, {}
+    text = skill_page(text, files)
     digest = hashlib.sha256(text.encode()).hexdigest()[:16]
-    subject = entry.get("seals", {}).get(digest)
+    seals = entry.get("seals", {})
+    subject = seals.get(digest)
     if subject is None:
-        return "unsealed", None
+        return "changed", text, files
     if subject in stopped(box):
-        return "stopped", None
+        return "stopped", None, {}
     if subject in {w["seal"] for w in waiting(box).get("waiting", [])}:
-        return "waiting", None
+        return "waiting", text, files
     doc = asked_of_kernel(box, f"skill {name} {digest}")
     if doc.get("state") == "sealed" and doc.get("by") == subject and doc.get("answer") == text:  # fmt: skip
-        return "left", text
-    return "unsealed", None
+        return "left", text, files
+    return "unsealed", None, {}
 
 
-def skill_to_model(box: Path, name) -> dict:
+def skill_to_model(box: Path, arg, let_in: bool = False) -> dict:
     """A skill at a model's door: by name, and only the exact words the
     person sealed, as the kernel holds them. Waiting, a model is told so.
     If the file reads differently now than what was sealed, or the person
     declined it, a model is told only that it isn't sealed as it stands.
-    One the person stopped is refused. A model names no file."""
+    One the person stopped is refused. A model names no file of its own
+    choosing: only a skill the person named, and (for a folder) a file that
+    skill's sealed words list, given when its words are the ones listed.
+
+    Under a session's grant (let_in) a skill the person named is given as
+    it reads now, waiting or changed; one they declined or stopped is not."""
+    name, part = (arg.get("name"), arg.get("file")) if isinstance(arg, dict) else (arg, None)  # fmt: skip
     entry = skills_known(box).get(name) if isinstance(name, str) else None
     if entry is None:
         return {"state": "refused", "code": "no_skill",
                 "why": f"no skill named {name!r}"}  # fmt: skip
-    stands, text = skill_stands(box, name, entry)
+    stands, text, files = skill_stands(box, name, entry)
     if stands == "stopped":
         return {"state": "refused", "code": "stopped",
                 "why": "the person stopped this skill"}  # fmt: skip
-    if stands == "left":
-        return {"state": "left", "skill": name, "page": text}
-    return {"state": "waiting" if stands == "waiting" else "unsealed", "skill": name}
+    by = {}
+    if let_in and stands in ("waiting", "changed"):
+        # a stop of any wording of it holds against a grant: only a seal of
+        # what it now says gives it again
+        if any(s in stopped(box) for s in entry.get("seals", {}).values()):
+            return {"state": "refused", "code": "stopped",
+                    "why": "the person stopped this skill"}  # fmt: skip
+        stands, by = "left", {"by": "grant"}
+    if stands != "left":
+        return {
+            "state": "waiting" if stands == "waiting" else "unsealed",
+            "skill": name,
+        }
+    if part:
+        if part not in files:
+            return {"state": "refused", "code": "no_skill",
+                    "why": f"the skill {name!r} lists no file {part!r}"}  # fmt: skip
+        return {"state": "left", "skill": name, "file": part, "page": files[part], **by}
+    return {"state": "left", "skill": name, "page": text, **by}
 
 
 def skills_listed(box: Path) -> dict:
@@ -1311,11 +1437,15 @@ def skills_listed(box: Path) -> dict:
     said = {"left": "sealed: a model that asks for it is given it",
             "waiting": "waiting on your seal",
             "stopped": "stopped: it won't be given again",
+            "changed": "not sealed as its file reads now: name it again (skill_add) and seal that",
             "unsealed": "not sealed as its file reads now: name it again (skill_add) and seal that",
             "gone": "its file can't be read"}  # fmt: skip
-    out = [{"skill": n, "path": e.get("path", ""), "stands": said[skill_stands(box, n, e)[0]],
-            "seals": sorted(e.get("seals", {}).values())}
-           for n, e in sorted(skills_known(box).items())]  # fmt: skip
+    out = []
+    for n, e in sorted(skills_known(box).items()):
+        stands, _, files = skill_stands(box, n, e)
+        out.append({"skill": n, "path": e.get("folder") or e.get("path", ""),
+                    "stands": said[stands], "seals": sorted(e.get("seals", {}).values()),
+                    **({"files": sorted(files)} if files else {})})  # fmt: skip
     return {"state": "populated" if out else "empty", "skills": out}
 
 
@@ -1724,7 +1854,7 @@ def asked_of_kernel(box: Path, question: str) -> dict:
     return json.loads(run.stdout)
 
 
-def notes_to_model(box: Path) -> dict:
+def notes_to_model(box: Path, let_in: bool = False) -> dict:
     """The notes the person sealed to keep, given to a model (the person's
     ruling of 2026-11-17: a model may read back what they sealed to keep).
 
@@ -1733,7 +1863,11 @@ def notes_to_model(box: Path) -> dict:
     question, and is given only when the kernel says it is sealed, and
     its words are the ones that question names (their hash is in it).
     A note waiting, or declined, is never given, and nothing says how many
-    wait. What leaves is withheld, whole, and over the most it is refused."""
+    wait. What leaves is withheld, whole, and over the most it is refused.
+
+    Under a session's grant (let_in) a note handed in and still waiting is
+    read back too, marked as waiting: whether it is kept is still the
+    person's seal, and one they declined is gone."""
     d = box / "written" / "captured"
     kept = []
     for p in sorted(d.glob("note-*.md")) if d.is_dir() else []:
@@ -1751,6 +1885,16 @@ def notes_to_model(box: Path) -> dict:
         ):
             continue  # not the words that question names
         kept.append(said.strip())
+    sealed = len(kept)
+    for w in waiting(box).get("waiting", []) if let_in else []:
+        m = NOTE_FILE.fullmatch(str(w.get("path", "")).removeprefix("captured/"))
+        f = box / "proposals" / f"{w['seal'][len('proposal:') :]}.json"
+        try:
+            said = str(json.loads(f.read_text()).get("data", ""))
+        except (OSError, ValueError):
+            continue
+        if m and hashlib.sha256(said[:-1].encode()).hexdigest()[:12] == m.group(1):
+            kept.append(said.strip())
     if not kept:
         return {"state": "empty"}
     try:
@@ -1760,7 +1904,9 @@ def notes_to_model(box: Path) -> dict:
     if sum(len(t) for t in texts) > NOTES_MOST:  # said without its size
         return {"state": "refused", "code": "notes_too_long",
                 "why": "the notes are over the most that is given at once"}  # fmt: skip
-    return {"state": "populated", "notes": [{"text": t} for t in texts]}
+    return {"state": "populated",
+            "notes": [{"text": t, **({"waits": True} if i >= sealed else {})}
+                      for i, t in enumerate(texts)]}  # fmt: skip
 
 
 def capturing(box: Path) -> set[str]:
@@ -1930,7 +2076,8 @@ def tasks_known(box: Path) -> dict:
     """Each task proposed here, by id: its seal, who wrote it, which folder
     it is for, the fingerprint of its words, and its bookkeeping (claimed,
     done, dropped). Beside the box, never in it, and no seal: it holds no
-    words of the person's, only who has taken a task up."""
+    words of the person's, only who has taken a task up, and the words of a
+    task a model added under a session's grant, which are the model's own."""
     f = state(box) / "tasks" / "state.json"
     return json.loads(f.read_text()) if f.exists() else {}
 
@@ -1955,12 +2102,17 @@ def task_visible(entry: dict, where) -> bool:
     )
 
 
-def task_add(box: Path, by: str, text, project, where) -> dict:
+def task_add(box: Path, by: str, text, project, where, grant: str = "") -> dict:
     """A task, proposed for the person's seal. It is proposed through the
     kernel under a question of its own (so it stands for no page and no
     note), at tasks/BY-DIGEST.md. A model's task is for the folder it works
     in unless it names another; the person's is for any project unless they
-    name one. Sealed, it means "yes, do this" and nothing else."""
+    name one. Sealed, it means "yes, do this" and nothing else.
+
+    Under a session's grant, a model's task for the folder that grant is
+    for is open at once, to sessions the person let in there, and nothing
+    waits: it is kept beside the box as the model's own words, marked as
+    not sealed, and the person lists and drops it as any other."""
     text = str(text or "").strip()
     folder = task_folder(project) or (task_folder(where) if by == "model" else "any")
     if not text or len(text) > TASK_MOST or not folder or "\n" in folder:
@@ -1969,6 +2121,16 @@ def task_add(box: Path, by: str, text, project, where) -> dict:
     data = f"for: {folder}\n{text}\n"
     digest = hashlib.sha256(data.encode()).hexdigest()[:12]
     tid = f"{by}-{digest}"
+    if grant and by == "model" and folder == task_folder(where):
+        known = tasks_known(box)
+        known[tid] = {"by": by, "for": folder, "digest": digest, **known.get(tid, {}),
+                      "grant": grant, "text": text}  # fmt: skip
+        known[tid].setdefault("ts", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+        tasks_keep(box, known)
+        if known[tid].get("dropped"):  # the person's no stands
+            return {"state": "refused", "code": "no_such_task",
+                    "why": "the person dropped this task"}  # fmt: skip
+        return {"state": "open", "task": tid, "by": "grant"}
     asked = asked_of_kernel(box, f"task {tid}")
     if asked.get("state") == "refused":
         return asked
@@ -2016,24 +2178,40 @@ def waiting_seals(box: Path) -> set[str]:
     return {w["seal"] for w in waiting(box).get("waiting", [])}
 
 
-def tasks_to_model(box: Path, where) -> dict:
+def task_open(box: Path, tid: str, e: dict, owed_now: set, let_in: bool):
+    """A task's words when it may be taken up: sealed (as the kernel holds
+    it), or added under a grant and asked for by a session the person let
+    in. (its words and folder, whether sealed), (None, False) when neither,
+    or (the kernel's refusal, False)."""
+    if e.get("seal") and e["seal"] not in owed_now:
+        got = sealed_task(box, tid, e)
+        if got is not None:
+            return got, got.get("state") != "refused"
+    if let_in and e.get("grant") and e.get("text"):
+        return {"for": e["for"], "text": e["text"]}, False
+    return None, False
+
+
+def tasks_to_model(box: Path, where, let_in: bool = False) -> dict:
     """The tasks this project's session may take up, and what a model learns
     before a seal: that a task it handed in waits, or that nothing does. Never
     the words of one unsealed, never a count, and never a word of one the
     person dropped or one for another project. A sealed task is given as the
-    kernel holds it, withheld, with whether it is open, claimed or done."""
+    kernel holds it, withheld, with whether it is open, claimed or done.
+    A session the person let in is also given the tasks a model added
+    under a grant for this folder, each marked as not sealed."""
     owed_now, out, texts = waiting_seals(box), [], []
     mine = {t: e for t, e in tasks_known(box).items()
             if task_visible(e, where) and not e.get("dropped")}  # fmt: skip
     for tid, e in sorted(mine.items()):
-        if e["seal"] in owed_now:
-            continue
-        got = sealed_task(box, tid, e)
+        got, sealed = task_open(box, tid, e, owed_now, let_in)
         if got is not None and got.get("state") == "refused":
             return got
         if got is None:
             continue
         row = {"id": tid, "by": e["by"], "status": "open"}
+        if not sealed:  # a model's own, under a grant: not the person's yes
+            row["sealed"] = False
         if e.get("done"):
             row["status"] = "done"
         else:
@@ -2053,12 +2231,12 @@ def tasks_to_model(box: Path, where) -> dict:
     if out:
         return {"state": "populated", "tasks": out}
     # only that its own task waits: the person's own tasks aren't hinted at
-    if any(e["by"] == "model" and e["seal"] in owed_now for e in mine.values()):
+    if any(e["by"] == "model" and e.get("seal") in owed_now for e in mine.values()):
         return {"state": "waiting"}
     return {"state": "empty"}
 
 
-def task_mine(box: Path, tid, where):
+def task_mine(box: Path, tid, where, let_in: bool = False):
     """(its entry, its words, None) for a task that is sealed, not dropped,
     and for this folder; else (None, None, the refusal). A task that isn't
     sealed, one that doesn't exist and one for another project are refused
@@ -2068,9 +2246,7 @@ def task_mine(box: Path, tid, where):
           "why": f"no sealed task {tid!r} for this project"}  # fmt: skip
     if e is None or e.get("dropped") or not task_visible(e, where):
         return None, None, no
-    if e["seal"] in waiting_seals(box):
-        return None, None, no
-    got = sealed_task(box, tid, e)
+    got, _ = task_open(box, tid, e, waiting_seals(box), let_in)
     if got is None:
         return None, None, no
     if got.get("state") == "refused":
@@ -2078,10 +2254,10 @@ def task_mine(box: Path, tid, where):
     return e, got, None
 
 
-def task_claim(box: Path, tid, where) -> dict:
-    """Take a sealed task up, for this session. First claim wins; a claim is
+def task_claim(box: Path, tid, where, let_in: bool = False) -> dict:
+    """Take an open task up, for this session. First claim wins; a claim is
     a convenience and not a lock, as the shelf is not one."""
-    e, got, refused = task_mine(box, tid, where)
+    e, got, refused = task_mine(box, tid, where, let_in)
     if refused:
         return refused
     session = task_at(box, where)
@@ -2105,11 +2281,11 @@ def task_claim(box: Path, tid, where) -> dict:
     return {"state": "claimed", "task": tid, "text": text}
 
 
-def task_done(box: Path, arg, where, door: str = "") -> dict:
+def task_done(box: Path, arg, where, door: str = "", let_in: bool = False) -> dict:
     """Mark a task this session claimed done, and put its result on this
     project's shelf as task-ID.md. The shelf takes no seal and leaves nothing."""
     tid = arg.get("id") if isinstance(arg, dict) else None
-    e, _, refused = task_mine(box, tid, where)
+    e, _, refused = task_mine(box, tid, where, let_in)
     if refused:
         return refused
     held = e.get("claimed")
@@ -2133,32 +2309,37 @@ def tasks_listed(box: Path) -> dict:
     folder it is for, and where it stands: waiting on their seal, sealed
     (open, claimed by which session and when, or done, and the shelf name of
     its result), dropped, or not given (declined, or its words changed).
+    One a model added under a session's grant is said so: it is open to
+    sessions the person let in, and was never theirs to seal.
     Reading needs no grant."""
     owed_now, out = waiting_seals(box), []
     for tid, e in sorted(tasks_known(box).items()):
+        words = e.get("text", "")
         try:
             prop = json.loads(
                 (
-                    box / "proposals" / f"{e['seal'][len('proposal:') :]}.json"
+                    box / "proposals" / f"{e.get('seal', '')[len('proposal:') :]}.json"
                 ).read_text()
             )
             words = task_parse(str(prop.get("data", "")))[1]
         except (OSError, ValueError):
-            words = ""
+            pass
         row = {"id": tid, "by": e["by"], "for": e["for"], "words": words}
+        got, sealed = (None, False) if e.get("dropped") else (
+            task_open(box, tid, e, owed_now, bool(e.get("grant"))))  # fmt: skip
+        if got is not None and got.get("state") == "refused":
+            return got
         if e.get("dropped"):
             row["stands"] = "dropped"
-        elif e["seal"] in owed_now:
+        elif got is not None:
+            row["stands"] = ("done" if e.get("done")
+                             else "claimed" if e.get("claimed") else "open")  # fmt: skip
+            if not sealed:
+                row["stands"] += ", added under a session you let in, not sealed by you"
+        elif e.get("seal") in owed_now:
             row["stands"] = "waiting on your seal"
         else:
-            got = sealed_task(box, tid, e)
-            if got is not None and got.get("state") == "refused":
-                return got
-            if got is None:
-                row["stands"] = "not given: you declined it, or its words changed"
-            else:
-                row["stands"] = ("done" if e.get("done")
-                                 else "claimed" if e.get("claimed") else "open")  # fmt: skip
+            row["stands"] = "not given: you declined it, or its words changed"
         for k in ("claimed", "done"):
             if e.get(k):
                 row[k] = e[k]
@@ -2312,19 +2493,30 @@ def worker_said(db: Path) -> str:
     return last[:400] if last.startswith("refused:") else ""
 
 
-def granted(box: Path, where, session) -> bool:
-    """Whether the person's yes stands for this session in this folder: asked
-    for here, sealed (the kernel says so, by that seal, in those words), not
-    stopped, and the session not ended. Nothing beside the box is trusted
-    for the yes itself."""
+def standing(box: Path, where, session) -> str:
+    """The grant that stands for this session in this folder, by its id, or
+    "": asked for here, sealed (the kernel says so, by that seal, in those
+    words), not stopped, and the session not ended. Nothing beside the box
+    is trusted for the yes itself."""
     known = grants_known(box)
     gid, _, data = grant_of(where or str(Path.cwd()), session, known)
     entry = known.get(gid) if gid else None
     if not entry or entry.get("ended") or entry.get("seal") in stopped(box):
-        return False
+        return ""
     doc = asked_of_kernel(box, f"grant {gid}")
-    return (doc.get("state") == "sealed" and doc.get("by") == entry["seal"]
-            and doc.get("answer") == data)  # fmt: skip
+    yes = (doc.get("state") == "sealed" and doc.get("by") == entry["seal"]
+           and doc.get("answer") == data)  # fmt: skip
+    return gid if yes else ""
+
+
+def granted(box: Path, where, session) -> bool:
+    """Whether the person's yes stands for this session in this folder."""
+    return bool(standing(box, where, session))
+
+
+def let_in(box: Path, kw: dict) -> bool:
+    """Whether the door that called was let in: its session, in its folder."""
+    return granted(box, kw.get("where"), kw.get("session"))
 
 
 def grant_end(box: Path, session) -> int:
@@ -2651,18 +2843,26 @@ VERBS = {
         # a model hands a note in; it waits on the seal, and comes back to a
         # model only once the person has sealed it
         "capture": lambda box, arg, **kw: capture(box, arg),
-        "notes": lambda box, arg, **kw: notes_to_model(box),
+        "notes": lambda box, arg, **kw: notes_to_model(box, let_in(box, kw)),
         # a task for the person's seal ("yes, do this"), taken up and finished
         # by a session with no seal of its own: bookkeeping beside the box
-        "task_add": lambda box, arg, **kw: (
-            task_add(box, "model", arg.get("text"), arg.get("project"), kw.get("where"))
-            if isinstance(arg, dict)
-            else task_add(box, "model", arg, None, kw.get("where"))
+        # under a session's yes, one for its own folder is open at once
+        "task_add": lambda box, arg, **kw: task_add(
+            box,
+            "model",
+            arg.get("text") if isinstance(arg, dict) else arg,
+            arg.get("project") if isinstance(arg, dict) else None,
+            kw.get("where"),
+            standing(box, kw.get("where"), kw.get("session")),
+        ),  # fmt: skip
+        "tasks": lambda box, arg, **kw: tasks_to_model(
+            box, kw.get("where"), let_in(box, kw)
         ),
-        "tasks": lambda box, arg, **kw: tasks_to_model(box, kw.get("where")),
-        "task_claim": lambda box, arg, **kw: task_claim(box, arg, kw.get("where")),
+        "task_claim": lambda box, arg, **kw: task_claim(
+            box, arg, kw.get("where"), let_in(box, kw)
+        ),
         "task_done": lambda box, arg, **kw: task_done(
-            box, arg, kw.get("where"), kw.get("door", "")
+            box, arg, kw.get("where"), kw.get("door", ""), let_in(box, kw)
         ),
         # a session's own makings, on the shelf of the folder it works in:
         # no seal, since they never were the person's files
@@ -2686,9 +2886,11 @@ VERBS = {
             box, str(arg), kw.get("ask"), kw.get("door", "")
         ),
         # a report of the person's files: that there is one, until they seal it
-        "report": lambda box, arg, **kw: report_to_model(box, arg),
+        # (or, under a session's yes, the report as it reads now)
+        "report": lambda box, arg, **kw: report_to_model(box, arg, let_in(box, kw)),
         # a skill the person named: its sealed words, by name, and no file
-        "skill": lambda box, arg, **kw: skill_to_model(box, arg),
+        # but one those words list
+        "skill": lambda box, arg, **kw: skill_to_model(box, arg, let_in(box, kw)),
         # the one yes of a session: asked for, or where it stands
         "grant": lambda box, arg, **kw: grant_ask(
             box, kw.get("where"), kw.get("session")

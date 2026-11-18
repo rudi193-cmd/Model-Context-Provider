@@ -343,3 +343,97 @@ def test_a_job_that_is_no_job_is_refused(box, monkeypatch):
     monkeypatch.setattr(runtime, "kart_python", lambda box: "/nonexistent/python")
     with pytest.raises(OSError):
         call(box, "job", "ls")
+
+
+# ── the rest of a model's tools, under the same yes ─────────────────────────
+def test_a_report_is_given_as_it_reads_now_and_nothing_waits(box):
+    pile = box.parent / "pile"
+    (pile / "list.md").write_text("- [ ] order the dahlia tubers\n")
+    told = call(box, "report", "todo")
+    assert told["state"] == "waiting" and "page" not in told  # no grant: a seal
+    run = runtime.willow("kernel.py", "decline", "--box", str(box), told["seal"])
+    assert run.returncode == 0, run.stderr
+    let_in(box)
+    got = call(box, "report", "todo")
+    assert got["state"] == "left" and got["by"] == "grant"
+    assert "order the dahlia tubers" in got["page"]
+    assert runtime.waiting(box)["state"] == "empty"
+    assert "under the yes you gave its session" in runtime.shared(box)["lines"][-1]
+    # another session, or this one once it has ended, is told as before
+    assert "page" not in call(box, "report", "todo", session="s2")
+    runtime.grant_end(box, "s1")
+    assert "page" not in call(box, "report", "todo")
+
+
+def test_a_named_skill_is_given_as_it_reads_now_but_never_one_declined_or_stopped(
+    box, tmp_path
+):
+    f = tmp_path / "tidy.md"
+    f.write_text("# Tidy\n\nSort the imports.\n")
+    named = runtime.call(box, "skill_add", {"path": str(f)}, door="pipe")
+    assert call(box, "skill", "tidy") == {"state": "waiting", "skill": "tidy"}
+    let_in(box)
+    got = call(box, "skill", "tidy")  # still waiting on its own seal: given
+    assert (got["state"], got["by"]) == ("left", "grant") and "Sort the" in got["page"]
+    f.write_text("# Tidy\n\nSort the imports, then the lines.\n")
+    assert "then the lines" in call(box, "skill", "tidy")["page"]  # as it reads now
+    assert call(box, "skill", "nope")["code"] == "no_skill"  # only one the person named
+    f.write_text("# Tidy\n\nSort the imports.\n")
+    run = runtime.willow("kernel.py", "decline", "--box", str(box), named["seal"])
+    assert run.returncode == 0, run.stderr
+    assert call(box, "skill", "tidy") == {"state": "unsealed", "skill": "tidy"}
+    assert runtime.call(box, "stop", named["seal"], door="pipe")["state"] == "stopped"
+    f.write_text("# Tidy\n\nOther words now.\n")
+    assert call(box, "skill", "tidy")["code"] == "stopped"  # a stop holds
+
+
+def test_a_note_handed_in_is_read_back_while_it_waits(box):
+    call(box, "capture", "the gate sticks in the wet")
+    assert call(box, "notes") == {"state": "empty"}  # no grant: only what is sealed
+    let_in(box)
+    got = call(box, "notes")
+    assert got == {"state": "populated",
+                   "notes": [{"text": "the gate sticks in the wet", "waits": True}]}  # fmt: skip
+    (owed,) = runtime.waiting(box)["waiting"]  # keeping it is still the person's
+    seal(box, owed["seal"])
+    assert call(box, "notes")["notes"] == [{"text": "the gate sticks in the wet"}]
+    assert call(box, "notes", session="s2")["notes"] == [
+        {"text": "the gate sticks in the wet"}
+    ]
+
+
+def test_a_task_added_under_a_grant_is_open_at_once_to_sessions_let_in(box):
+    let_in(box)
+    got = call(box, "task_add", "check the frost dates against the almanac")
+    assert (got["state"], got["by"]) == ("open", "grant")
+    assert runtime.waiting(box)["state"] == "empty"  # nothing to seal
+    (row,) = call(box, "tasks")["tasks"]
+    assert row["sealed"] is False and row["status"] == "open"
+    assert row["text"] == "check the frost dates against the almanac"
+    # a session the person didn't let in, or one in another folder: nothing
+    assert call(box, "tasks", session="s2") == {"state": "empty"}
+    assert call(box, "tasks", where="/work/b") == {"state": "empty"}
+    assert call(box, "task_claim", row["id"], session="s2")["code"] == "no_such_task"
+    assert call(box, "task_claim", row["id"])["state"] == "claimed"
+    done = call(box, "task_done", {"id": row["id"], "result": "they agree"})
+    assert done["state"] == "done"
+    (mine,) = runtime.call(box, "tasks", door="pipe")["tasks"]
+    assert "not sealed by you" in mine["stands"] and mine["words"].startswith("check")
+    # the person's no stands: dropped, it is gone, and adding it again fails
+    assert runtime.call(box, "task_drop", row["id"], door="pipe")["state"] == "dropped"
+    assert call(box, "tasks") == {"state": "empty"}
+    again = call(box, "task_add", "check the frost dates against the almanac")
+    assert again["state"] == "refused"
+    assert call(box, "tasks") == {"state": "empty"}
+
+
+def test_a_task_for_another_folder_or_with_no_grant_still_waits_on_the_seal(box):
+    assert call(box, "task_add", "water the beds")["state"] == "waiting"
+    let_in(box)
+    other = call(box, "task_add", {"text": "paint the shed", "project": "/work/b"})
+    assert other["state"] == "waiting"
+    assert call(box, "tasks")["state"] == "waiting"  # neither is given
+    # a sealed task is given to any session, as before, and says nothing of a grant
+    seal(box, runtime.tasks_known(box)[other["task"]]["seal"])
+    (row,) = call(box, "tasks", where="/work/b", session="s9")["tasks"]
+    assert "sealed" not in row and row["text"] == "paint the shed"

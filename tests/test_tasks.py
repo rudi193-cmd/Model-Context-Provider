@@ -398,8 +398,8 @@ def test_each_task_verb_is_on_the_sent_log_in_plain_words_and_never_its_words(
         assert word not in log
     said = " | ".join(runtime.call(box, "shared", door="pipe")["lines"])
     for line in ("a task it handed in, waiting on your seal",
-                 "the tasks you sealed for its project",
-                 "a task you sealed, taken up by a session",
+                 "the tasks open for its project",
+                 "a task for its project, taken up by a session",
                  "a task marked done, its result put on its project's shelf"):  # fmt: skip
         assert line in said
     assert "task_add" not in said and "task_claim" not in said
