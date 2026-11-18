@@ -4,6 +4,16 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Setup that finishes.** `hosts.py` keeps Willow's hosts table (Cursor,
+  Copilot, Codex, Gemini, OpenCode, Windsurf, Zed) pointed at `doors/mcp.py`.
+  `set_up.py --write cursor` (or `claude-code`, or `all`) merges the MCP door
+  into the home settings file and refuses when an entry by our name already
+  differs; default still only prints. Cursor also gets session hooks.
+- **Something needs you, in the client.** `owed` keeps the one-line count and
+  adds a card of each waiting claim with its seal line, written to
+  `needs-you.txt`. The session door takes `--host cursor`: `user_message` at
+  session start, a desktop notice, and the same notice after this server's
+  MCP tools. Claude Code still gets `systemMessage` only, never passage words.
 - **Preview before sealing.** The person's `preview` shows each waiting
   scope's page as it would leave, withheld, by place: the same texts a sealed
   page is held to. `waiting` points at it. Nothing is sealed or sent.

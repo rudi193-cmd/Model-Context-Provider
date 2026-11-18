@@ -85,9 +85,18 @@ It checks Willow, your record and your words, and prints what to paste:
 - the `claude mcp add --scope user …` line for Claude Code;
 - the hooks for `~/.claude/settings.json`: the prompt hook, and the session
   door on SessionStart and SessionEnd;
-- the JSON any other MCP client takes.
+- Cursor and the other assistants from Willow's hosts table
+  (`hosts.py show cursor --box BOX`).
 
-It changes nothing of your client's. To draft answers with a model on this
+By default it changes nothing of your client's. To finish one:
+
+    python set_up.py --box BOX --write cursor
+    python set_up.py --box BOX --write claude-code
+    python set_up.py --box BOX --write all
+
+`--write` merges the MCP door into that assistant's home settings (and for
+Cursor, the session hooks that tell you what waits). It never overwrites an
+entry by our name that already differs. To draft answers with a model on this
 machine (Ollama, llama.cpp, LM Studio…), add `--model
 http://127.0.0.1:11434/v1 NAME`. That writes `model.json` beside your record,
 and nothing else. A model off this machine is refused.
@@ -107,8 +116,8 @@ Your own door, for everything a model can't do:
 |---|---|---|
 | `doors/pipe.py` | the person | one JSON request a line in, one answer a line out |
 | `doors/mcp.py` | a model | MCP over stdio, by hand; asks the client's model through sampling when the client offers it |
-| `doors/hook.py` | a model | Claude Code's prompt hook: the sealed page for this question, or one line saying nothing is sealed |
-| `doors/session.py` | the person | Claude Code's SessionEnd and SessionStart hooks: each session closed for one seal, and at the next start one line to the person of what waits |
+| `doors/hook.py` | a model | Prompt hook (Claude Code, and `--host` for Gemini/Codex/OpenCode): the sealed page, or one line saying nothing is sealed. Cursor cannot inject; use MCP |
+| `doors/session.py` | the person | Session start/end: each session closed for one seal; at the next start the person is told what waits (Claude `systemMessage`, Cursor `user_message` + desktop notice). Cursor also nudges after this server's MCP tools |
 
 ## One seal a session
 
@@ -116,9 +125,10 @@ A seal at every step is a lot to ask. At a session's end the session door
 asks the runtime to `close` it: Willow's `session-seal` bundles the record's
 rows since the last close (each by number, kind and hash, no words) as one
 proposal, "yes, these were my actions". At the next start, the person is
-told in one line what waits on them, how many are sessions and how many are
-pages or sentences, and how to see each. The line goes out as Claude Code's
-`systemMessage`, shown to the person and never put in the turn.
+told what waits on them: a one-line count (Claude Code's `systemMessage`),
+and a card naming each claim with its seal line (Cursor's `user_message`, a
+desktop notice when the OS has one, and `BOX.runtime/needs-you.txt`). Nothing
+of that is put in the model's turn.
 
 It proposes; it never seals. Sealing a session says the actions were the
 person's; it doesn't let a page leave. A page still leaves only on its own

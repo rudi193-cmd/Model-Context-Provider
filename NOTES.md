@@ -20,6 +20,14 @@ Two ways, and the choice is the person's, not code's:
 
 ## Built since
 
+- **Setup that finishes**: `set_up.py --write HOST` merges the MCP door into
+  the assistant's home settings (Cursor hooks included); refuses a different
+  entry under our name. Paste remains the default.
+- **Something needs you, in the client**: `owed`'s card + `needs-you.txt`;
+  session door `--host cursor` for `user_message` and a desktop notice at
+  session start and after this server's MCP tools. Claude Code stays on
+  `systemMessage` (counts only). Soft decline and seal-without-terminal are
+  still open.
 - **Preview before sealing**: `preview` shows the page a scope would let
   leave, withheld, by place, from the texts the runtime holds a sealed page
   to before it leaves; `waiting` points at it, since a scope's own words are

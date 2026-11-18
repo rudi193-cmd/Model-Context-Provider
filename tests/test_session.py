@@ -68,10 +68,39 @@ def test_what_waits_is_said_in_one_line_sessions_counted_apart(box):
     assert (got["state"], got["sessions"], got["other"]) == ("waiting", 1, 1)
     assert "1 session and 1 page or sentence" in got["say"]
     assert "pipe.py" in got["say"] and '{"waiting": true}' in got["say"]
+    assert "Waiting on your seal:" in got["card"]
+    assert "- session:" in got["card"] and "- page or sentence:" in got["card"]
+    assert (runtime.state(box) / "needs-you.txt").read_text() == got["card"] + "\n"
 
 
 def test_nothing_waits_on_a_new_box(box):
     assert runtime.call(box, "owed", door="pipe")["state"] == "empty"
+    assert not (runtime.state(box) / "needs-you.txt").exists()
+
+
+def test_cursor_session_start_shows_the_card_to_the_person(box):
+    a_session(box)
+    runtime.call(box, "close", door="pipe")
+    run = subprocess.run(
+        [sys.executable, str(DOOR), "--host", "cursor", "--box", str(box)],
+        input=json.dumps({"session_id": "t", "composer_mode": "agent"}),
+        capture_output=True, text=True, check=False,
+    )  # fmt: skip
+    assert run.returncode == 0
+    doc = json.loads(run.stdout.splitlines()[0])
+    assert "user_message" in doc and "Waiting on your seal" in doc["user_message"]
+    assert "systemMessage" not in doc
+
+
+def test_cursor_session_end_closes(box):
+    a_session(box)
+    run = subprocess.run(
+        [sys.executable, str(DOOR), "--host", "cursor", "--box", str(box)],
+        input=json.dumps({"session_id": "t", "reason": "user_close"}),
+        capture_output=True, text=True, check=False,
+    )  # fmt: skip
+    assert run.returncode == 0 and run.stdout == ""
+    assert runtime.call(box, "owed", door="pipe")["sessions"] == 1
 
 
 def test_a_model_can_neither_close_a_session_nor_see_what_waits(box):

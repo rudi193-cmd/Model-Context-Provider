@@ -880,11 +880,13 @@ def close(box: Path) -> dict:
 
 
 def owed(box: Path) -> dict:
-    """What waits on the person's seal, said in one line for a session's
-    start: how many are sessions, how many are pages or sentences, and how
-    to see each and seal it."""
+    """What waits on the person's seal: one line for a session's start, and a
+    card naming each (claim and the seal line), for the client to show them.
+    Also writes BOX.runtime/needs-you.txt when something waits, or clears it."""
     got = waiting(box)
+    card_path = state(box) / "needs-you.txt"
     if got["state"] != "waiting":
+        card_path.unlink(missing_ok=True)
         return got
     w = got["waiting"]
     sessions = sum(1 for x in w if str(x.get("path", "")).startswith("sessions/"))
@@ -897,7 +899,38 @@ def owed(box: Path) -> dict:
     pipe = shlex.join(["python3", str(HERE / "doors" / "pipe.py"), "--box", str(box)])
     say = (f"Waiting on your seal: {' and '.join(each)}. To see what each is and "
            f"the line that seals it, run {pipe} and type {{\"waiting\": true}}")  # fmt: skip
-    return {"state": "waiting", "sessions": sessions, "other": other, "say": say}
+    rows = []
+    for x in w:
+        kind = ("session" if str(x.get("path", "")).startswith("sessions/")
+                else "page or sentence")  # fmt: skip
+        claim = str(x.get("claim") or "").strip() or "waiting"
+        if len(claim) > 160:
+            claim = claim[:157] + "…"
+        seal = shlex.join(
+            ["python3", str(WILLOW / "kernel.py"), "seal", "--box", str(box), x["seal"]]
+        )
+        rows.append(f"- {kind}: {claim} — {seal}")
+    card = ("Waiting on your seal:\n" + "\n".join(rows)
+            + f"\nLeave alone by doing nothing. Preview a page: {pipe} and "
+              "{\"preview\": true}.")  # fmt: skip
+    card_path.write_text(card + "\n")
+    return {"state": "waiting", "sessions": sessions, "other": other,
+            "say": say, "card": card}  # fmt: skip
+
+
+def nudge(text: str) -> None:
+    """A desktop notice on this machine when the OS has one. Never reaches a
+    model; never decides anything."""
+    if not text.strip():
+        return
+    try:
+        subprocess.run(
+            ["notify-send", "--app-name=Model Context Provider",
+             "Waiting on your seal", text[:500]],
+            capture_output=True, text=True, check=False, timeout=2,
+        )  # fmt: skip
+    except (OSError, subprocess.TimeoutExpired):
+        pass
 
 
 #: the verbs, the same for every door. There is no verb to seal.
