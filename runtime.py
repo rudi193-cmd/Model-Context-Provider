@@ -176,12 +176,17 @@ def backup(box: Path, to: Path) -> dict:
             "why": f"{zip_to} is there already; never written over",
         }
     files = sorted(p for p in src.iterdir() if p.is_file())
+    shelf_dir = src / "shelf"  # the one folder that goes too: the shelves
+    if shelf_dir.is_dir():
+        files += sorted(p for p in shelf_dir.rglob("*") if p.is_file())
+    files = [f for f in files if kept_name(f.relative_to(src).as_posix())]
+    names = {f: f.relative_to(src).as_posix() for f in files}
     with zipfile.ZipFile(zip_to, "w", zipfile.ZIP_DEFLATED) as z:
         for f in files:
-            z.write(f, f.name)
+            z.write(f, names[f])
     with zipfile.ZipFile(zip_to) as z:
-        same = sorted(z.namelist()) == [f.name for f in files] and all(
-            z.read(f.name) == f.read_bytes() for f in files
+        same = sorted(z.namelist()) == sorted(names.values()) and all(
+            z.read(names[f]) == f.read_bytes() for f in files
         )
         sent = (
             z.read("sent.jsonl").decode().splitlines()
@@ -196,13 +201,23 @@ def backup(box: Path, to: Path) -> dict:
             "why": "the runtime's copy didn't check out; deleted",
         }
     return {"state": "kept", "box": made.group(0) if made else run.stdout.strip(),
-            "runtime": zip_to.name, "files": [f.name for f in files]}  # fmt: skip
+            "runtime": zip_to.name, "files": sorted(names.values())}  # fmt: skip
+
+
+def kept_name(n: str) -> bool:
+    """Whether a name is one the runtime keeps beside the box: a file's own
+    name with no folder, or a shelf's card (shelf/KEY.json) or one thing on a
+    shelf (shelf/KEY/NAME). Never a path that climbs or names nothing."""
+    parts = n.split("/")
+    if any(p in ("", ".", "..") or "\\" in p or Path(p).name != p for p in parts):
+        return False
+    return len(parts) == 1 or (parts[0] == "shelf" and len(parts) in (2, 3))
 
 
 def restore(box: Path, frm: Path) -> dict:
     """The runtime's zip from a backup, put back beside the box. The zip is
     checked first, as Willow's restore-drill checks a box backup: flat names
-    only, every CRC, no key, no box, the sent log's chain. Nothing is ever
+    only (but for the shelves), every CRC, no key, no box, the sent log's chain. Nothing is ever
     written over: a file already there that differs refuses the whole restore,
     and one that is the same is left alone. What is written is read back."""
     if not (box / "kernel.json").is_file():
@@ -219,7 +234,7 @@ def restore(box: Path, frm: Path) -> dict:
     if (
         bad is not None
         or not names
-        or any(Path(n).name != n or n in ("", ".", "..") for n in names)
+        or any(not kept_name(n) for n in names)
         or any(
             n.endswith(".key") or n in ("kernel.json", "record.jsonl") for n in names
         )
@@ -237,6 +252,7 @@ def restore(box: Path, frm: Path) -> dict:
                 "why": f"already there and not the same: {', '.join(differ)}"}  # fmt: skip
     new = sorted(n for n in names if n not in there)
     for n in new:
+        (dest / n).parent.mkdir(parents=True, exist_ok=True)
         with open(dest / n, "xb") as f:
             f.write(got[n])
     if any((dest / n).read_bytes() != got[n] for n in new):
@@ -274,6 +290,10 @@ def shared(box: Path) -> dict:
                     "struck": "a sentence back, struck by the check"}.get(r["state"], r["state"])  # fmt: skip
         elif r["verb"] == "capture":
             what = "a note handed in to keep, waiting on your seal"
+        elif r["verb"] in ("shelve", "shelf", "take"):
+            what = {"shelve": "something it wrote, put on its project's shelf",
+                    "shelf": "the names on its project's shelf",
+                    "take": "something read back from its project's shelf"}[r["verb"]]  # fmt: skip
         elif r["verb"] == "propose":
             what = "a question to share, " + (
                 "already sealed" if r["state"] == "sealed" else "waiting on your seal"
@@ -647,6 +667,10 @@ PLAIN = {
                      "Check that WILLOW points at your Willow folder; if you keep a deny.txt beside your record, check each line is a command."),
     "capture_refused": ("That couldn't be handed in to keep.",
                         "Say it in other words: an empty note isn't kept, and the same note is only handed in once."),
+    "shelf_refused": ("That couldn't be put on the shelf.",
+                      "Give it a plain file name (letters, digits, dots and dashes, at most 80) and some text, under a million characters."),
+    "not_on_shelf": ("There's nothing by that name on this project's shelf.",
+                     "See what is there (shelf): each shows the name to ask for."),
 }  # fmt: skip
 
 
@@ -1115,6 +1139,139 @@ def capturing(box: Path) -> set[str]:
     return {ln.strip() for ln in f.read_text().splitlines() if ln.strip()}
 
 
+#: a name on a shelf: one plain file name, never a path
+SHELF_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
+SHELF_MOST = 1_000_000
+
+
+def shelf_at(box: Path, where) -> tuple[Path, Path] | None:
+    """A project's shelf, beside the box and never in it or in the folder
+    the box reads: (its folder, its card). A project is the folder a session
+    works in; its shelf is named for that folder and a hash of its whole
+    path, so two folders of one name don't share one. None with no folder."""
+    if not where or not isinstance(where, str):
+        return None
+    p = Path(where).expanduser().resolve()
+    label = re.sub(r"[^A-Za-z0-9._-]+", "-", p.name).strip("-.") or "folder"
+    key = f"{label}-{hashlib.sha256(str(p).encode()).hexdigest()[:8]}"
+    root = state(box) / "shelf"
+    return root / key, root / f"{key}.json"
+
+
+def shelf_card(card: Path, where: str = "") -> dict:
+    """What a shelf's card says: the project's folder, the session last
+    seen working in it, and for each thing on the shelf when it was put
+    there, through which door, and in which session."""
+    if card.is_file():
+        return json.loads(card.read_text())
+    project = str(Path(where).expanduser().resolve()) if where else ""
+    return {"project": project, "session": "", "items": {}}
+
+
+def note_session(box: Path, sent: dict) -> None:
+    """Which session is working in which folder, from what its host sent,
+    kept on that folder's shelf card so what is shelved next can say whose
+    it was. Two sessions in one folder: the one seen last."""
+    where, session = sent.get("cwd"), sent.get("session_id")
+    at = shelf_at(box, where)
+    if at is None or not isinstance(session, str) or not session:
+        return
+    _, card = at
+    doc = shelf_card(card, where)
+    if doc.get("session") != session:
+        doc["session"] = session
+        card.parent.mkdir(exist_ok=True)
+        card.write_text(json.dumps(doc, sort_keys=True))
+
+
+def shelve(box: Path, where, arg, door: str = "") -> dict:
+    """Something a session made (a report, a list, what a host sent), put on
+    its project's shelf under a name. It needs no seal: it was never the
+    person's files, and it leaves nothing. Nothing on a shelf is written
+    over: the same name with other words is kept beside it as NAME.2."""
+    at = shelf_at(box, where)
+    name = arg.get("name") if isinstance(arg, dict) else None
+    text = arg.get("text") if isinstance(arg, dict) else None
+    if at is None:
+        why = "the door didn't say which folder it is working in"
+    elif not isinstance(name, str) or not SHELF_NAME.fullmatch(name):
+        why = "the name isn't one plain file name"
+    elif name.endswith(".key"):
+        why = "nothing named like a key is kept"
+    elif not isinstance(text, str) or not text.strip():
+        why = "there was nothing to put there"
+    elif len(text) > SHELF_MOST:
+        why = f"more than {SHELF_MOST} characters"
+    else:
+        why = ""
+    if why:
+        return {"state": "refused", "code": "shelf_refused", "why": why}
+    folder, card = at
+    doc = shelf_card(card, where)
+    folder.mkdir(parents=True, exist_ok=True)
+    kept, n = name, 1
+    while (folder / kept).exists():
+        if (folder / kept).read_text() == text:
+            return {"state": "shelved", "name": kept, "same": True}
+        n += 1
+        kept = f"{Path(name).stem}.{n}{Path(name).suffix}"
+    with open(folder / kept, "x") as f:
+        f.write(text)
+    doc["items"][kept] = {
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "door": door,
+        "session": doc.get("session", ""),
+        "sha256": hashlib.sha256(text.encode()).hexdigest()}  # fmt: skip
+    card.write_text(json.dumps(doc, sort_keys=True))
+    return {"state": "shelved", "name": kept}
+
+
+def shelf_items(folder: Path, doc: dict) -> list[dict]:
+    out = []
+    for p in sorted(folder.iterdir()) if folder.is_dir() else []:
+        if p.is_file():
+            said = doc.get("items", {}).get(p.name, {})
+            out.append({"name": p.name, "chars": len(p.read_text()),
+                        "when": said.get("ts", ""), "session": said.get("session", "")})  # fmt: skip
+    return out
+
+
+def shelf(box: Path, where) -> dict:
+    """What is on this project's shelf: names, sizes, when, and which
+    session put each there. No words."""
+    at = shelf_at(box, where)
+    if at is None:
+        return {"state": "empty", "items": []}
+    folder, card = at
+    doc = shelf_card(card, where)
+    items = shelf_items(folder, doc)
+    return {"state": "populated" if items else "empty",
+            "project": doc.get("project", ""), "items": items}  # fmt: skip
+
+
+def take(box: Path, where, name) -> dict:
+    """One thing off this project's shelf, by its name: the words a session
+    put there. They were written by a model, in this session or an earlier
+    one, so they are handed back as data, never as the person's files."""
+    at = shelf_at(box, where)
+    ok = isinstance(name, str) and SHELF_NAME.fullmatch(name)
+    if at is None or not ok or not (at[0] / name).is_file():
+        return {"state": "refused", "code": "not_on_shelf",
+                "why": f"no {name!r} on the shelf of {where or 'no folder'}"}  # fmt: skip
+    return {"state": "taken", "name": name, "says": (at[0] / name).read_text()}
+
+
+def shelves(box: Path) -> dict:
+    """Every project's shelf that holds something, as the person reads
+    them: the folder, and what is on it."""
+    root, out = state(box) / "shelf", []
+    for card in sorted(root.glob("*.json")) if root.is_dir() else []:
+        doc = json.loads(card.read_text())
+        items = shelf_items(root / card.stem, doc)
+        if items:
+            out.append({"project": doc.get("project", ""), "items": items})
+    return {"state": "populated" if out else "empty", "shelves": out}
+
+
 def event(box: Path, sent) -> dict:
     """A moment of the assistant's session, as its host sent it, decided
     here for every door that carries one.
@@ -1137,10 +1294,14 @@ def event(box: Path, sent) -> dict:
         return {"state": "refused", "code": "event_unread",
                 "why": "the hook's input is not a JSON object"}  # fmt: skip
     name, at = sent.get("hook_event_name"), ("--box", str(box))
+    note_session(box, sent)
     if isinstance(name, str) and name in capturing(box):
-        # the person asked to see what the host sends at this moment: kept
-        # whole, for their seal. It can't stop the moment itself.
-        capture(box, json.dumps(sent, indent=1, sort_keys=True), f"event-{name}")
+        # the person asked to see what the host sends at this moment: put
+        # whole on the shelf of the folder it happened in. It can't stop
+        # the moment itself.
+        text = json.dumps(sent, indent=1, sort_keys=True)
+        tag = hashlib.sha256(text.encode()).hexdigest()[:8]
+        shelve(box, sent.get("cwd"), {"name": f"event-{name}-{tag}.json", "text": text}, "guard")  # fmt: skip
     if name == "PreToolUse":
         return judged(sent, guards(box))
     if name in ("PostToolUse", "PostToolUseFailure"):
@@ -1195,10 +1356,23 @@ VERBS = {
         "owed": lambda box, arg, **kw: owed(box),
         "capture": lambda box, arg, **kw: capture(box, arg),
         "captured": lambda box, arg, **kw: captured(box),
+        "shelves": lambda box, arg, **kw: shelves(box),
+        "take": lambda box, arg, **kw: (
+            take(box, arg.get("project"), arg.get("name"))
+            if isinstance(arg, dict)
+            else take(box, kw.get("where"), arg)
+        ),
     },
     "model": {
         # a model hands a note in; it waits on the seal, and never comes back
         "capture": lambda box, arg, **kw: capture(box, arg),
+        # a session's own makings, on the shelf of the folder it works in:
+        # no seal, since they never were the person's files
+        "shelve": lambda box, arg, **kw: shelve(
+            box, kw.get("where"), arg, kw.get("door", "")
+        ),
+        "shelf": lambda box, arg, **kw: shelf(box, kw.get("where")),
+        "take": lambda box, arg, **kw: take(box, kw.get("where"), arg),
         # read is open, but its passages would leave to the model: it gets the
         # state alone, never a passage, a place or a count
         "read": lambda box, arg, **kw: {"state": read(box, str(arg))["state"]},
@@ -1217,10 +1391,14 @@ VERBS = {
 }
 
 
-def call(box: Path, verb: str, arg=None, door: str = "", ask=None) -> dict:
+def call(
+    box: Path, verb: str, arg=None, door: str = "", ask=None, where: str = ""
+) -> dict:
     """What every door calls: one verb, decided here, by who the door faces.
     Whatever reaches a model, and every file that leaves, is written down.
-    A refusal comes back in plain words, with the one thing to do next."""
+    A refusal comes back in plain words, with the one thing to do next.
+    `where` is the folder the door is working in, when it has one to say:
+    the project whose shelf a session's makings go on."""
     faces = FACES.get(door, "model")
     verbs = VERBS[faces]
     off = willow_pin.problems(WILLOW, PIN)
@@ -1232,9 +1410,13 @@ def call(box: Path, verb: str, arg=None, door: str = "", ask=None) -> dict:
         got = {"state": "refused", "code": "no_verb",
                "why": f"no verb {verb!r}; one of {sorted(verbs)}"}  # fmt: skip
         return plain(got, box, faces, verbs)
-    got = verbs[verb](box, arg, ask=ask, door=door)
+    got = verbs[verb](box, arg, ask=ask, door=door, where=where)
     # a host's event is written down when it put words in the model's turn
-    reaches = faces == "model" or verb in ("leave", "context") or got.get("says")
+    reaches = (
+        faces == "model"
+        or verb in ("leave", "context")
+        or (faces == "host" and got.get("says"))
+    )
     if got.get("state") != "refused" and reaches:
         sent(box, door or "unknown", verb, got)
     return plain(got, box, faces, verbs)

@@ -1,0 +1,213 @@
+# The Grok handoff, to cross off
+
+The handoff Grok wrote on 2026-11-17, copied out so each line can be ticked
+and noted. Grok's words are kept as they were. A box is ticked when the
+thing is built here. A line starting **Note** was added afterwards: what
+was found when the line was held to the code, and what it still needs.
+
+## Handoff: Model-Context-Provider (MCP → Provider)
+
+**Repo:** `rudi193-cmd/Model-Context-Provider`
+**Related:** Built on `willow-memory/Willow` (pinned commit + specific add-ons)
+**Owner intent:** Evolve the baseline Provider into something *useful
+day-to-day*, with the practical surface people expect from mature MCP
+servers, while selectively pulling distinctive Willow strengths so it stands
+out. Preserve the two core lines.
+
+### The two lines (non-negotiable)
+
+1. **A grant guards what leaves, never what is read.** Reading the person's
+   material needs no grant. Only what leaves the machine is gated.
+2. **Hooks/doors are doors, not verbs.** One local runtime decides. MCP,
+   prompt hooks, pipe, session start/end are only transport.
+
+Model never sees raw files. It only ever receives a sealed page (after human
+seal with personal key). Answers are forced through sentence-check, then
+proposed back and wait for another human seal.
+
+### Current state of the repo
+
+- Core: `runtime.py` (single decision point), thin doors (`doors/mcp.py`,
+  `hook.py`, `pipe.py`, `session.py`), `seal_page.py` (human-only local UI),
+  `set_up.py` + `hosts.py`, `willow_pin.py` + `willow.pin.json`.
+- Already wired from Willow: approved-only, sentence-check, session-seal,
+  index-cache, privacy/withhold, local-model/openai-compatible paths,
+  backup, chained sent log + pin/check.
+- Design is intentionally inverted vs typical MCP: model proposes → human
+  seals → only then does a page leave. Pure stdlib + pinned Willow. Doors
+  decide nothing (enforced by tests).
+
+**Note:** true as written. Since then: `doors/guard.py`, `check.py`, and
+seven of Willow's hook add-ons in the pin (see "Added since" below).
+
+### Goal for next work
+
+Move from "strong privacy baseline" to "useful every day" while keeping the
+trust model:
+
+- Have the things mature MCP servers have (memory/knowledge surface,
+  task/work queue, better context injection, local drafting,
+  status/overview, MCP Resources + Prompts).
+- Pull selective Willow strengths so it is clearly different from the
+  generic crowd.
+
+### What's already built in Willow that can be added with relatively low work
+
+High-leverage, already-complete stdlib add-ons that fit the pin + CLI
+pattern:
+
+- [ ] **todo**
+  - **Note:** not a task list. It is a read-only report of TODO, FIXME and
+    "need to" lines already in the folder. Already in the pin (batch-ask
+    loads it), but the runtime never runs it. Needs: a verb on the person's
+    door (small); to reach a model it needs the sealed-report path below.
+- [ ] **notes**
+  - **Note:** an importer, not a notes surface: it mirrors an Obsidian or
+    Logseq vault into a folder the box can read. Needs: a decision on
+    whether importing is this project's job at all.
+- [x] **capture**
+  - **Note:** built as `capture` / `captured`, but not with Willow's
+    add-on. Willow's `capture` writes straight into the folder and caps a
+    note at 500 characters; here a note is proposed through the kernel and
+    waits on the seal, then lands under `written/captured/`. A model can
+    hand one in and can't read it back.
+- [ ] **people**
+  - **Note:** read-only report: everyone the files name, and where. Needs:
+    the same as todo.
+- [ ] **calendar**
+  - **Note:** an importer (`.ics` events and `.vcf` contacts as dated
+    lines), not a calendar. Needs: the same decision as notes.
+- [ ] **on-this-day**
+  - **Note:** read-only report. Needs: the same as todo. `coming-up`
+    (dates in the next N days) is its sibling and wasn't in the list.
+- [ ] **timeline**
+  - **Note:** writes a dated, cited timeline of one matter to a file, to
+    hand to someone. That is a way out: it needs the leave rules.
+- [ ] **milestones**
+  - **Note:** a child's firsts by age, from notes. Read-only.
+- [ ] **projects**
+  - **Note:** about Willow stacks (a folder's records, stacks and runs),
+    not general projects.
+- [ ] **handover**
+  - **Note:** also about Willow stacks: where one project's runs stand.
+    Not a session-to-session handover; that is `hook-handoff`, now built.
+- [ ] **batch-ask**
+  - **Note:** already in the pin; index-cache and claude-code load its
+    scan. Nothing more to wire unless asking many questions at once is
+    wanted.
+- [ ] **pile-store / pile-serve** (performance)
+  - **Note:** not looked at yet.
+- [ ] **share** (needs careful "leave" design)
+  - **Note:** a second way out: sealed answers sent to another person,
+    written to the record. Needs the person's ruling before any code.
+- [ ] **rss-out** (needs careful "leave" design)
+  - **Note:** not looked at yet. Also a way out.
+- [ ] **local-model / openai-compatible, mcp-lite, mcp-sampling, privacy,
+  etc.** (many already partially used)
+  - **Note:** local-model, openai-compatible and privacy are pinned and
+    used. The MCP door is written by hand in the shape of mcp-lite and
+    already does sampling.
+
+### What still needs building / more design
+
+- [ ] First-class **sealed collection / knowledge surface** (model reads
+  only after seal; can only propose writes)
+  - **Note:** half built. Proposing writes is `capture`. Reading back is
+    not: today the only thing that can be sealed to leave is the passages
+    the last read served (`approved-only`). A kept note, or any report, is
+    not that. Needs: `approved-only` to scope a given list of passages,
+    which is a change in Willow and a repin. This one gap blocks every
+    report in the list above from reaching a model.
+- [ ] **Seal-gated task / work queue** (even a minimal one)
+  - **Note:** nothing in Willow is this. New design.
+- [ ] Proper **MCP Resources + Prompts**
+  - **Note:** not started. Worth doing once there are sealed pages and
+    kept notes to list.
+- [ ] Richer single **status / overview** verb
+  - **Note:** partly there: the person has `owed`, `waiting`, `scopes`,
+    `shared`, `captured`; a model is told a count of what waits at a
+    session's start. No one verb gathers them.
+- [ ] Optional sealed/version-pinned skills/behaviours
+  - **Note:** not started.
+
+### Suggested near-term order (from last discussion)
+
+1. [ ] todo + capture + notes (or thin sealed-collection wrapper)
+   - **Note:** capture done; todo and notes as above.
+2. [ ] people + calendar + on-this-day (everyday utility + delight)
+3. [ ] Minimal seal-gated task queue
+4. [ ] MCP Resources for sealed pages + a couple of prompts
+5. [ ] share and/or handover as distinctive Willow flavour
+
+### Fun / differentiating angles
+
+- [ ] on-this-day + timeline + milestones (personal history, extractive +
+  sealed)
+- [ ] share with cryptographic checkability
+- [ ] handover as multi-session primitive
+  - **Note:** the session-to-session part is built (`hook-handoff`: a new
+    session is told once where the last one ended).
+- [ ] sentence-check as a hard, visible guarantee
+  - **Note:** it is hard already (a struck sentence goes nowhere). Not yet
+    visible to the person beyond the claim on the seal page.
+- [ ] "What the model can never do" made inspectable
+  - **Note:** partly: `shared` reads the sent log back in plain words, and
+    a blocked tool call is on it by the guard's name.
+- [x] Keep pure-stdlib + pin discipline
+  - **Note:** held. The pin is at Willow `14efe16d`, which so far exists
+    only on this machine.
+
+### Open design questions
+
+- [ ] Exact new verbs and how they map into `runtime.call` while preserving
+  the two lines
+  - **Note:** settled for hooks: a third face, "host", with `context` and
+    `event`. Open for reports.
+- [ ] How much friction is acceptable on the seal path for higher-volume
+  surfaces (todo, calendar, etc.)
+  - **Note:** six things wait on the seal after one day's work. Corrections
+    (`hook-feedback`) and captures each add one.
+- [ ] Whether to expose any of the new surfaces as MCP Resources vs tools
+  only
+- [ ] How aggressively to lean into Willow's personal-history add-ons vs
+  more "work" oriented ones first
+
+### Key files to look at first in the other session
+
+- `README.md`, `AGENTS.md`, `NOTES.md`, `CHANGELOG.md`
+- `runtime.py` (especially `call`, `read`/`propose`/`leave`/`answer`,
+  `withhold`, `sent`)
+- `doors/mcp.py`
+- `seal_page.py`
+- `willow.pin.json` + currently pinned add-ons
+- Willow's `adapters/stdlib/{todo,notes,capture,people,calendar,on-this-day,handover,share,...}`
+
+## Added since (not in the handoff)
+
+- [x] **A shelf for each project** (`shelve`, `shelf`, `take`; `shelves`
+  for the person): where a session puts the reports and working notes it
+  makes for the project it is on. No seal, beside the record, never
+  written over. The person's ruling of 2026-11-17: filed under the
+  project; a model may read its own project's shelf back without a seal;
+  it lives beside the record.
+  - **Note:** seen in a real Claude Code session on 2026-11-17: a report
+    shelved, listed and read back with no seal; the same name again kept
+    as `NAME.2`; a name climbing out of the shelf refused. There is no
+    verb to take a thing off a shelf: that is done by hand.
+
+- [x] **Hooks around what the assistant does** (`doors/guard.py`, the
+  `event` verb): hook-guard, hook-leaks, hook-shell, hook-read-first,
+  hook-errors, hook-handoff, hook-feedback, and a count of what waits at a
+  session's start and before a summary. Seen in a real Claude Code session.
+- [x] **A fix in Willow:** hook-errors 0.1.2 reads a failed command's exit
+  code from Claude Code's `error`. Committed on this machine; not pushed.
+- [x] **The check runs here** (`check.py`, and a git hook that holds `main`).
+
+## Still loose
+
+- [ ] Push the Willow fix, or the GitHub workflow can't find the pinned commit.
+- [ ] `hook-shell` is off until there is a `deny.txt` beside the record.
+- [ ] A correction ("No, …") hasn't been tried in a real session.
+- [ ] The guard covers the box, not `BOX.runtime` (`stopped.json`,
+  `scopes.json`, `names.txt`, `deny.txt`).
+- [ ] `uv.lock` is untracked: commit it or ignore it.

@@ -4,6 +4,17 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A shelf for each project.** A session puts what it makes (a report, a
+  list, working notes) on the shelf of the folder it is working in:
+  `shelve`, `shelf` and `take` on a model's door, with no seal, since
+  nothing on a shelf was ever the person's files and nothing on it leaves.
+  Shelves live under `BOX.runtime/shelf/`, beside the record and outside
+  the folder questions read; nothing on one is written over; each thing
+  says which session put it there; `backup` and `restore` carry them; and
+  `shelves` and `take` on the person's door read any of it. A moment named
+  in `capture.txt` now goes on the shelf, not to the seal. The MCP door
+  tells the runtime the folder it was started in, and its tools can take
+  two strings.
 - **The check runs here.** `python check.py` is the check a change is held
   to, on this machine: Willow at its pin, lint, format, and the tests under
   each Python named. `--commit REV` checks a commit as committed, unpacked
@@ -14,9 +25,7 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   note, a finding), from a model's door or the person's: it is proposed
   under a question of its own and waits on the seal. Sealed, the kernel
   writes it under `written/captured/` in the box, and `captured`, on the
-  person's door only, reads it there. A model can't read it back. A moment
-  of the session named in `capture.txt` beside the record (say
-  `PostToolUseFailure`) is kept the same way, whole, as the host sent it.
+  person's door only, reads it there. A model can't read it back.
 - **A guard door.** `doors/guard.py` carries Claude Code's hooks around what
   the assistant does to one new verb, `event`, decided in the runtime by
   seven of Willow's hooks, now pinned. Before a tool call: `hook-guard` (the

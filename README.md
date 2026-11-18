@@ -60,7 +60,8 @@ beside the person's record.
 | `scopes`: every question proposed, and where each stands | `draft`: ask a model for that sentence |
 | `stop`: never let a scope leave again | `context`: the sealed page for this question, if there is one |
 | `preview`: the page a scope would let leave, before they seal it | `capture`: one thing to keep, waiting on the person; never read back |
-| `capture`, `captured`: hand in a thing to keep, and read what was kept | |
+| `capture`, `captured`: hand in a thing to keep, and read what was kept | `shelve`, `shelf`, `take`: what it made, on its project's shelf, with no seal |
+| `shelves`, `take`: every project's shelf, and anything on one | |
 | `later`, `back`: not now, and bring it back; never on the record | |
 | `shared`: what left, as places, not hashes | |
 | `close`: this session's actions, for one seal | |
@@ -179,10 +180,38 @@ the kernel writes it under `written/captured/` in your record, and
 `{"captured": true}` on your door reads what is there and what still waits.
 A model can hand a note in; it can't seal it, and it can't read it back.
 
+## A shelf for each project
+
+A session makes things as it works: a report, a list, working notes. Those
+are not yours to seal one by one, and they are not your files. They go on a
+shelf:
+
+- **One shelf a project.** A project is the folder the session is working
+  in. Every session on that folder adds to the same shelf, and each thing
+  on it says when it was put there and by which session.
+- **No seal, either way.** A model puts something on its project's shelf
+  (`shelve`), lists it (`shelf`) and reads it back (`take`). It was written
+  by a model and it leaves nothing, so line 1 isn't crossed: your files stay
+  behind the seal as before. Each of the three is on the sent log, by hash.
+- **Beside your record, never in it.** Shelves live under
+  `BOX.runtime/shelf/`, outside the folder your questions read, so a
+  model's report is never served back as something you wrote. They go in
+  `backup` and come back with `restore`.
+- **Never written over.** A name already there is kept beside it as
+  `NAME.2`.
+- **Yours to read.** `{"shelves": true}` on your door lists every
+  project's shelf; `{"take": {"project": "FOLDER", "name": "NAME"}}` reads
+  one thing.
+
+A model reaches only the shelf of the folder its door was started in. That
+is the folder the client says, not a lock: a program running as you can
+read any of it, as it can read your files.
+
 To see what the assistant's host sends at a moment of the session, name the
 moment in `capture.txt` beside your record, one a line
-(`PostToolUseFailure`). Each one is then handed in whole, for your seal,
-until you take the line out. It holds the command that ran.
+(`PostToolUseFailure`). Each one is then put whole on the shelf of the
+folder it happened in, until you take the line out. It holds the command
+that ran.
 
 ## The seal page
 

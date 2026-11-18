@@ -126,6 +126,11 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         return runtime.call(box, "restore", str(usb / made), door="pipe")
     if code == "capture_refused":
         return runtime.call(box, "capture", "  ", door="mcp")
+    if code == "shelf_refused":
+        return runtime.call(box, "shelve", {"name": "../x", "text": "t"},
+                            door="mcp", where=str(usb))  # fmt: skip
+    if code == "not_on_shelf":
+        return runtime.call(box, "take", "nope.md", door="mcp", where=str(usb))
     if code == "event_unread":
         return runtime.call(box, "event", "not json", door="guard")
     if code == "guard_failed":

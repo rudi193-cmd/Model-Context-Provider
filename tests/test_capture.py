@@ -64,22 +64,6 @@ def test_a_note_handed_in_is_on_the_sent_log_and_reads_as_what_it_is(box):
     assert NOTE not in (runtime.state(box) / "sent.jsonl").read_text()
 
 
-def test_a_moment_the_person_names_is_kept_whole_for_their_seal(box):
-    failed = {"hook_event_name": "PostToolUseFailure", "session_id": "s1",
-              "tool_name": "Bash", "tool_input": {"command": "make test"},
-              "error": "Exit code 2"}  # fmt: skip
-    assert guard(box, failed).returncode == 0
-    assert runtime.waiting(box)["state"] == "empty"  # not asked for: not kept
-    (runtime.state(box) / "capture.txt").write_text("PostToolUseFailure\n")
-    run = guard(box, failed)
-    assert (run.returncode, run.stdout) == (0, "")  # the model is told nothing
-    (owed,) = runtime.call(box, "captured", door="pipe")["waiting"]
-    assert owed["path"].startswith("captured/event-posttoolusefailure-")
-    seal(box, owed["seal"])
-    (kept,) = runtime.call(box, "captured", door="pipe")["kept"]
-    assert json.loads(kept["words"]) == failed
-
-
 def test_a_moment_being_kept_never_changes_what_the_guard_decides(box):
     (runtime.state(box) / "capture.txt").write_text("PreToolUse\n")
     call = {"hook_event_name": "PreToolUse", "session_id": "s1", "tool_name": "Write",
