@@ -331,6 +331,8 @@ def kind_of(w: dict) -> str:
         return "skill"
     if path.startswith("grants/"):
         return "grant"
+    if path.startswith("shares/"):
+        return "share"
     return "suggestion"
 
 
@@ -433,6 +435,19 @@ def card(box: Path, token: str, w: dict) -> str:
             f"<pre>{esc(data.strip())}</pre>"
         )
         sealing = "Seal: give this skill"
+    elif kind == "share":
+        body = (
+            '<p class="kind">A package to send someone</p>'
+            f"<h2>{esc(w.get('claim') or 'A package')}</h2>"
+            '<p class="soft">A model put this together from sentences you '
+            "already sealed. If you say yes, exactly these sentences are packed "
+            "for the person named, signed with your sharing identity (not your "
+            "seal key), into a file beside your record, and a row is written on "
+            "your record. Nothing is sent: the file is yours to pass on. Check "
+            "the name and the key are who you mean.</p>"
+            f"<pre>{esc(data.strip())}</pre>"
+        )
+        sealing = "Seal: pack this"
     elif kind == "grant":
         folder = next(
             (ln[5:] for ln in data.splitlines() if ln.startswith("for: ")), "?"

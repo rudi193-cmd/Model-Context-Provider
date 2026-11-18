@@ -4,6 +4,15 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Sharing with another person**, by Willow's `share`. On the person's
+  door: `share_id` (an identity that is not the seal key), `share_person`,
+  `share_send`, `share_receive`, `share_forward`, `shares`. Only a sentence
+  the person sealed goes in a package. A model may put one together for
+  the person's seal (`share_propose`), for someone they named, by name and
+  never by key; sealed, it is packed once and the file is the person's to
+  send. A package that arrived and held is read by a session the person
+  let in (`share_received`), checked again each time. (The owner's rulings
+  of 2026-11-18.)
 - **The rest of a model's tools, under that yes.** While a session's grant
   stands, `report` gives the report as it reads now, `skill` gives a skill
   the person named as it reads now (never one they declined or stopped),

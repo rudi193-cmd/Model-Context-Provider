@@ -118,9 +118,11 @@ pattern:
     wanted.
 - [ ] **pile-store / pile-serve** (performance)
   - **Note:** not looked at yet.
-- [ ] **share** (needs careful "leave" design)
-  - **Note:** a second way out: sealed answers sent to another person,
-    written to the record. Needs the person's ruling before any code.
+- [x] **share** (needs careful "leave" design)
+  - **Note:** built 2026-11-18 on three rulings of the owner's: the person
+    sends, and a model may put a package together for their seal; only
+    sealed sentences go; what arrives is the person's to receive, then
+    read by a session they let in. See "`share`" below.
 - [ ] **rss-out** (needs careful "leave" design)
   - **Note:** not looked at yet. Also a way out.
 - [ ] **local-model / openai-compatible, mcp-lite, mcp-sampling, privacy,
@@ -170,15 +172,15 @@ pattern:
 2. [x] people + calendar + on-this-day (everyday utility + delight)
 3. [x] Minimal seal-gated task queue
 4. [x] MCP Resources for sealed pages + a couple of prompts
-5. [ ] share and/or handover as distinctive Willow flavour
-   - **Note:** `share` is next, with the owner. Kart's `write` and `run`
-     are in the pin for it.
+5. [x] share and/or handover as distinctive Willow flavour
+   - **Note:** `share` is built. A job that travels in a package (kart's
+     `write`, `take` and `run`) is not wired here yet.
 
 ### Fun / differentiating angles
 
 - [ ] on-this-day + timeline + milestones (personal history, extractive +
   sealed)
-- [ ] share with cryptographic checkability
+- [x] share with cryptographic checkability
 - [ ] handover as multi-session primitive
   - **Note:** the session-to-session part is built (`hook-handoff`: a new
     session is told once where the last one ended).
@@ -317,7 +319,8 @@ so none is lost. A box is ticked when it is built.
 - [ ] **Willow's demos of sharing** (the owner: "a few demos in Willow as
   well to pull how share should work"): `demo/johnson` (one report, five
   willows), `demo/shared-runs`, `demo/known-gaps`, `demo/craft-assembly`.
-  - **Needs:** reading before `share` is designed.
+  - **Note:** `demo/johnson` and `share`'s README read before `share`
+    was built. The other three demos have not been read.
 - [x] **Depend on GitHub less.** The check and the hook that holds `main`
   are built and run here, and the check is the gate.
   - **Note:** the twelve Willow commits this pin stands on (the hook
@@ -340,9 +343,17 @@ so none is lost. A box is ticked when it is built.
 - [ ] **The task queue's edges.** Listing tasks has no limit on its whole
   size; each `tasks` or `notes` call asks the kernel once a sealed thing,
   a row on the record each time.
-- [ ] **`share`**, and with it `timeline` and `rss-out`: ways out to
-  another person or place. The owner will take `share` with the main
-  session; each needs a ruling. `demo/johnson` is the reference.
+- [x] **`share`**: built 2026-11-18. The person's door has `share_id`,
+  `share_person`, `share_send`, `share_receive`, `share_forward` and
+  `shares`; a model's has `share_propose` (a package for the person's
+  seal, for someone they named, never by key) and `share_received` (under
+  a session's grant).
+  - **Needs:** `rotate`, `witness` and corrections (`--replaces` walked hop
+    by hop); a job sent in a package, run by kart, its result sent back
+    (the second half of `demo/johnson`); trying it between two real
+    records.
+- [ ] **`timeline` and `rss-out`**: ways out to another person or place.
+  Each needs a ruling.
 
 ## Still loose
 
@@ -388,8 +399,8 @@ so none is lost. A box is ticked when it is built.
 What is left, gathered from the lines above, in the order the owner last
 gave:
 
-1. `share`, with `demo/johnson` as the reference; then `timeline` and
-   `rss-out`, each on a ruling.
+1. The rest of `share`: `rotate`, `witness`, corrections, and a job that
+   travels in a package; then `timeline` and `rss-out`, each on a ruling.
 2. The per-item seal paths reviewed for what can go, now that a session's
    yes covers reading.
 3. The paces list above.

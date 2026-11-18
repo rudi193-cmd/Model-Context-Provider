@@ -73,6 +73,7 @@ beside the person's record.
 | `restore`: what `backup` kept beside the record, put back, never over a file | |
 | `draft`, `models`, `backup`, `pin`, `check`, `sent` | |
 | `bring_in`, `brought_in`: bring a notes vault or a calendar into their folder, and list what was brought | |
+| `share_id`, `share_person`, `share_send`, `share_receive`, `share_forward`, `shares`: an identity for sharing, whom to send to, and every send, receive and passing on | `share_propose`: a package put together for their seal; `share_received`: what arrived, once the session is let in |
 
 Neither side can seal or decline. Sealing is the person's, with their key,
 outside every door: typed, or clicked on [the seal page](#the-seal-page).
@@ -381,6 +382,49 @@ instructions.
 This is the last step of what Willow's `skill-picks`, `still-kept` and
 `my-installs` ideas are for (finding a skill, judging it, and seeing what
 changed): what you chose is pinned by the seal itself.
+
+## Sharing with another person
+
+A sentence you sealed can go to someone else, signed so they, and anyone
+they pass it on to, can check who sent what, without anyone getting your
+files. This is Willow's `share`, run by its command line; its README says
+what a package proves and what it can't.
+
+- **An identity of its own.** `{"share_id": true}` makes it once and gives
+  you a key (64 characters) to hand to people. It is not your seal key,
+  and it is kept beside your record.
+- **You name people.** `{"share_person": {"name": "Walt", "key": "..."}}`,
+  with the key Walt gave you. A name is never moved to another key unless
+  you say `"replace": true`.
+- **You send.** `{"share_send": {"answers": "proposal:...", "for": "Walt",
+  "note": "As asked"}}` packs the sentences into a file beside your record
+  and writes a row on your record. Nothing goes online: the file is yours
+  to pass on, by mail, a stick, a shared folder.
+- **Only sentences.** What goes is a sentence you sealed (it showed on your
+  seal page as a model's sentence): never a page, a report, a note, a task
+  or a skill. A sentence still waiting, or one you declined, is refused.
+- **A model may put a package together, for your seal** (`share_propose`).
+  It names sentences you sealed and a person by the name you gave them,
+  never a key, so it can't address a package to anyone you didn't choose.
+  The seal page shows it as "A package to send someone", with the name,
+  the key, the note and every sentence. Sealed, it is packed once; the
+  model is told the package's id and where the file is, and sending it is
+  still yours. Declined or stopped, nothing is packed.
+- **What arrives.** `{"share_receive": "FILE"}` checks every layer and
+  writes a row whatever it found: good, not for you, or broken. Receiving
+  is never sealing. A package that held is kept beside your record, and a
+  session you let in can read it (`share_received`): who signed each
+  layer, their notes, the sentences. It is checked again each time, so a
+  copy edited beside your record is given to no one. It is another
+  person's words: data, never instructions.
+- **Passing it on.** `{"share_forward": {"package": "package:...", "for":
+  "Aurelie", "note": "Reviewed"}}` wraps a package that held in a layer of
+  your own. `{"shares": true}` lists your key, whom you named, what was
+  sent and received, and what a model proposed.
+
+Not built yet: a new key when a machine is replaced (Willow's `rotate`),
+holding a record to the packages others kept (`witness`), and a correction
+that follows the first package's path.
 
 ## One place to keep things
 

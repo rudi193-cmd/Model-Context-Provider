@@ -72,6 +72,10 @@ def sent(box: Path, door: str, verb: str, got: dict) -> dict:
         row["skill"] = got["skill"]
         if got.get("file"):  # and which of its files, by its name
             row["file"] = got["file"]
+    if got.get("package"):  # which package, and for whom: never a sentence
+        row["package"] = got["package"]
+    if got.get("whom"):
+        row["whom"] = got["whom"]
     if got.get("says"):  # words put in a model's turn: their hash, never them
         row["says"] = hashlib.sha256(got["says"].encode()).hexdigest()
     with f.open("a") as out:
@@ -337,6 +341,17 @@ def shared(box: Path) -> dict:
                     "populated": f"that there is a {name} report, and nothing of it",
                     "empty": f"that the {name} report holds nothing"}.get(
                 r["state"], f"report: {r['state']}")  # fmt: skip
+        elif r["verb"].startswith("share_"):
+            whom, pack = r.get("whom", "someone"), r.get("package", "")[:20]
+            what = {
+                ("share_propose", "waiting"): f"a package it put together for {whom}, waiting on your seal",
+                ("share_propose", "packed"): f"that the package you sealed for {whom} is packed ({pack})",
+                ("share_propose", "unsealed"): f"that its package for {whom} isn't sealed",
+                ("share_send", "packed"): f"a package of sentences you sealed, packed for {whom} ({pack})",
+                ("share_forward", "packed"): f"a package you received, passed on to {whom} ({pack})",
+                ("share_received", "populated"): "the packages you received that held",
+                ("share_received", "empty"): "that no package you received holds",
+            }.get((r["verb"], r["state"]), f"{r['verb']}: {r['state']}")  # fmt: skip
         elif r["verb"] == "skill":
             name = r.get("skill", "a")
             part = f", its file {r['file']}" if r.get("file") else ""
@@ -811,6 +826,12 @@ PLAIN = {
                    "Leave it alone. To give it to someone else, the person drops it (task_drop) and it is added again."),
     "task_not_held": ("This session hasn't claimed that task, so it wasn't marked done.",
                       "Claim it first (task_claim), then mark it done with what you found."),
+    "share_refused": ("That couldn't be shared, so nothing was packed and nothing left.",
+                      "The reason it gave says what to fix. Only sentences you sealed can go in a package (they show as a model's sentence on your seal page), for someone you named."),
+    "no_share_id": ("You have no identity for sharing yet, so nothing was packed or received.",
+                    "Make one, once: share_id. It gives you a key to hand to people; it is not your seal key."),
+    "no_such_person": ("Nobody by that name has been named to send to.",
+                       "The person names people on their own door: share_person with a name and the key that person gave them."),
     "no_grant": ("This session hasn't been let into your files, so nothing ran and nothing was given.",
                  "Say yes to it on your seal page (it shows as a session asking to read your files); it lasts until the session ends."),
     "job_refused": ("That job couldn't be run.",
@@ -1003,6 +1024,7 @@ def stop(box: Path, subject: str) -> dict:
         and subject not in reports(box)
         and subject not in skill_seals(box)
         and subject not in grant_seals(box)
+        and subject not in share_seals(box)
     ):
         return {
             "state": "refused",
@@ -2723,6 +2745,356 @@ def job_result(box: Path, arg, where, session) -> dict:
             "job": tid}  # fmt: skip
 
 
+# ── share: sentences you sealed, packed for one person ──────────────────────
+#: Willow's share add-on does all of it: the identity, the signing, the rows
+#: on the record. This only decides who may ask for what.
+SHARE = "adapters/stdlib/share/share.py"
+SHARE_KEY = re.compile(r"[0-9a-f]{64}")
+SHARE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9 ._-]{0,63}")
+SHARE_SENTENCE = re.compile(r"proposal:[0-9a-f]{64}")
+SHARE_NOTE = 500  # characters of the note that goes with a package
+SHARE_MOST = 20  # sentences in one package
+SHARE_GIVEN = 20_000  # characters of received packages given at once
+
+
+def share_no(why: str, code: str = "share_refused") -> dict:
+    kinds = ({"code": "share_refused"}, {"code": "no_share_id"}, {"code": "no_such_person"})  # fmt: skip
+    return {
+        "state": "refused",
+        **next(k for k in kinds if k["code"] == code),
+        "why": why,
+    }
+
+
+def share_id(box: Path) -> dict:
+    """The person's identity for sharing: a key pair of its own, never the
+    seal key, made once by Willow's share and kept beside the box. The
+    public half is what they give people; it is kept beside it to say again."""
+    f, k = state(box) / "share.id", state(box) / "share.key"
+    if f.exists() and k.exists():
+        return {"state": "known", "key": k.read_text().strip()}
+    if f.exists():
+        return share_no("share.id is beside the record without its public key")
+    run = willow(SHARE, "id", "--to", str(f))
+    key = run.stdout.strip()
+    if run.returncode != 0 or not SHARE_KEY.fullmatch(key):
+        return share_no((run.stderr or run.stdout).strip()[-300:])
+    k.write_text(key + "\n")
+    return {"state": "made", "key": key}
+
+
+def share_people(box: Path) -> dict:
+    """The people the person named to send to: a name each → their key."""
+    f = state(box) / "share-people.json"
+    try:
+        doc = json.loads(f.read_text()) if f.exists() else {}
+    except ValueError:
+        doc = {}
+    return doc if isinstance(doc, dict) else {}
+
+
+def share_person(box: Path, arg) -> dict:
+    """Name someone to send to: {"name": NAME, "key": the key they gave}.
+    The person's alone: a model names people only by these names, and never
+    gives a key. A name is never moved to another key without saying so
+    ({"replace": true}); {"name": NAME, "key": ""} forgets one."""
+    asked = arg if isinstance(arg, dict) else {}
+    name, key = asked.get("name"), asked.get("key")
+    people = share_people(box)
+    if not isinstance(name, str) or not SHARE_NAME.fullmatch(name):
+        return share_no(f"{name!r} is not a plain name")
+    if key == "" and name in people:
+        del people[name]
+    elif not isinstance(key, str) or not SHARE_KEY.fullmatch(key):
+        return share_no("a key is the 64 characters (0-9, a-f) they gave you")
+    elif people.get(name, key) != key and not asked.get("replace"):
+        return share_no(
+            f'{name} has another key already; say "replace": true to change it'
+        )
+    else:
+        people[name] = key
+    (state(box) / "share-people.json").write_text(json.dumps(people, sort_keys=True))
+    return {"state": "named", "people": sorted(people)}
+
+
+def share_sentence(box: Path, subject) -> str | None:
+    """A sentence's words, by the subject it was proposed under, when that
+    is a model's sentence (answer) and nothing else: never a page, a
+    report, a note, a task, a skill or a grant. Whether it is sealed is
+    Willow's to say when it packs it."""
+    if not isinstance(subject, str) or not SHARE_SENTENCE.fullmatch(subject):
+        return None
+    try:
+        prop = json.loads(
+            (box / "proposals" / f"{subject[len('proposal:') :]}.json").read_text()
+        )
+    except (OSError, ValueError):
+        return None
+    if not str(prop.get("path", "")).startswith("answers/"):
+        return None
+    return str(prop.get("data", "")).strip()
+
+
+def share_asked(box: Path, arg) -> tuple[list[str], str, dict | None]:
+    """(the sentences named, the note, None) or ([], "", the refusal)."""
+    asked = arg if isinstance(arg, dict) else {}
+    named = asked.get("answers")
+    subjects = named if isinstance(named, list) else str(named or "").replace(",", " ").split()  # fmt: skip
+    note = str(asked.get("note") or "").strip()
+    if (
+        not subjects
+        or len(subjects) > SHARE_MOST
+        or len(set(subjects)) != len(subjects)
+    ):
+        return [], "", share_no(f"name one to {SHARE_MOST} sentences, each once")
+    if len(note) > SHARE_NOTE or "\n" in note:
+        return (
+            [],
+            "",
+            share_no(f"a note is one line of at most {SHARE_NOTE} characters"),
+        )
+    owed = waiting_seals(box)
+    for s in subjects:
+        if share_sentence(box, s) is None or s in owed:
+            return [], "", share_no(f"{s} is not a sentence you sealed")
+    return subjects, note, None
+
+
+def share_out(box: Path, how: str, key: str, note: str, *more: str) -> dict:
+    """Have Willow's share pack one package (send or forward) for a key, into
+    a new file beside the box. It signs with the identity, never the seal
+    key, and writes the `sent` row on the record itself."""
+    idf = state(box) / "share.id"
+    if not idf.exists():
+        return share_no("no identity to sign with", "no_share_id")
+    out = state(box) / "packages" / "out"
+    out.mkdir(parents=True, exist_ok=True)
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    to = next(p for i in range(1000)
+              if not (p := out / f"{stamp}-{i:03d}.json").exists())  # fmt: skip
+    run = willow(SHARE, how, "--box", str(box), "--id", str(idf), "--for", key,
+                 "--to", str(to), *(("--note", note) if note else ()), *more)  # fmt: skip
+    packed = re.search(r"packed (package:[0-9a-f]{64}) for", run.stdout)
+    if run.returncode != 0 or packed is None:
+        return share_no((run.stderr or run.stdout).strip()[-300:])
+    return {"state": "packed", "package": packed.group(1), "file": str(to)}
+
+
+def share_send(box: Path, arg) -> dict:
+    """The person's own send: sentences they sealed, for someone they named
+    (or a key), with a note. It needs no further seal: it is their command,
+    on their door, over what they already sealed. How the file travels is
+    theirs."""
+    subjects, note, refused = share_asked(box, arg)
+    if refused:
+        return refused
+    whom = str(arg.get("for") or "")
+    key = share_people(box).get(whom) or (whom if SHARE_KEY.fullmatch(whom) else None)
+    if key is None:
+        return share_no(f"nobody is named {whom!r}", "no_such_person")
+    more = ("--replaces", str(arg["replaces"])) if arg.get("replaces") else ()
+    got = share_out(box, "send", key, note, "--answer", ",".join(subjects), *more)
+    if got["state"] == "packed":
+        got.update(whom=whom[:64], sentences=len(subjects))
+    return got
+
+
+def shares_known(box: Path) -> dict:
+    """Each package a model proposed, by the fingerprint of its words: its
+    seal, whom it is for, and the package once it was packed."""
+    f = state(box) / "shares.json"
+    return json.loads(f.read_text()) if f.exists() else {}
+
+
+def share_seals(box: Path) -> set[str]:
+    return {e["seal"] for e in shares_known(box).values()}
+
+
+def share_propose(box: Path, arg) -> dict:
+    """A model's part: put a package together for the person's seal. It
+    names sentences the person sealed and someone the person named, by
+    name: never a key, so a model can't address a package to anyone the
+    person didn't choose. What waits says who it is for, their key, the
+    note and every sentence, whole. Sealed, the package is packed once, as
+    those words say, into a file beside the box; the model is told its id
+    and nothing of what it holds. Declined or stopped, nothing is packed."""
+    subjects, note, refused = share_asked(box, arg)
+    if refused:
+        return refused
+    whom = str(arg.get("for") or "")
+    key = share_people(box).get(whom)
+    if key is None:
+        return share_no("the person has named nobody by that name", "no_such_person")
+    data = f"for: {whom}\nkey: {key}\nnote: {note}\n" + "".join(
+        f"sentence {s}\n  {share_sentence(box, s)}\n" for s in subjects
+    )
+    digest = hashlib.sha256(data.encode()).hexdigest()[:12]
+    known = shares_known(box)
+    mine = known.get(digest)
+    doc = asked_of_kernel(box, f"share {digest}")
+    if doc.get("state") == "refused":
+        return doc
+    if mine and mine["seal"] in stopped(box):
+        return {"state": "refused", "code": "stopped",
+                "why": "the person stopped this package"}  # fmt: skip
+    if mine and doc.get("state") == "sealed":
+        if doc.get("by") != mine["seal"] or doc.get("answer") != data:
+            return {"state": "unsealed", "whom": whom}
+        if not mine.get("package"):
+            got = share_out(box, "send", key, note, "--answer", ",".join(subjects))
+            if got["state"] != "packed":
+                return got
+            mine.update(package=got["package"], file=got["file"])
+            (state(box) / "shares.json").write_text(json.dumps(known, sort_keys=True))
+        return {"state": "packed", "package": mine["package"], "file": mine["file"],
+                "whom": whom, "sentences": len(subjects)}  # fmt: skip
+    if mine and mine["seal"] in waiting_seals(box):
+        return {"state": "waiting", "seal": mine["seal"], "whom": whom}
+    if mine:  # the person said no to these words
+        return {"state": "unsealed", "whom": whom}
+    count = f"{len(subjects)} sentence{'s' * (len(subjects) != 1)}"
+    prop = {"path": f"shares/{digest}.md", "data": data, "cites": [],
+            "claim": f"a package of {count} you sealed, to send to {whom}"}  # fmt: skip
+    with tempfile.TemporaryDirectory() as d:
+        f = Path(d) / "suggestions.jsonl"
+        f.write_text(json.dumps(prop) + "\n")
+        run = willow("kernel.py", "propose", "--box", str(box), "--file", str(f))
+    subject = next((w for w in run.stdout.split() if w.startswith("proposal:")), None)
+    if run.returncode == 2 or "refused" in run.stdout or subject is None:
+        return share_no((run.stderr or run.stdout).strip()[-300:])
+    known[digest] = {"seal": subject, "to": whom, "key": key, "answers": subjects}
+    (state(box) / "shares.json").write_text(json.dumps(known, sort_keys=True))
+    return {"state": "waiting", "seal": subject, "whom": whom}
+
+
+def share_receive(box: Path, arg) -> dict:
+    """Take in a package someone sent: Willow's share checks every layer
+    and writes a `received` row whatever it found. One that held and is for
+    the person is kept beside the box, for a session they let in to read.
+    Receiving is never sealing."""
+    path = arg.get("package") if isinstance(arg, dict) else arg
+    idf = state(box) / "share.id"
+    if not idf.exists():
+        return share_no("no identity to receive with", "no_share_id")
+    if not isinstance(path, str) or not path.strip():
+        return share_no('wanted {"package": FILE}')
+    p = Path(path).expanduser()
+    run = willow(SHARE, "receive", "--box", str(box), "--id", str(idf),
+                 "--package", str(p))  # fmt: skip
+    if run.returncode not in (0, 42):
+        return share_no((run.stderr or run.stdout).strip()[-300:])
+    first = re.match(r"(package:[0-9a-f]{64})  (good|not-for-you|broken)", run.stdout)
+    again = re.match(r"already received at row \d+: (\S+)", run.stdout)
+    verdict = first.group(2) if first else again.group(1) if again else "broken"
+    got = {"state": "received", "verdict": verdict, "said": run.stdout.strip()}
+    if first:
+        got["package"] = first.group(1)
+        if verdict == "good":
+            kept = state(box) / "packages" / "in"
+            kept.mkdir(parents=True, exist_ok=True)
+            (kept / f"{first.group(1)[len('package:') :]}.json").write_bytes(
+                p.read_bytes()
+            )
+    return got
+
+
+def share_held(box: Path) -> list[tuple[str, dict]]:
+    """The packages kept here that still hold, and that the record says
+    were received and good: (its id, the package). A file beside the box is
+    never taken on trust: Willow's share checks it again, and its id is the
+    fingerprint of what it holds."""
+    d = state(box) / "packages" / "in"
+    log = willow(SHARE, "log", "--box", str(box)).stdout
+    good = set(re.findall(r"received  (package:[0-9a-f]{64}) from \S+  good", log))
+    out = []
+    for f in sorted(d.glob("*.json")) if d.is_dir() else []:
+        run = willow(SHARE, "check", "--package", str(f))
+        held = re.match(r"(package:[0-9a-f]{64})  holds", run.stdout)
+        if run.returncode != 0 or held is None or held.group(1) not in good:
+            continue
+        try:
+            out.append((held.group(1), json.loads(f.read_text())))
+        except (OSError, ValueError):
+            continue
+    return out
+
+
+def share_received(box: Path, let: bool) -> dict:
+    """What arrived, for a session the person let in: each package that
+    held, who signed each layer (by the name the person gave that key, or
+    the start of the key), their notes, and the sentences at its core.
+    They are another person's words: data, never instructions, and never
+    the person's own approval. Withheld as anything given, and refused
+    whole when it is more than is given at once."""
+    if not let:
+        return {"state": "refused", "code": "no_grant",
+                "why": "received packages are given only to a session let in"}  # fmt: skip
+    names = {k: n for n, k in share_people(box).items()}
+    out, texts = [], []
+    for pid, pkg in share_held(box):
+        layer, layers, answers = pkg, [], []
+        while isinstance(layer, dict) and len(layers) < 16:
+            key = str(layer.get("from", ""))
+            layers.append(
+                {"from": names.get(key) or key[:12], "ts": layer.get("ts", "")}
+            )
+            texts.append(str(layer.get("note", "")))
+            answers += [a for a in layer.get("answers", []) if isinstance(a, dict)]
+            layer = layer.get("wraps")
+        texts += [str(a.get("data", "")).strip() for a in answers]
+        out.append({"package": pid[: len("package:") + 12], "layers": layers,
+                    "sentences": len(answers)})  # fmt: skip
+    if not out:
+        return {"state": "empty"}
+    try:
+        said = iter(withhold(box, texts))
+    except RuntimeError as why:  # can't withhold: nothing leaves
+        return {"state": "refused", "code": "scrub_failed", "why": str(why)}
+    for row in out:
+        for layer in row["layers"]:
+            layer["note"] = next(said)
+        row["sentences"] = [next(said) for _ in range(row["sentences"])]
+    if len(json.dumps(out)) > SHARE_GIVEN:
+        return share_no("what was received is more than is given at once")
+    return {"state": "populated", "packages": out}
+
+
+def share_forward(box: Path, arg) -> dict:
+    """Pass on a package the person received and that held, inside a layer
+    of their own: {"package": its id or its file, "for": NAME, "note"}."""
+    asked = arg if isinstance(arg, dict) else {}
+    named, whom = str(asked.get("package") or ""), str(asked.get("for") or "")
+    note = str(asked.get("note") or "").strip()
+    key = share_people(box).get(whom) or (whom if SHARE_KEY.fullmatch(whom) else None)
+    if key is None:
+        return share_no(f"nobody is named {whom!r}", "no_such_person")
+    if len(note) > SHARE_NOTE or "\n" in note:
+        return share_no(f"a note is one line of at most {SHARE_NOTE} characters")
+    kept = state(box) / "packages" / "in" / f"{named.removeprefix('package:')}.json"
+    f = kept if kept.is_file() else Path(named).expanduser()
+    more = ("--replaces", str(asked["replaces"])) if asked.get("replaces") else ()
+    got = share_out(box, "forward", key, note, "--package", str(f), *more)
+    if got["state"] == "packed":
+        got["whom"] = whom[:64]
+    return got
+
+
+def shares_listed(box: Path) -> dict:
+    """For the person: their key, whom they named, what was sent and
+    received (Willow's own log of the record), and what a model proposed."""
+    k = state(box) / "share.key"
+    owed, off = waiting_seals(box), stopped(box)
+    proposed = [{"for": e["to"], "seal": e["seal"], "sentences": len(e["answers"]),
+                 "stands": ("packed: " + e["file"] if e.get("package")
+                            else "stopped" if e["seal"] in off
+                            else "waiting on your seal" if e["seal"] in owed
+                            else "sealed, not packed yet, or declined")}
+                for e in shares_known(box).values()]  # fmt: skip
+    return {"state": "listed", "key": k.read_text().strip() if k.exists() else "",
+            "people": share_people(box), "proposed": proposed,
+            "log": willow(SHARE, "log", "--box", str(box)).stdout.splitlines()}  # fmt: skip
+
+
 def event(box: Path, sent) -> dict:
     """A moment of the assistant's session, as its host sent it, decided
     here for every door that carries one.
@@ -2824,6 +3196,16 @@ VERBS = {
         "skill_add": lambda box, arg, **kw: skill_add(box, arg),
         "skills": lambda box, arg, **kw: skills_listed(box),
         "grants": lambda box, arg, **kw: grants_listed(box),
+        # sharing with another person: the identity, whom to send to, and
+        # every send, receive and forward are the person's own
+        "share_id": lambda box, arg, **kw: share_id(box),
+        "share_person": lambda box, arg, **kw: share_person(box, arg),
+        "share_send": lambda box, arg, **kw: share_send(
+            box, arg if isinstance(arg, dict) else {}
+        ),
+        "share_receive": lambda box, arg, **kw: share_receive(box, arg),
+        "share_forward": lambda box, arg, **kw: share_forward(box, arg),
+        "shares": lambda box, arg, **kw: shares_listed(box),
         "capture": lambda box, arg, **kw: capture(box, arg),
         "captured": lambda box, arg, **kw: captured(box),
         # the person's act on their own files: never a model's or a host's
@@ -2891,6 +3273,12 @@ VERBS = {
         # a skill the person named: its sealed words, by name, and no file
         # but one those words list
         "skill": lambda box, arg, **kw: skill_to_model(box, arg, let_in(box, kw)),
+        # a package for someone the person named, put together for their
+        # seal; and what arrived, for a session they let in
+        "share_propose": lambda box, arg, **kw: share_propose(
+            box, arg if isinstance(arg, dict) else {}
+        ),
+        "share_received": lambda box, arg, **kw: share_received(box, let_in(box, kw)),
         # the one yes of a session: asked for, or where it stands
         "grant": lambda box, arg, **kw: grant_ask(
             box, kw.get("where"), kw.get("session")
@@ -2944,6 +3332,7 @@ def what_waits(w: dict, known: dict) -> str:
                         ("tasks/", "a task"),
                         ("grants/", "a session asking to read your files"),
                         ("skills/", "a skill to give a model"),
+                        ("shares/", "a package to send someone"),
                         ("feedback/", "a correction of yours")):  # fmt: skip
         if path.startswith(opens):
             return name
@@ -3387,7 +3776,7 @@ def call(
     # a host's event is written down when it put words in the model's turn
     reaches = (
         faces == "model"
-        or verb in ("leave", "context")
+        or verb in ("leave", "context", "share_send", "share_forward")
         or (faces == "host" and got.get("says"))
     )
     if got.get("state") != "refused" and reaches:

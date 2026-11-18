@@ -159,6 +159,15 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         return runtime.call(box, "job", "ls", door="mcp", where="/w", session="s")
     if code == "no_skill":
         return runtime.call(box, "skill", "nope", door="mcp")
+    if code == "share_refused":
+        return runtime.call(box, "share_send", {"answers": "nope", "for": "x"}, door="pipe")  # fmt: skip
+    if code == "no_share_id":
+        return runtime.call(box, "share_receive", str(usb / "p.json"), door="pipe")
+    if code == "no_such_person":
+        from test_share import sentence
+
+        asked = {"answers": sentence(box), "for": "Nobody"}
+        return runtime.call(box, "share_propose", asked, door="mcp")
     if code == "skill_refused":
         return runtime.call(
             box, "skill_add", {"path": str(box / "record.jsonl")}, door="pipe"
