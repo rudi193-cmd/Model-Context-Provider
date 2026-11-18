@@ -141,6 +141,15 @@ TOOLS = [
                     "grep, the first lines: past about 8,000 characters you get "
                     "the head and the tail, marked clipped. A job is stopped "
                     "after two minutes; one that ended badly says how."},
+    {"name": "job_later", "arg": "text",
+     "description": "The same as job, for one too long to wait on (up to half an "
+                    "hour): it is queued and worked in the background, and you are "
+                    "given its id. Ask for what it printed with job_result. The "
+                    "queue ends with this session."},
+    {"name": "job_result", "arg": "job",
+     "description": "Where a job you queued with job_later stands (queued, "
+                    "running), or what it printed once it has ended, as job gives "
+                    "it. Give the id job_later gave you."},
 ]  # fmt: skip
 
 

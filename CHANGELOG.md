@@ -15,6 +15,13 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   carries out the click by the kernel's command. It is no door, asks about
   nothing else, and runs only where `ask-here` sits beside the box. An
   answer that isn't a clear yes or no is never a yes.
+- **`job_later` and `job_result`.** A job too long to wait on is queued in
+  the session's own queue (Kartikeya's SQLite queue, through Willow's kart
+  0.1.6) and worked in the background; the worker stops when the queue is
+  empty and the queue goes with the session. A worker that refused (no
+  sandbox, a resource group that isn't ready) is said with the job that
+  still waits. The pin moves to kart 0.1.7, which puts back the limits a
+  reload of systemd empties out of the resource group.
 - **A job says how it ended.** One that ended badly says how; one whose
   output Kartikeya clipped says so; the runtime no longer waits on a job
   without a limit. The pin moves to Willow's kart 0.1.5, which keeps a

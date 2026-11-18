@@ -4,6 +4,7 @@ Nothing beside the box is trusted for the yes: the kernel says it is sealed."""
 
 import importlib.util
 import json
+import subprocess
 
 import pytest
 from test_leave import seal
@@ -234,6 +235,104 @@ def test_a_job_says_when_it_was_clipped_and_when_it_ran_out_of_time(box, monkeyp
     rows = [json.loads(x) for x in (box / "record.jsonl").read_text().splitlines()]
     ran = [r for r in rows if r["kind"] == "ran"]
     assert len(ran) == 4 and "frost" not in json.dumps(ran)
+
+
+def work_now(monkeypatch):
+    """The worker, run here and waited on, where the runtime lets it go."""
+    started = []
+
+    def run(argv, cwd=None, said=None):
+        started.append(argv)
+        got = subprocess.run(argv, cwd=cwd, capture_output=True, text=True, check=False)
+        if said:
+            said.write_text(got.stdout + got.stderr)
+
+    monkeypatch.setattr(runtime, "launch", run)
+    return started
+
+
+def test_a_job_for_later_needs_a_grant_and_a_job_that_is_one(box, monkeypatch):
+    started = work_now(monkeypatch)
+    assert call(box, "job_later", "ls {pile}")["code"] == "no_grant"
+    assert call(box, "job_result", "0" * 12 + "-" + "0" * 8)["code"] == "no_grant"
+    let_in(box)
+    for bad in ("", None, 7, "x" * (runtime.JOB_MOST + 1)):
+        assert call(box, "job_later", bad)["code"] == "job_refused", bad
+    for bad in ("", None, "nope", "../x", "0" * 12 + "-" + "0" * 8):
+        assert call(box, "job_result", bad)["code"] == "no_such_job", bad
+    assert started == [] and not list(runtime.state(box).glob("jobs-*.db"))
+    for door in ("pipe", "hook", "guard"):
+        assert call(box, "job_later", "ls", door=door)["code"] == "no_verb"
+        assert call(box, "job_result", "x", door=door)["code"] == "no_verb"
+
+
+@pytest.mark.skipif(not HAS_KART, reason="needs Kartikeya, Python 3.11+")
+def test_a_job_for_later_is_queued_worked_and_given_by_its_id(box, monkeypatch):
+    let_in(box)
+    monkeypatch.setattr(runtime, "launch", lambda argv, **kw: None)  # not worked yet
+    got = call(box, "job_later", "grep -rhic frost {pile} | sort | tail -1")
+    assert got["state"] == "queued" and runtime.JOB_ID.fullmatch(got["job"]), got
+    assert call(box, "job_result", got["job"]) == {"state": "queued", "job": got["job"]}
+    started = work_now(monkeypatch)
+    bad = call(box, "job_later", "cat {pile}/garden.md; exit 4")
+    (argv,) = started
+    assert argv[1:3] == [runtime.KART, "work"] and argv[-1].endswith(".db")
+    done = call(box, "job_result", got["job"])
+    assert (done["state"], done["page"].strip(), done["ended"]) == ("left", "1", "well")
+    failed = call(box, "job_result", bad["job"])
+    assert failed["ended"] == "badly" and failed["how"] == "exited 4"
+    assert "frost" in failed["page"] and failed["job"] == bad["job"]
+    assert runtime.waiting(box)["state"] == "empty"  # nothing is proposed
+    rows = [json.loads(x) for x in (box / "record.jsonl").read_text().splitlines()]
+    ran = [r for r in rows if r["kind"] == "ran"]
+    assert [r["queued"] for r in ran] == [got["job"], bad["job"]]
+    assert "frost" not in json.dumps(ran)
+    assert '"verb": "job_result"' in (runtime.state(box) / "sent.jsonl").read_text()
+    # another session, and this one once it has ended, have no such job
+    let_in(box, session="s2")
+    assert call(box, "job_result", got["job"], session="s2")["code"] == "no_such_job"
+    end = {"hook_event_name": "SessionEnd", "session_id": "s1", "cwd": "/work/a"}
+    runtime.call(box, "event", end, door="guard")
+    assert call(box, "job_result", got["job"])["code"] == "no_grant"
+    assert not list(runtime.state(box).glob("jobs-*.db"))  # and what it printed is gone
+
+
+@pytest.mark.skipif(not HAS_KART, reason="needs Kartikeya, Python 3.11+")
+def test_a_worker_that_refused_is_why_a_job_still_waits(box, monkeypatch):
+    """Seen 2026-11-18: the worker refused (a resource group not ready), its
+    words were thrown away, and the job said only "queued"."""
+    let_in(box)
+
+    def refuses(argv, cwd=None, said=None):
+        said.write_text(
+            "refused: a resource group is set up but isn't ready; nothing ran\n"
+        )
+
+    monkeypatch.setattr(runtime, "launch", refuses)
+    got = call(box, "job_later", "cat {pile}/garden.md")
+    told = call(box, "job_result", got["job"])
+    assert told["state"] == "queued" and told["worker"].startswith(
+        "refused: a resource group"
+    )
+    work_now(monkeypatch)  # a worker that works: the same job, and no stale refusal
+    call(box, "job_later", "echo second")
+    done = call(box, "job_result", got["job"])
+    assert done["state"] == "left" and "frost" in done["page"] and "worker" not in done
+    log = next(runtime.state(box).glob("jobs-*.log")).read_text()
+    assert (
+        "frost" not in log and "ran " in log
+    )  # what it says is never what a job printed
+    end = {"hook_event_name": "SessionEnd", "session_id": "s1", "cwd": "/work/a"}
+    runtime.call(box, "event", end, door="guard")
+    assert not list(runtime.state(box).glob("jobs-*"))
+
+
+@pytest.mark.skipif(HAS_KART, reason="only where this Python has no Kartikeya")
+def test_without_kartikeya_a_job_for_later_is_refused_and_says_so(box, monkeypatch):
+    work_now(monkeypatch)
+    let_in(box)
+    got = call(box, "job_later", "ls {pile}")
+    assert got["code"] == "job_refused" and "Kartikeya isn't installed" in got["why"]
 
 
 def test_a_job_that_is_no_job_is_refused(box, monkeypatch):

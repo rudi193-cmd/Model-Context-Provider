@@ -130,6 +130,18 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         return runtime.call(box, "resource", "provider://key/the-key", door="mcp")
     if code == "no_prompt":
         return runtime.call(box, "prompt", {"name": "horoscope"}, door="mcp")
+    if code == "no_such_job":
+        got = runtime.call(box, "grant", door="mcp", where="/w", session="s")
+        run = runtime.willow("kernel.py", "seal", "--box", str(box), got["seal"])
+        assert run.returncode == 0, run.stderr
+        return runtime.call(
+            box,
+            "job_result",
+            "0" * 12 + "-" + "0" * 8,
+            door="mcp",
+            where="/w",
+            session="s",
+        )
     if code == "no_grant":
         return runtime.call(box, "job", "ls", door="mcp", where="/w", session="s")
     if code in ("job_refused", "job_too_long"):

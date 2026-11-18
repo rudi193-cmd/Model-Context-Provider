@@ -808,6 +808,8 @@ PLAIN = {
                  "Say yes to it on your seal page (it shows as a session asking to read your files); it lasts until the session ends."),
     "job_refused": ("That job couldn't be run.",
                     "Nothing ran. The reason it gave says what to fix first: a job with a network line, a sandbox program that is missing (name a Python that has Kartikeya in kart-python beside your record), or a resource group that isn't running."),
+    "no_such_job": ("That isn't a job this session queued.",
+                    "Use the id job_later gave. A queue ends with its session: a job queued in an earlier session is gone."),
     "job_too_long": ("That job printed more than can be given whole, so nothing was given.",
                      "Ask for less: a count, or the first lines (head)."),
     "notes_too_long": ("The notes you sealed are too long to give whole, so nothing was given.",
@@ -2282,13 +2284,32 @@ def ask_here(box: Path, subject: str) -> bool:
     return True
 
 
-def launch(argv: list[str]) -> None:
-    """Start a program of its own and let it go: nothing of it is read."""
-    subprocess.Popen(  # noqa: S603
-        argv, cwd=HERE, env={**os.environ, "WILLOW": str(WILLOW)},
-        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL, start_new_session=True,
-    )  # fmt: skip
+def launch(argv: list[str], cwd: Path = HERE, said: Path | None = None) -> None:
+    """Start a program of its own and let it go. What it says is thrown
+    away, or (said) written to a file for the person to be told from."""
+    out = said.open("w") if said else subprocess.DEVNULL
+    try:
+        subprocess.Popen(  # noqa: S603
+            argv, cwd=cwd, env={**os.environ, "WILLOW": str(WILLOW)},
+            stdin=subprocess.DEVNULL, stdout=out, stderr=out,
+            start_new_session=True,
+        )  # fmt: skip
+    finally:
+        if said:
+            out.close()
+
+
+def worker_said(db: Path) -> str:
+    """The last thing the worker of this queue said, when that is why
+    nothing is being worked: kart's own refusal (no sandbox, a resource
+    group that isn't ready). It never holds what a job printed: kart's
+    lines name a job's id, how it ended and its row."""
+    try:
+        lines = [ln.strip() for ln in db.with_suffix(".log").read_text().splitlines()]
+    except OSError:
+        return ""
+    last = next((ln for ln in reversed(lines) if ln), "")
+    return last[:400] if last.startswith("refused:") else ""
 
 
 def granted(box: Path, where, session) -> bool:
@@ -2309,10 +2330,13 @@ def granted(box: Path, where, session) -> bool:
 def grant_end(box: Path, session) -> int:
     """The session is over: every grant it held is ended, for good. How many."""
     known, n = grants_known(box), 0
-    for entry in known.values():
+    for gid, entry in known.items():
         if entry.get("session") == session and not entry.get("ended"):
             entry["ended"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
             n += 1
+            # its queue of jobs, and what they printed, goes with it
+            (state(box) / f"jobs-{gid}.db").unlink(missing_ok=True)
+            (state(box) / f"jobs-{gid}.log").unlink(missing_ok=True)
     if n:
         (state(box) / "grants.json").write_text(json.dumps(known, sort_keys=True))
     return n
@@ -2391,6 +2415,29 @@ def job(box: Path, arg, where, session) -> dict:
                     "why": (run.stderr or run.stdout).strip()[-400:]}  # fmt: skip
         printed = out.read_text(errors="replace")
     forget_read(box)  # the record's last row is the run, not a read
+    how = ""
+    if run.returncode != 0:
+        # kart's line under its first two is Kartikeya's word for how it
+        # failed, then (after a colon) the last thing the job printed: only
+        # the word is passed on, since the page already holds what it printed
+        said = [ln.strip() for ln in run.stdout.splitlines()[2:] if ln.strip()]
+        how = said[0] if said else ""
+    return job_given(box, printed, run.returncode == 0, how)
+
+
+JOB_ID = re.compile(r"[0-9a-f]{12}-[0-9a-f]{8}")
+
+
+def jobs_db(box: Path, where, session) -> Path:
+    """This session's own queue of jobs: Kartikeya's, beside the box, named
+    for the grant it runs under and gone when that grant ends."""
+    gid, _, _ = grant_of(where or str(Path.cwd()), session, grants_known(box))
+    return state(box) / f"jobs-{gid}.db"
+
+
+def job_given(box: Path, printed: str, ended_well: bool, how) -> dict:
+    """What a job printed, as it reaches a model: withheld, with how it
+    ended and whether Kartikeya clipped it."""
     if len(printed) > JOB_MOST:
         return {"state": "refused", "code": "job_too_long",
                 "why": f"it printed {len(printed)} characters; at most {JOB_MOST} is given"}  # fmt: skip
@@ -2399,16 +2446,89 @@ def job(box: Path, arg, where, session) -> dict:
     except RuntimeError as why:
         return {"state": "refused", "code": "scrub_failed", "why": str(why)}
     got = {"state": "left", "page": page, "by": "grant",
-           "ended": "well" if run.returncode == 0 else "badly"}  # fmt: skip
-    if run.returncode != 0:
-        # kart's line under its first two is Kartikeya's word for how it
-        # failed, then (after a colon) the last thing the job printed: only
-        # the word is passed on, since the page already holds what it printed
-        said = [ln.strip() for ln in run.stdout.splitlines()[2:] if ln.strip()]
-        got["how"] = (said[0].split(":", 1)[0][:80] if said else "") or "it failed"
+           "ended": "well" if ended_well else "badly"}  # fmt: skip
+    if not ended_well:
+        got["how"] = str(how or "").split(":", 1)[0][:80] or "it failed"
     if JOB_CLIPPED.search(printed):
         got["clipped"] = True  # Kartikeya kept the head and the tail: say so
     return got
+
+
+def job_later(box: Path, arg, where, session) -> dict:
+    """A job too long to wait on (up to half an hour): queued in this
+    session's queue, and Willow's kart started to work it. Kart runs what is
+    queued, one at a time, and stops when the queue is empty, so nothing is
+    left running. Under a grant, like job; the result is asked for by its
+    id, with job_result."""
+    if not granted(box, where, session):
+        return {"state": "refused", "code": "no_grant",
+                "why": "this session has no grant that stands"}  # fmt: skip
+    text = arg.get("text") if isinstance(arg, dict) else arg
+    if not isinstance(text, str) or not text.strip() or len(text) > JOB_MOST:
+        return {"state": "refused", "code": "job_refused",
+                "why": f"a job is text, not empty, at most {JOB_MOST} characters"}  # fmt: skip
+    db = jobs_db(box, where, session)
+    with tempfile.TemporaryDirectory() as d:
+        src = Path(d) / "job.sh"
+        src.write_text(text if text.endswith("\n") else text + "\n")
+        run = subprocess.run(
+            [kart_python(box), KART, "queue", "--box", str(box), "--file", str(src),
+             "--db", str(db)],
+            cwd=WILLOW, capture_output=True, text=True, check=False, timeout=60,
+        )  # fmt: skip
+    tid = run.stdout.split()[1] if run.stdout.startswith("queued ") else ""
+    if run.returncode != 0 or not JOB_ID.fullmatch(tid):
+        return {"state": "refused", "code": "job_refused",
+                "why": (run.stderr or run.stdout).strip()[-400:]}  # fmt: skip
+    try:
+        launch([kart_python(box), KART, "work", "--box", str(box), "--db", str(db)],
+               cwd=WILLOW, said=db.with_suffix(".log"))  # fmt: skip
+    except OSError as why:
+        return {"state": "refused", "code": "job_refused",
+                "why": f"queued as {tid}, but the worker couldn't start: {why}"}  # fmt: skip
+    return {"state": "queued", "job": tid}
+
+
+def job_result(box: Path, arg, where, session) -> dict:
+    """Where a queued job of this session stands; once it has ended, what it
+    printed, as job gives it. Another session's job is no job here."""
+    if not granted(box, where, session):
+        return {"state": "refused", "code": "no_grant",
+                "why": "this session has no grant that stands"}  # fmt: skip
+    tid = arg.get("job") if isinstance(arg, dict) else arg
+    db = jobs_db(box, where, session)
+    if not isinstance(tid, str) or not JOB_ID.fullmatch(tid) or not db.is_file():
+        return {"state": "refused", "code": "no_such_job",
+                "why": "not a job this session queued"}  # fmt: skip
+
+    def kart(*more: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [kart_python(box), KART, "status", "--box", str(box), "--db", str(db),
+             "--id", tid, *more],
+            cwd=WILLOW, capture_output=True, text=True, check=False, timeout=60,
+        )  # fmt: skip
+
+    run = kart()
+    if run.returncode != 0:
+        return {"state": "refused", "code": "no_such_job",
+                "why": (run.stderr or run.stdout).strip()[-300:]}  # fmt: skip
+    said = json.loads(run.stdout)
+    if said.get("status") not in ("completed", "failed"):
+        got = {"state": "running" if said.get("status") == "running" else "queued",
+               "job": tid}  # fmt: skip
+        why = worker_said(db) if got["state"] == "queued" else ""
+        if why:  # queued, and the worker that should run it stopped: say why
+            got["worker"] = why
+        return got
+    with tempfile.TemporaryDirectory() as d:
+        out = Path(d) / "out.txt"
+        run = kart("--to", str(out))
+        if run.returncode != 0 or not out.exists():
+            return {"state": "refused", "code": "job_refused",
+                    "why": (run.stderr or run.stdout).strip()[-300:]}  # fmt: skip
+        printed = out.read_text(errors="replace")
+    return {**job_given(box, printed, said["status"] == "completed", said.get("how")),
+            "job": tid}  # fmt: skip
 
 
 def event(box: Path, sent) -> dict:
@@ -2575,6 +2695,13 @@ VERBS = {
         ),
         # a job in Kartikeya's sandbox over the folder, under that yes
         "job": lambda box, arg, **kw: job(box, arg, kw.get("where"), kw.get("session")),
+        # the same, too long to wait on: queued, worked, asked for by its id
+        "job_later": lambda box, arg, **kw: job_later(
+            box, arg, kw.get("where"), kw.get("session")
+        ),
+        "job_result": lambda box, arg, **kw: job_result(
+            box, arg, kw.get("where"), kw.get("session")
+        ),
     },
     "host": {
         # a prompt hook asks at every prompt, wanted or not: it is given a

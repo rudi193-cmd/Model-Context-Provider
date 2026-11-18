@@ -302,6 +302,14 @@ one lets no one in.
 
 ### A job, in the sandbox
 
+`job` is waited on, for up to two minutes. `job_later` is for one that
+takes longer, up to half an hour: it is queued, Willow's kart is started to
+work what is queued, one at a time, and it stops when the queue is empty,
+so nothing is left running. `job_result` gives where it stands and, once
+it has ended, what it printed. Each session has a queue of its own beside
+your record; it and what its jobs printed are removed when the session
+ends.
+
 `job` is Willow's `kart`, which runs it through
 [Kartikeya](https://github.com/willow-memory/kartikeya) and bubblewrap:
 your folder read-only at `{pile}`, a scratch folder at `{scratch}`, no
