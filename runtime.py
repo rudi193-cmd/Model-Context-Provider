@@ -34,8 +34,18 @@ WILLOW = willow_pin.default_root()
 PIN = willow_pin.PIN
 
 
+#: what waits on the person's seal, as the kernel last said it, kept only
+#: while one call is being answered (OWED_FOR counts how deep): several
+#: verbs ask more than once in a call, and each asking is a row on the
+#: record. Anything of Willow's that could change it forgets it at once
+OWED: dict = {}
+OWED_FOR = 0
+
+
 def willow(*args: str) -> subprocess.CompletedProcess:
     """Run one of Willow's commands, its output caught."""
+    if args[1:2] not in (("bite",), ("out",)):  # it may propose, seal or decline
+        OWED.clear()
     return subprocess.run(
         [sys.executable, *args], cwd=WILLOW, capture_output=True, text=True, check=False
     )
@@ -106,7 +116,21 @@ def sent_log(box: Path) -> dict:
 def waiting(box: Path) -> dict:
     """What waits on the person's seal, each with what it is: the kernel's own
     out, and each proposal's file read from the box for its claim, where it
-    would be written and its words. The runtime reads; it never seals."""
+    would be written and its words. The runtime reads; it never seals.
+
+    The kernel's `out` writes a row each time it is asked. Within one call
+    it is asked once: what it said is kept until that call is answered, or
+    until anything of Willow's runs that could change it."""
+    if OWED_FOR and str(box) in OWED:
+        return json.loads(OWED[str(box)])
+    got = waiting_now(box)
+    if OWED_FOR and got.get("state") != "refused":
+        OWED[str(box)] = json.dumps(got)
+    return got
+
+
+def waiting_now(box: Path) -> dict:
+    """What waits, asked of the kernel now."""
     run = willow("kernel.py", "out", "--box", str(box))
     if run.returncode == 2:
         return {"state": "refused", "code": "record_broken", "why": run.stderr.strip()}
@@ -1682,6 +1706,7 @@ HOOK_FEEDBACK = "adapters/stdlib/hook-feedback/hook_feedback.py"
 
 def hooked(sent: dict, *args: str) -> subprocess.CompletedProcess:
     """One of Willow's hooks, handed what the assistant's host sent."""
+    OWED.clear()  # a hook may propose (a correction of the person's)
     return subprocess.run(
         [sys.executable, *args], cwd=WILLOW, input=json.dumps(sent),
         capture_output=True, text=True, check=False,
@@ -1893,15 +1918,49 @@ NOTES_MOST = 20_000
 NOTE_FILE = re.compile(r"note-([0-9a-f]{12})\.md")
 
 
+#: each yes the kernel gave this process, by box and question: its answer,
+#: and the fingerprint of the proposal file it was for. In memory only:
+#: nothing of it is written anywhere, and it is gone when the door closes
+REMEMBERED: dict = {}
+
+
+def proposal_print(box: Path, subject) -> str:
+    """The SHA-256 of a proposal's file in the box, or "" when it can't be
+    read: what the kernel holds a seal to."""
+    try:
+        f = box / "proposals" / f"{str(subject)[len('proposal:') :]}.json"
+        return hashlib.sha256(f.read_bytes()).hexdigest()
+    except OSError:
+        return ""
+
+
 def asked_of_kernel(box: Path, question: str) -> dict:
     """The kernel's own answer to one question, or its refusal. That bite is
-    the record's last, and it isn't a question a model read."""
+    the record's last, and it isn't a question a model read.
+
+    A yes is remembered (Willow's forge: a thing put to the person once and
+    remembered). The kernel serves a seal only while the proposal still
+    holds what was sealed, so a yes is kept with that file's fingerprint
+    and stands only while the file reads the same; a row on the record is
+    not written to be told again what it already said. A no is never
+    remembered: a seal made since is seen at once. What the person stopped,
+    and a session that ended, are the callers' to check, every time."""
+    key = (str(box), question)
+    kept = REMEMBERED.get(key)
+    if kept is not None:
+        doc, was = kept
+        if was and proposal_print(box, doc.get("by")) == was:
+            return json.loads(doc_text) if (doc_text := json.dumps(doc)) else doc
+        del REMEMBERED[key]  # the file changed, or is gone: stale, asked again
     run = bite(box, question)
     if run.returncode == 2:
         return {"state": "refused", "code": "record_broken",
                 "why": run.stderr.strip()}  # fmt: skip
     forget_read(box)
-    return json.loads(run.stdout)
+    doc = json.loads(run.stdout)
+    if doc.get("state") == "sealed" and (mark := proposal_print(box, doc.get("by"))):
+        REMEMBERED[key] = (doc, mark)
+    return json.loads(json.dumps(doc))
 
 
 def notes_to_model(box: Path, let_in: bool = False) -> dict:
@@ -3158,6 +3217,7 @@ def share_forward(box: Path, arg) -> dict:
 def kart(box: Path, *args: str) -> subprocess.CompletedProcess | None:
     """One of kart's commands, on the Python that has Kartikeya; None when
     it was still going past a job's time and was stopped."""
+    OWED.clear()  # kart proposes a job, and what one printed
     try:
         return subprocess.run(
             [kart_python(box), KART, *args], cwd=WILLOW, capture_output=True,
@@ -4624,6 +4684,22 @@ def promises() -> dict:
 
 
 def call(
+    box: Path, verb: str, arg=None, door: str = "", ask=None, where: str = "",
+    session: str = "",
+) -> dict:  # fmt: skip
+    """What every door calls: `decided`, with what waits on the person's
+    seal asked of the kernel at most once while it is answered."""
+    global OWED_FOR
+    OWED_FOR += 1
+    try:
+        return decided(box, verb, arg, door, ask, where, session)
+    finally:
+        OWED_FOR -= 1
+        if not OWED_FOR:
+            OWED.clear()
+
+
+def decided(
     box: Path, verb: str, arg=None, door: str = "", ask=None, where: str = "",
     session: str = "",
 ) -> dict:  # fmt: skip

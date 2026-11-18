@@ -4,6 +4,14 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Fewer rows on the record.** A third of a day's rows were this runtime
+  asking the kernel what it had already said: whether a grant, a task, a
+  note or a skill is sealed (a row each time), and what waits (a row each
+  time, often twice a call). A yes is now remembered by the door that
+  asked, in memory only, with the fingerprint of the proposal file it was
+  for, and stands only while that file reads the same (Willow's forge:
+  put to the person once and remembered; stale seals, asked again). A no
+  is never remembered. What waits is asked once while a call is answered.
 - **A page for the tool groups.** The seal page's fifth page, **What a
   model is offered**, shows each group, the tools in it, whether it is on
   and why, with a button to switch it. It is held to the same table as

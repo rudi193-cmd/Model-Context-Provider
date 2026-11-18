@@ -351,6 +351,15 @@ here. Day to day there is one yes:
   starts again, resumed or new, asks anew. `stop` ends it sooner, with no
   key. `{"grants": true}` lists each one and where it stands.
 - **Everything given is written down**, by hash, on the shared page.
+- **Your record isn't written to be told what it already said.** Whether a
+  session's yes stands is the kernel's to say, and asking it writes a row.
+  So a yes the kernel gave is remembered by the door that asked, in its own
+  memory and nowhere else, for as long as the proposal it was for reads
+  exactly as it did; if that file changes it is asked again. A no is never
+  remembered, so a seal you make is seen at once, and what you stopped, or
+  a session that ended, is still checked on every call. The same goes for a
+  sealed task, a kept note and a skill. What waits on your seal is asked
+  once while a call is answered, not two or three times.
 
 **Asked where you are.** Put an empty file named `ask-here` beside your
 record and the question comes to you as a dialog on your desktop when a

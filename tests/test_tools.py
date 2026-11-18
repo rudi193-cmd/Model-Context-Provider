@@ -218,25 +218,31 @@ def test_a_client_is_told_when_the_list_changes_while_it_is_open(box):
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
     )  # fmt: skip
 
+    told = []  # what the door said that no request asked for
+
     def send(msg):
         run.stdin.write(json.dumps(msg) + "\n")
         run.stdin.flush()
-        return json.loads(run.stdout.readline())
+        while True:  # the door says the list changed whenever it next looks
+            got = json.loads(run.stdout.readline())
+            if got.get("id") == msg["id"]:
+                return got
+            told.append(got)
 
     try:
         assert "result" in send(ask(1, "ping"))  # nothing listed yet: nothing to say
         assert len(send(ask(2, "tools/list"))["result"]["tools"]) == 9
         assert "result" in send(ask(3, "ping"))
+        assert told == []
         pipe(box, "tools", {"off": ["jobs"]})
         assert "result" in send(ask(4, "ping"))
-        told = json.loads(run.stdout.readline())
-        assert told == {"jsonrpc": "2.0", "method": "notifications/tools/list_changed"}
         assert len(send(ask(5, "tools/list"))["result"]["tools"]) == 8
-        assert send(ask(6, "ping")) == {
-            "jsonrpc": "2.0",
-            "id": 6,
-            "result": {},
-        }  # told once
+        assert send(ask(6, "ping")) == {"jsonrpc": "2.0", "id": 6, "result": {}}
+        assert send(ask(7, "ping")) == {"jsonrpc": "2.0", "id": 7, "result": {}}
+        # told once, between the change and the next list, and never again
+        assert told == [
+            {"jsonrpc": "2.0", "method": "notifications/tools/list_changed"}
+        ]
     finally:
         run.stdin.close()
         run.wait(timeout=10)
