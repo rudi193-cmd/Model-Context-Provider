@@ -28,6 +28,22 @@ def test_a_door_imports_only_the_runtime(door):
     assert names <= ALLOWED, names - ALLOWED
 
 
+def test_what_carries_out_a_seal_is_no_door_and_the_runtime_imports_neither():
+    for name in ("seal_page.py", "seal_prompt.py"):
+        assert (ROOT / name).is_file() and not (ROOT / "doors" / name).exists()
+    tree = ast.parse((ROOT / "runtime.py").read_text())
+    names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names |= {a.name for a in node.names}
+        elif isinstance(node, ast.ImportFrom):
+            names.add(node.module or "")
+    assert not names & {"seal_page", "seal_prompt"}
+    # the runtime runs the kernel's seal and decline nowhere
+    text = (ROOT / "runtime.py").read_text()
+    assert '"kernel.py", "seal"' not in text and '"kernel.py", "decline"' not in text
+
+
 @pytest.mark.parametrize("door", DOORS, ids=lambda p: p.name)
 def test_a_door_never_calls_willow_itself(door):
     assert "runtime.willow" not in door.read_text()

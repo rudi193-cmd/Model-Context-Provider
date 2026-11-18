@@ -286,6 +286,16 @@ here. Day to day there is one yes:
   key. `{"grants": true}` lists each one and where it stands.
 - **Everything given is written down**, by hash, on the shared page.
 
+**Asked where you are.** Put an empty file named `ask-here` beside your
+record and the question comes to you as a dialog on your desktop when a
+session first asks: the system's own pinentry, with "Seal: yes, for this
+session", "Decline" and "Not now". Not now, closing it, leaving it, or any
+answer that isn't a clear yes or no changes nothing, and it waits on your
+seal page. That is `seal_prompt.py`: like the seal page it is no door, it
+asks about a session's grant and nothing else, and the seal is the
+kernel's, with your key. A plain yes-or-no proves someone at your desktop
+clicked, not who; a program that can click on your screen could click it.
+
 Without a yes, a session is told only whether your files hold something,
 as before. The yes is the kernel's: a file beside your record that claims
 one lets no one in.

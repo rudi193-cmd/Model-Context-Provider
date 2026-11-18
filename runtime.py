@@ -2259,7 +2259,34 @@ def grant_ask(box: Path, where, session) -> dict:
     (state(box) / "grants.json").write_text(json.dumps(known, sort_keys=True))
     if subject not in waiting_seals(box):  # sealed before, for this same session
         return {"state": "granted", "grant": gid, "for": folder}
+    ask_here(box, subject)
     return {"state": "waiting", "seal": subject, "grant": gid}
+
+
+def ask_here(box: Path, subject: str) -> bool:
+    """Where the person turned it on (a file named ask-here beside the box),
+    start seal_prompt.py for this grant: a program of its own that asks them
+    in a dialog on their desktop and carries out their click. The runtime
+    only starts it, once, when the grant is first asked for; it never waits
+    on it, reads its answer or seals anything. Whether it was started."""
+    if not (state(box) / "ask-here").exists():
+        return False
+    argv = [sys.executable, str(HERE / "seal_prompt.py"), "--box", str(box),
+            "--seal", subject]  # fmt: skip
+    try:
+        launch(argv)
+    except OSError:
+        return False
+    return True
+
+
+def launch(argv: list[str]) -> None:
+    """Start a program of its own and let it go: nothing of it is read."""
+    subprocess.Popen(  # noqa: S603
+        argv, cwd=HERE, env={**os.environ, "WILLOW": str(WILLOW)},
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL, start_new_session=True,
+    )  # fmt: skip
 
 
 def granted(box: Path, where, session) -> bool:

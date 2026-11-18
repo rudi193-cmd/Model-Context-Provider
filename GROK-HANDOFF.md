@@ -279,6 +279,10 @@ so none is lost. A box is ticked when it is built.
   project folder, per session"; "just think of it like a normal mcp").
   - **Note:** `grant`, and `context` and `job` under it, built 2026-11-18
     beside the per-item seals.
+  - **Note:** a desktop dialog for the yes (`seal_prompt.py`, pinentry, a
+    plain confirm by the owner's choice) built 2026-11-18; off until
+    `ask-here` is beside the box. MCP elicitation was looked at and left
+    out: a hook can answer it.
   - **Needs:** `report`, `skill`, `notes` and tasks brought under the grant
     too; then the per-item path reviewed for what can go. The `SessionEnd`
     guard hook installed (`set_up.py`), or a grant ends only by `stop`.

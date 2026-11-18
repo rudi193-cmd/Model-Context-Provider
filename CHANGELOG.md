@@ -10,6 +10,11 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   stops it. A session that starts again asks anew. Without it, everything
   is as before. (The owner, 2026-11-17: a seal should be something the
   person really needs to do.)
+- **Asked where you are.** `seal_prompt.py` asks for a session's grant in a
+  pinentry dialog on the person's desktop (seal, decline, not now) and
+  carries out the click by the kernel's command. It is no door, asks about
+  nothing else, and runs only where `ask-here` sits beside the box. An
+  answer that isn't a clear yes or no is never a yes.
 - **`job`, under that yes.** A shell job over the folder in Kartikeya's
   sandbox, by Willow's `kart try`: read-only, no network, no box, no key.
   The pin now covers `share` and `adapters/deps/kart`, and moves to Willow
