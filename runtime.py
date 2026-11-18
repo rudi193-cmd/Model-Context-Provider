@@ -13,7 +13,6 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import json
-import os
 import re
 import shlex
 import subprocess
@@ -25,8 +24,11 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+import willow_pin
+
 HERE = Path(__file__).resolve().parent
-WILLOW = Path(os.environ.get("WILLOW", HERE.parent / "Willow"))
+WILLOW = willow_pin.default_root()
+PIN = willow_pin.PIN
 
 
 def willow(*args: str) -> subprocess.CompletedProcess:
@@ -595,6 +597,9 @@ PLAIN = {
                     "See them with scopes: each shows the seal to name."),
     "not_pin": ("That file isn't a pin.",
                 "Point check at the file pin wrote."),
+    "willow_unpinned": ("Your Willow isn't the one this was built on, so nothing was done.",
+                        "Run: python3 willow_pin.py check (it names what differs), then put "
+                        "Willow at the commit it names, or point WILLOW at a copy that is."),
     "session_failed": ("The step that closes a session couldn't run, so nothing waits on you for it.",
                        "Check that WILLOW points at your Willow folder."),
 }  # fmt: skip
@@ -975,6 +980,11 @@ def call(box: Path, verb: str, arg=None, door: str = "", ask=None) -> dict:
     A refusal comes back in plain words, with the one thing to do next."""
     faces = FACES.get(door, "model")
     verbs = VERBS[faces]
+    off = willow_pin.problems(WILLOW, PIN)
+    if off:  # never run on a Willow this wasn't built on
+        got = {"state": "refused", "code": "willow_unpinned",
+               "why": f"{WILLOW}: " + "; ".join(off[:5])}  # fmt: skip
+        return plain(got, box, faces, verbs)
     if verb not in verbs:
         got = {"state": "refused", "code": "no_verb",
                "why": f"no verb {verb!r}; one of {sorted(verbs)}"}  # fmt: skip

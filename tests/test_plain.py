@@ -122,6 +122,9 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         made = runtime.call(box, "backup", str(usb), door="pipe")["runtime"]
         (runtime.state(box) / "names.txt").write_text("Brigid\n")
         return runtime.call(box, "restore", str(usb / made), door="pipe")
+    if code == "willow_unpinned":
+        monkeypatch.setattr(runtime, "PIN", usb / "no-pin.json")
+        return runtime.call(box, "read", FROST, door="pipe")
     raise AssertionError(f"no scenario for {code}")
 
 

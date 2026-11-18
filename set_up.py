@@ -23,6 +23,7 @@ from pathlib import Path
 
 import hosts
 import runtime
+import willow_pin
 
 HERE = Path(__file__).resolve().parent
 
@@ -39,6 +40,11 @@ def check(box: Path) -> list[tuple[str, bool, str]]:
     out.append(("Willow", willow_ok, str(runtime.WILLOW) if willow_ok
                 else f"not at {runtime.WILLOW}; set WILLOW to your Willow folder"))  # fmt: skip
     if not willow_ok:
+        return out
+    off = willow_pin.problems(runtime.WILLOW, runtime.PIN)
+    out.append(("Willow is the pinned one", not off, "; ".join(off[:5]) if off
+                else f"commit {willow_pin.load(runtime.PIN)['commit'][:12]}"))  # fmt: skip
+    if off:
         return out
     run = runtime.willow("kernel.py", "verify", "--box", str(box))
     out.append(("your record", run.returncode == 0,

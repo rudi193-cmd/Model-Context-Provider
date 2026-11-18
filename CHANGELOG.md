@@ -14,6 +14,11 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   `needs-you.txt`. The session door takes `--host cursor`: `user_message` at
   session start, a desktop notice, and the same notice after this server's
   MCP tools. Claude Code still gets `systemMessage` only, never passage words.
+- **Willow by its pin.** `willow.pin.json` pins Willow's commit and every
+  file this runs (the kernel and twelve add-ons) by SHA-256. Every door
+  refuses, in plain words, to run on a Willow whose files differ;
+  `set_up.py` says so first; `willow_pin.py check` names each file, and
+  `repin` is the one way to move it. CI checks out the pinned commit.
 - **Preview before sealing.** The person's `preview` shows each waiting
   scope's page as it would leave, withheld, by place: the same texts a sealed
   page is held to. `waiting` points at it. Nothing is sealed or sent.

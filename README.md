@@ -72,11 +72,13 @@ the one thing to do next.
 
 ## Set it up
 
-You need Python 3.9 or newer and a Willow checkout whose `approved-only` is
-0.2.0 or later (`--scope`). On a big folder, `claude-code` 0.2.0 and
-`session-seal` 0.3.0 or later make each bite seconds, not a minute. Make your record in Willow's UI: pick your
-folders, type your own words into the words step, seal it, and press **Start
-it**. Then:
+You need Python 3.9 or newer and a Willow checkout at the commit
+[willow.pin.json](willow.pin.json) names. The pin holds every file of Willow
+this runs (the kernel and twelve add-ons) by its SHA-256, and nothing runs
+on a Willow whose files differ: `python3 willow_pin.py check` says which.
+Nothing else in Willow matters to it. Make your record in Willow's UI: pick
+your folders, type your own words into the words step, seal it, and press
+**Start it**. Then:
 
     python set_up.py --stack PATH/TO/YOUR/STACK
 

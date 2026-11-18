@@ -117,3 +117,12 @@ def test_the_hooks_it_says_to_paste_include_the_session_door(box):
     assert "doors/session.py" in start["command"] and start["command"] == end["command"]
     assert end["timeout"] == 60
     assert "doors/hook.py" in hooks["UserPromptSubmit"][0]["hooks"][0]["command"]
+
+
+def test_setup_says_so_when_willow_is_not_the_pinned_one(box, tmp_path, monkeypatch):
+    monkeypatch.setattr(runtime, "PIN", tmp_path / "no-pin.json")
+    rows = setup.check(box)
+    assert rows[-1][0] == "Willow is the pinned one" and rows[-1][1] is False
+    assert "your record" not in [r[0] for r in rows]
+    monkeypatch.undo()
+    assert ("Willow is the pinned one", True) in [r[:2] for r in setup.check(box)]
