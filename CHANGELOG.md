@@ -4,6 +4,20 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A job that travels, and corrections.** On the person's door,
+  `job_write`, `job_take`, `job_run` and `job_gather` carry Willow's kart
+  round trip: a job sealed and sent, taken and sealed where it lands, run
+  in the sandbox, its result sealed and sent back, the results added up.
+  A run is always held to whole numbers, and `share_send` refuses a result
+  that isn't (the owner's ruling of 2026-11-18). `replaces` on a send, a
+  forward or a model's proposal makes a correction, and `share_receive`
+  says where the package it replaces went next.
+- **A new key, and a record held to what others kept.** `share_rotate`
+  makes a new sharing identity signed by the old one, keeps the old file
+  under another name, and every later package carries the rotation.
+  `share_witness` holds the record to packages signed over where it stood:
+  holds, rewritten or cut short. `backup` now leaves the identity out.
+  `uv.lock` is ignored.
 - **Sharing with another person**, by Willow's `share`. On the person's
   door: `share_id` (an identity that is not the seal key), `share_person`,
   `share_send`, `share_receive`, `share_forward`, `shares`. Only a sentence

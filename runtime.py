@@ -181,7 +181,8 @@ def backup(box: Path, to: Path) -> dict:
     keeps beside the box (the sent log, the scopes it proposed, the person's
     names list), which a box backup can't see. Each copy is checked before it
     is kept, byte for byte and the sent log's chain; one that fails is
-    deleted. Neither holds the key."""
+    deleted. Neither holds the key, nor the identity the person shares with
+    (share.id): a secret is never put in a zip."""
     run = willow(BACKUP, "--box", str(box), "--to", str(to))
     if run.returncode != 0:
         return {
@@ -207,7 +208,8 @@ def backup(box: Path, to: Path) -> dict:
     tasks_dir = src / "tasks"  # and the tasks' bookkeeping
     if tasks_dir.is_dir():
         files += sorted(p for p in tasks_dir.iterdir() if p.is_file())
-    files = [f for f in files if kept_name(f.relative_to(src).as_posix())]
+    files = [f for f in files if kept_name(f.relative_to(src).as_posix())
+             and not f.name.startswith("share.id")]  # fmt: skip
     names = {f: f.relative_to(src).as_posix() for f in files}
     with zipfile.ZipFile(zip_to, "w", zipfile.ZIP_DEFLATED) as z:
         for f in files:
@@ -2835,7 +2837,35 @@ def share_sentence(box: Path, subject) -> str | None:
     return str(prop.get("data", "")).strip()
 
 
-def share_asked(box: Path, arg) -> tuple[list[str], str, dict | None]:
+SHARE_NUMBERS = re.compile(r"-?[0-9]+")
+
+
+def share_may_go(box: Path, subject) -> bool:
+    """Whether the person may pack this: a sentence; a job (a shell task,
+    which is no word of their files); or what a job printed, or totals
+    gathered, when it is whole numbers and nothing else (the person's
+    ruling of 2026-11-18: only numbers go back from a job)."""
+    if share_sentence(box, subject) is not None:
+        return True
+    if not isinstance(subject, str) or not SHARE_SENTENCE.fullmatch(subject):
+        return False
+    try:
+        prop = json.loads(
+            (box / "proposals" / f"{subject[len('proposal:') :]}.json").read_text()
+        )
+    except (OSError, ValueError):
+        return False
+    path, lines = str(prop.get("path", "")), str(prop.get("data", "")).split()
+    if path.startswith("kart/jobs/"):
+        return True
+    return path.startswith(("kart/results/", "kart/gathered/")) and (
+        0 < len(lines) <= 100 and all(SHARE_NUMBERS.fullmatch(x) for x in lines)
+    )
+
+
+def share_asked(
+    box: Path, arg, may=share_sentence
+) -> tuple[list[str], str, dict | None]:
     """(the sentences named, the note, None) or ([], "", the refusal)."""
     asked = arg if isinstance(arg, dict) else {}
     named = asked.get("answers")
@@ -2855,7 +2885,7 @@ def share_asked(box: Path, arg) -> tuple[list[str], str, dict | None]:
         )
     owed = waiting_seals(box)
     for s in subjects:
-        if share_sentence(box, s) is None or s in owed:
+        if not may(box, s) or s in owed:
             return [], "", share_no(f"{s} is not a sentence you sealed")
     return subjects, note, None
 
@@ -2884,8 +2914,9 @@ def share_send(box: Path, arg) -> dict:
     """The person's own send: sentences they sealed, for someone they named
     (or a key), with a note. It needs no further seal: it is their command,
     on their door, over what they already sealed. How the file travels is
-    theirs."""
-    subjects, note, refused = share_asked(box, arg)
+    theirs. On this door a job they sealed goes too, and what a job printed
+    when it is numbers alone (share_may_go)."""
+    subjects, note, refused = share_asked(box, arg, share_may_go)
     if refused:
         return refused
     whom = str(arg.get("for") or "")
@@ -2925,9 +2956,13 @@ def share_propose(box: Path, arg) -> dict:
     key = share_people(box).get(whom)
     if key is None:
         return share_no("the person has named nobody by that name", "no_such_person")
+    replaces = str(arg.get("replaces") or "")
+    if replaces and not re.fullmatch(r"package:[0-9a-f]{64}", replaces):
+        return share_no("replaces names a package you sent before, by its whole id")
+    more = ("--replaces", replaces) if replaces else ()
     data = f"for: {whom}\nkey: {key}\nnote: {note}\n" + "".join(
         f"sentence {s}\n  {share_sentence(box, s)}\n" for s in subjects
-    )
+    ) + (f"replaces: {replaces}\n" if replaces else "")  # fmt: skip
     digest = hashlib.sha256(data.encode()).hexdigest()[:12]
     known = shares_known(box)
     mine = known.get(digest)
@@ -2941,7 +2976,9 @@ def share_propose(box: Path, arg) -> dict:
         if doc.get("by") != mine["seal"] or doc.get("answer") != data:
             return {"state": "unsealed", "whom": whom}
         if not mine.get("package"):
-            got = share_out(box, "send", key, note, "--answer", ",".join(subjects))
+            got = share_out(
+                box, "send", key, note, "--answer", ",".join(subjects), *more
+            )
             if got["state"] != "packed":
                 return got
             mine.update(package=got["package"], file=got["file"])
@@ -2987,6 +3024,20 @@ def share_receive(box: Path, arg) -> dict:
     again = re.match(r"already received at row \d+: (\S+)", run.stdout)
     verdict = first.group(2) if first else again.group(1) if again else "broken"
     got = {"state": "received", "verdict": verdict, "said": run.stdout.strip()}
+    # a correction: whom the package it replaces was passed on to, and what
+    # to name when this one is passed on the same way
+    passed = re.findall(
+        r"you passed that on to (\S+) as (package:[0-9a-f]{64})", run.stdout
+    )
+    if passed:
+        got["forward_with"] = [{"to": to, "replaces": pkg} for to, pkg in passed]
+    # a correction: whom the package it replaces was passed on to, and what
+    # to name when this one is passed on the same way
+    passed = re.findall(
+        r"you passed that on to (\S+) as (package:[0-9a-f]{64})", run.stdout
+    )
+    if passed:
+        got["forward_with"] = [{"to": to, "replaces": pkg} for to, pkg in passed]
     if first:
         got["package"] = first.group(1)
         if verdict == "good":
@@ -3035,9 +3086,9 @@ def share_received(box: Path, let: bool) -> dict:
         layer, layers, answers = pkg, [], []
         while isinstance(layer, dict) and len(layers) < 16:
             key = str(layer.get("from", ""))
-            layers.append(
-                {"from": names.get(key) or key[:12], "ts": layer.get("ts", "")}
-            )
+            layers.append({"from": names.get(key) or key[:12], "ts": layer.get("ts", ""),
+                           **({"replaces": str(layer["replaces"])[:20]}
+                              if layer.get("replaces") else {})})  # fmt: skip
             texts.append(str(layer.get("note", "")))
             answers += [a for a in layer.get("answers", []) if isinstance(a, dict)]
             layer = layer.get("wraps")
@@ -3070,13 +3121,179 @@ def share_forward(box: Path, arg) -> dict:
         return share_no(f"nobody is named {whom!r}", "no_such_person")
     if len(note) > SHARE_NOTE or "\n" in note:
         return share_no(f"a note is one line of at most {SHARE_NOTE} characters")
-    kept = state(box) / "packages" / "in" / f"{named.removeprefix('package:')}.json"
-    f = kept if kept.is_file() else Path(named).expanduser()
+    f = package_file(box, named)
     more = ("--replaces", str(asked["replaces"])) if asked.get("replaces") else ()
     got = share_out(box, "forward", key, note, "--package", str(f), *more)
     if got["state"] == "packed":
         got["whom"] = whom[:64]
     return got
+
+
+def kart(box: Path, *args: str) -> subprocess.CompletedProcess | None:
+    """One of kart's commands, on the Python that has Kartikeya; None when
+    it was still going past a job's time and was stopped."""
+    try:
+        return subprocess.run(
+            [kart_python(box), KART, *args], cwd=WILLOW, capture_output=True,
+            text=True, check=False, timeout=JOB_SECONDS + 60,
+        )  # fmt: skip
+    except subprocess.TimeoutExpired:
+        return None
+
+
+def job_no(why: str) -> dict:
+    return {"state": "refused", "code": "job_refused", "why": why}
+
+
+def job_waits(run, word: str) -> dict:
+    """What kart said of a job it put at the kernel's door: its seal."""
+    if run is None:
+        return job_no("it took too long and was stopped")
+    found = re.search(rf"^{word} +(proposal:[0-9a-f]{{64}})", run.stdout, re.M)
+    if run.returncode == 2 or found is None:
+        return job_no((run.stderr or run.stdout).strip()[-400:])
+    return {"state": "waiting", "seal": found.group(1)}
+
+
+def package_file(box: Path, named) -> Path:
+    """A package by its id, when it is one kept beside the box; else a file."""
+    named = str(named or "")
+    kept = state(box) / "packages" / "in" / f"{named.removeprefix('package:')}.json"
+    return kept if kept.is_file() else Path(named).expanduser()
+
+
+def job_write(box: Path, arg) -> dict:
+    """A job of the person's own, to send to someone: a shell task, put at
+    the kernel's door by kart, waiting on their seal. Sealed, it can go in
+    a package (share_send). Writing it runs nothing, and one with a network
+    line is refused."""
+    asked = arg if isinstance(arg, dict) else {"text": arg}
+    text = asked.get("text")
+    if not isinstance(text, str) or not text.strip() or len(text) > JOB_MOST:
+        return job_no(f"a job is text, not empty, at most {JOB_MOST} characters")
+    text = text if text.endswith("\n") else text + "\n"
+    digest = hashlib.sha256(text.encode()).hexdigest()[:12]
+    with tempfile.TemporaryDirectory() as d:
+        src = Path(d) / f"job-{digest}.sh"
+        src.write_text(text)
+        run = kart(box, "write", "--box", str(box), "--file", str(src),
+                   "--words", str(asked.get("words") or f"job {digest}"))  # fmt: skip
+    forget_read(box)
+    return job_waits(run, "written")
+
+
+def job_take(box: Path, arg) -> dict:
+    """A job that came in a package the person received and that held: put
+    at the kernel's door as a proposal of theirs, naming who sent it. It
+    never runs because it arrived: only once they seal it."""
+    asked = arg if isinstance(arg, dict) else {"package": arg}
+    f = package_file(box, asked.get("package"))
+    run = kart(box, "take", "--box", str(box), "--package", str(f),
+               "--words", str(asked.get("words") or f"job from {f.stem[:12]}"))  # fmt: skip
+    forget_read(box)
+    return job_waits(run, "taken")
+
+
+def job_run(box: Path, arg) -> dict:
+    """Run a job the person sealed (one they wrote or took), by kart, in
+    Kartikeya's sandbox over their folder: read-only, no network, no box,
+    no key. It is always held to numbers: if what it printed is anything
+    but whole numbers, one a line, nothing is proposed. What it printed is
+    written beside the box for the person to read; numbers are proposed as
+    its result and wait on their seal before they can go back."""
+    subject = arg.get("job") if isinstance(arg, dict) else arg
+    if not isinstance(subject, str) or not SHARE_SENTENCE.fullmatch(subject):
+        return job_no('wanted {"job": the seal of a job you sealed}')
+    out = state(box) / "packages" / "ran"
+    out.mkdir(parents=True, exist_ok=True)
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    to = next(p for i in range(1000)
+              if not (p := out / f"{subject[9:21]}-{stamp}-{i:03d}.txt").exists())  # fmt: skip
+    run = kart(box, "run", "--box", str(box), "--job", subject, "--to", str(to),
+               "--shape", "numbers", "--timeout", str(JOB_SECONDS))  # fmt: skip
+    forget_read(box)
+    if run is None:
+        return job_no("it took too long and was stopped")
+    if run.returncode == 2 or not to.exists():
+        return job_no((run.stderr or run.stdout).strip()[-400:])
+    result = re.search(r"^result (proposal:[0-9a-f]{64})", run.stdout, re.M)
+    got = {"state": "ran", "file": str(to), "said": run.stdout.strip()[-600:]}
+    if result:
+        got["seal"] = result.group(1)
+    return got
+
+
+def job_gather(box: Path, arg) -> dict:
+    """Add up the numbers the people asked sent back (kart's gather): each
+    a package the person received and that held, one result of the same
+    job. The totals wait on their seal."""
+    asked = arg if isinstance(arg, dict) else {}
+    named = asked.get("packages")
+    named = [named] if isinstance(named, str) else named or []
+    files = [str(package_file(box, p)) for p in named]
+    if not files or any("," in f for f in files):
+        return job_no('wanted {"packages": [the results you received]}')
+    run = kart(box, "gather", "--box", str(box), "--package", ",".join(files),
+               "--words", str(asked.get("words") or f"totals of {len(files)} results"))  # fmt: skip
+    forget_read(box)
+    got = job_waits(run, "total")
+    if got["state"] == "waiting":
+        got["said"] = run.stdout.strip()[-600:]
+    return got
+
+
+def share_rotate(box: Path) -> dict:
+    """A new identity, signed by the old one and by itself, on a row of the
+    record (Willow's rotate): for a machine replaced, or a key that may
+    have been seen. Every package from then on carries the rotation, so
+    whoever had the old key sees the new one as the same person. The old
+    identity file is kept beside the box under another name, never deleted
+    and never used again. It needs the old identity: one that is lost can't
+    be rotated from."""
+    idf, k = state(box) / "share.id", state(box) / "share.key"
+    if not idf.exists():
+        return share_no("no identity to rotate from", "no_share_id")
+    new = state(box) / "share.id.new"
+    new.unlink(missing_ok=True)  # one left by a rotation that never finished
+    run = willow(SHARE, "rotate", "--box", str(box), "--id", str(idf), "--to", str(new))
+    key = run.stdout.strip()
+    if run.returncode != 0 or not SHARE_KEY.fullmatch(key):
+        return share_no((run.stderr or run.stdout).strip()[-300:])
+    was = k.read_text().strip() if k.exists() else ""
+    old = next(p for i in range(1, 1000)
+               if not (p := state(box) / f"share.id.was-{i}").exists())  # fmt: skip
+    idf.rename(old)
+    new.rename(idf)
+    k.write_text(key + "\n")
+    return {"state": "rotated", "key": key, "was": was}
+
+
+def share_witness(box: Path, arg) -> dict:
+    """Hold the person's record to packages that were signed over where it
+    stood (Willow's witness): each says holds, rewritten or cut short. With
+    no package named, every one kept beside the box is used, sent and
+    received; the ones that prove most are copies other people kept, named
+    by their files: {"packages": [FILE, ...]}. It reads, and writes nothing."""
+    named = arg.get("packages") if isinstance(arg, dict) else None
+    if isinstance(named, str):
+        named = [named]
+    files = [Path(str(p)).expanduser() for p in named or []]
+    if not named:
+        for d in ("out", "in"):
+            files += sorted((state(box) / "packages" / d).glob("*.json"))
+    if not files or any("," in str(f) for f in files):
+        return {"state": "no_witness", "lines": []}
+    run = willow(SHARE, "witness", "--box", str(box), "--package",
+                 ",".join(str(f) for f in files))  # fmt: skip
+    if run.returncode not in (0, 42):
+        return share_no((run.stderr or run.stdout).strip()[-300:])
+    lines = run.stdout.splitlines()
+    if any(ln.startswith("no witness") for ln in lines):
+        return {"state": "no_witness", "lines": lines}
+    return {
+        "state": "holds" if run.returncode == 0 else "does_not_hold",
+        "lines": lines,
+    }
 
 
 def shares_listed(box: Path) -> dict:
@@ -3205,6 +3422,14 @@ VERBS = {
         ),
         "share_receive": lambda box, arg, **kw: share_receive(box, arg),
         "share_forward": lambda box, arg, **kw: share_forward(box, arg),
+        # a job that travels in a package: written or taken, run in the
+        # sandbox once sealed, held to numbers, and the numbers added up
+        "job_write": lambda box, arg, **kw: job_write(box, arg),
+        "job_take": lambda box, arg, **kw: job_take(box, arg),
+        "job_run": lambda box, arg, **kw: job_run(box, arg),
+        "job_gather": lambda box, arg, **kw: job_gather(box, arg),
+        "share_rotate": lambda box, arg, **kw: share_rotate(box),
+        "share_witness": lambda box, arg, **kw: share_witness(box, arg),
         "shares": lambda box, arg, **kw: shares_listed(box),
         "capture": lambda box, arg, **kw: capture(box, arg),
         "captured": lambda box, arg, **kw: captured(box),
@@ -3333,6 +3558,9 @@ def what_waits(w: dict, known: dict) -> str:
                         ("grants/", "a session asking to read your files"),
                         ("skills/", "a skill to give a model"),
                         ("shares/", "a package to send someone"),
+                        ("kart/jobs/", "a job to run over your folder"),
+                        ("kart/results/", "what a job printed, to send back"),
+                        ("kart/gathered/", "totals from the people you asked"),
                         ("feedback/", "a correction of yours")):  # fmt: skip
         if path.startswith(opens):
             return name

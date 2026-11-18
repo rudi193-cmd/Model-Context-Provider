@@ -73,7 +73,7 @@ beside the person's record.
 | `restore`: what `backup` kept beside the record, put back, never over a file | |
 | `draft`, `models`, `backup`, `pin`, `check`, `sent` | |
 | `bring_in`, `brought_in`: bring a notes vault or a calendar into their folder, and list what was brought | |
-| `share_id`, `share_person`, `share_send`, `share_receive`, `share_forward`, `shares`: an identity for sharing, whom to send to, and every send, receive and passing on | `share_propose`: a package put together for their seal; `share_received`: what arrived, once the session is let in |
+| `share_id`, `share_person`, `share_send`, `share_receive`, `share_forward`, `share_rotate`, `share_witness`, `shares`: an identity for sharing, whom to send to, every send, receive and passing on, a new key, and the record held to what others kept; `job_write`, `job_take`, `job_run`, `job_gather`: a job that travels in a package, run once sealed, and only its numbers sent back | `share_propose`: a package put together for their seal; `share_received`: what arrived, once the session is let in |
 
 Neither side can seal or decline. Sealing is the person's, with their key,
 outside every door: typed, or clicked on [the seal page](#the-seal-page).
@@ -422,9 +422,47 @@ what a package proves and what it can't.
   your own. `{"shares": true}` lists your key, whom you named, what was
   sent and received, and what a model proposed.
 
-Not built yet: a new key when a machine is replaced (Willow's `rotate`),
-holding a record to the packages others kept (`witness`), and a correction
-that follows the first package's path.
+- **A new key.** `{"share_rotate": true}` makes a new identity, signed by
+  the old one and by itself, on a row of your record: for a machine
+  replaced, or a key someone may have seen. Every package after it carries
+  the rotation, so the people who had your old key see the new one as you.
+  The old identity file is kept beside your record under another name and
+  never used again. It needs the old identity: keep a copy of
+  `share.id` somewhere safe yourself, because `backup` leaves it out (a
+  secret is never put in a zip) and a lost one can't be rotated from.
+- **Your record, held to what others kept.** `{"share_witness": true}`
+  holds your record to every package kept beside it; name copies other
+  people kept with `{"share_witness": {"packages": ["FILE"]}}`. Each says
+  holds, rewritten or cut short. It reads and writes nothing.
+
+- **A correction.** Send again with `"replaces": "package:..."`, the
+  package you sent before. When one arrives, `share_receive` says which
+  package it replaces and, if you passed that one on, to whom and what to
+  name (`forward_with`), so the correction follows the same path a hop at
+  a time. A model's `share_propose` may name `replaces` too, and what you
+  seal says so.
+
+### A job that travels
+
+The other half of Willow's sharing: a question goes to someone's folder
+instead of their files coming to you. It is Willow's `kart`, and needs
+what `job` needs (Kartikeya and `bwrap`). All of it is on your door only.
+
+| Step | Who | Verb |
+|---|---|---|
+| Write a job, and seal it | the one asking | `{"job_write": {"text": "grep -rhic johnson {pile} \| paste -sd+ \| bc"}}` |
+| Send it | the one asking | `share_send`, with the job's seal as `answers` |
+| Receive it, and take the job to your door | the one asked | `share_receive`, then `{"job_take": "package:..."}`; it waits on your seal and never runs because it arrived |
+| Run it, once sealed | the one asked | `{"job_run": "proposal:..."}`: the sandbox, your folder read-only, no network |
+| Seal the result and send it back | the one asked | `share_send`, with the result's seal |
+| Add up what came back | the one asking | `{"job_gather": {"packages": ["package:..."]}}`; the totals wait on your seal |
+
+**Only numbers go back.** A run is always held to whole numbers, one a
+line. A job that prints anything else proposes nothing: what it printed is
+written beside your record for you to read, and stays there. `share_send`
+refuses a result that isn't numbers even if you sealed it by hand. A job
+itself may be sent: it is a shell task, not a word of your files. A model
+can write, take, run or send none of this.
 
 ## One place to keep things
 

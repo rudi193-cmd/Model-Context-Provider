@@ -4,6 +4,7 @@ the seal key. The person sends; a model may only put a package together for
 their seal, for someone they named; what arrives is read by a session they
 let in, as another person's words."""
 
+import importlib.util
 import json
 
 import pytest
@@ -14,6 +15,14 @@ import runtime
 import seal_page
 
 SAID = "The first frost comes in late October"
+HAS_KART = importlib.util.find_spec("kartikeya") is not None
+needs_kart = pytest.mark.skipif(not HAS_KART, reason="needs Kartikeya and bwrap")
+
+
+@pytest.fixture(autouse=True)
+def no_fleet(monkeypatch):
+    """A resource group this machine exports for a fleet is not these tests'."""
+    monkeypatch.delenv("KART_CGROUP_PARENT", raising=False)
 
 
 def sentence(box):
@@ -147,7 +156,8 @@ def test_a_model_never_gives_a_key_or_a_name_the_person_did_not(box, mine, walt)
         assert (got["state"], got["code"]) == ("refused", "no_such_person"), whom
     assert runtime.waiting(box)["state"] == "empty"
     for verb in ("share_id", "share_person", "share_send", "share_receive",
-                 "share_forward", "shares"):  # fmt: skip
+                 "share_forward", "share_rotate", "share_witness", "shares",
+                 "job_write", "job_take", "job_run", "job_gather"):  # fmt: skip
         assert model(box, verb, {})["code"] == "no_verb", verb
     assert pipe(box, "share_propose", {})["code"] == "no_verb"
 
@@ -239,3 +249,180 @@ def test_a_received_package_is_passed_on_in_a_layer_of_the_persons_own(box, mine
     assert nope["code"] == "share_refused"
     listed = pipe(theirs, "shares")
     assert listed["people"] == {"Aurelie": "e" * 64} and len(listed["log"]) == 2
+
+
+# ── a new key, and the record held to what others kept ──────────────────────
+def test_a_key_is_rotated_never_swapped_and_the_old_one_is_kept(box, mine, walt):
+    assert pipe(box, "share_rotate")["code"] == "share_refused"  # nothing sent yet
+    first = pipe(box, "share_send", {"answers": mine[1], "for": "Walt"})
+    assert pipe(walt[0], "share_receive", first["file"])["verdict"] == "good"
+    old_seed = (runtime.state(box) / "share.id").read_text()
+    got = pipe(box, "share_rotate")
+    assert got["state"] == "rotated" and got["was"] == mine[0] and got["key"] != mine[0]
+    assert pipe(box, "share_id") == {"state": "known", "key": got["key"]}
+    assert (runtime.state(box) / "share.id.was-1").read_text() == old_seed
+    assert (runtime.state(box) / "share.id").read_text() != old_seed
+    rows = [json.loads(r) for r in (box / "record.jsonl").read_text().splitlines()]
+    assert rows[-1]["kind"] == "rotated" and rows[-1]["new"] == got["key"]
+    # the next package carries the rotation: Walt sees the same person
+    again = pipe(box, "share_send", {"answers": mine[1], "for": "Walt", "note": "2"})
+    assert json.loads(open(again["file"]).read())["from"] == got["key"]
+    told = pipe(walt[0], "share_receive", again["file"])
+    assert told["verdict"] == "good" and "rotated since" in told["said"]
+    assert pipe(box, "share_rotate")["state"] == "rotated"  # and again
+    assert (runtime.state(box) / "share.id.was-2").exists()
+
+
+def test_without_an_identity_there_is_nothing_to_rotate(box):
+    assert pipe(box, "share_rotate")["code"] == "no_share_id"
+
+
+def test_the_record_is_held_to_the_packages_signed_over_it(box, mine, walt, tmp_path):
+    assert pipe(box, "share_witness") == {"state": "no_witness", "lines": []}
+    sent = pipe(box, "share_send", {"answers": mine[1], "for": "Walt"})
+    got = pipe(box, "share_witness")  # the copies beside the box
+    assert got["state"] == "holds" and got["lines"][0].startswith("holds")
+    kept = tmp_path / "walt-kept.json"  # a copy someone else kept
+    kept.write_text(open(sent["file"]).read())
+    assert pipe(box, "share_witness", {"packages": [str(kept)]})["state"] == "holds"
+    # a package signed for another record is no witness of this one
+    theirs = pipe(walt[0], "share_person", {"name": "Ines", "key": mine[0]})
+    assert theirs["state"] == "named"
+    assert (
+        pipe(walt[0], "share_witness", {"packages": str(kept)})["state"] == "no_witness"
+    )
+    # the record cut back to before the send: the package says so
+    record = box / "record.jsonl"
+    lines = record.read_text().splitlines()
+    record.write_text("\n".join(lines[:-1]) + "\n")
+    cut = pipe(box, "share_witness", {"packages": [str(kept)]})
+    assert cut["state"] == "does_not_hold" and "cut short" in cut["lines"][0]
+
+
+def test_a_backup_never_holds_the_identity(box, mine, tmp_path):
+    usb = tmp_path / "usb"
+    usb.mkdir()
+    kept = pipe(box, "backup", str(usb))
+    assert kept["state"] == "kept", kept
+    assert "share.key" in kept["files"] and "share-people.json" in kept["files"]
+    assert not [f for f in kept["files"] if f.startswith("share.id")]
+
+
+# ── a correction follows the first package's path ───────────────────────────
+def test_a_correction_says_where_the_first_one_went_and_follows_it(box, mine, walt):
+    theirs = walt[0]
+    pipe(theirs, "share_person", {"name": "Aurelie", "key": "e" * 64})
+    first = pipe(box, "share_send", {"answers": mine[1], "for": "Walt"})
+    got = pipe(theirs, "share_receive", first["file"])
+    on = pipe(theirs, "share_forward", {"package": got["package"], "for": "Aurelie"})
+    fixed = pipe(box, "share_send", {"answers": mine[1], "for": "Walt",
+                                     "note": "the date was wrong",
+                                     "replaces": first["package"]})  # fmt: skip
+    assert fixed["state"] == "packed", fixed
+    told = pipe(theirs, "share_receive", fixed["file"])
+    assert told["verdict"] == "good" and "it replaces" in told["said"]
+    (nxt,) = told["forward_with"]
+    assert nxt["replaces"] == on["package"]  # what to name when passing it on
+    again = pipe(theirs, "share_forward", {"package": told["package"], "for": "Aurelie",
+                                           "replaces": nxt["replaces"]})  # fmt: skip
+    assert again["state"] == "packed"
+    assert json.loads(open(again["file"]).read())["replaces"] == on["package"]
+    bad = pipe(box, "share_send", {"answers": mine[1], "for": "Walt",
+                                   "replaces": "package:" + "0" * 64})  # fmt: skip
+    assert bad["code"] == "share_refused"  # not one this record sent
+
+
+def test_a_model_may_propose_a_correction_and_it_says_so(box, mine):
+    first = pipe(box, "share_send", {"answers": mine[1], "for": "Walt"})
+    asked = {"answers": mine[1], "for": "Walt", "replaces": first["package"]}
+    got = model(box, "share_propose", asked)
+    words = json.loads(
+        (box / "proposals" / f"{got['seal'][len('proposal:'):]}.json").read_text())["data"]  # fmt: skip
+    assert f"replaces: {first['package']}" in words
+    seal(box, got["seal"])
+    packed = model(box, "share_propose", asked)
+    assert json.loads(open(packed["file"]).read())["replaces"] == first["package"]
+    assert model(box, "share_propose", {**asked, "replaces": "that one"})["code"] == (
+        "share_refused")  # fmt: skip
+
+
+# ── a job that travels in a package ─────────────────────────────────────────
+COUNT = "grep -rhic frost {pile} | paste -sd+ | bc"
+
+
+def test_a_job_is_written_sealed_and_sent_and_never_runs_because_it_arrived(
+    box, mine, walt
+):
+    assert (
+        pipe(box, "job_write", "# allow_net\ncurl example.com")["code"] == "job_refused"
+    )
+    assert pipe(box, "job_write", " ")["code"] == "job_refused"
+    job = pipe(box, "job_write", {"text": COUNT, "words": "count frost"})
+    assert job["state"] == "waiting", job
+    (owed,) = [w for w in runtime.waiting(box)["waiting"] if w["seal"] == job["seal"]]
+    assert runtime.what_waits(owed, {}) == "a job to run over your folder"
+    asked = {"answers": job["seal"], "for": "Walt"}
+    assert pipe(box, "share_send", asked)["code"] == "share_refused"  # not sealed yet
+    seal(box, job["seal"])
+    assert (
+        model(box, "share_propose", asked)["code"] == "share_refused"
+    )  # never a model's
+    sent = pipe(box, "share_send", asked)
+    assert sent["state"] == "packed", sent
+    theirs = walt[0]
+    got = pipe(theirs, "share_receive", sent["file"])
+    assert pipe(theirs, "job_run", job["seal"])["code"] == "job_refused"  # not theirs
+    taken = pipe(theirs, "job_take", got["package"])
+    assert taken["state"] == "waiting" and taken["seal"].startswith("proposal:")
+    rows = (theirs / "record.jsonl").read_text()
+    assert '"kind": "ran"' not in rows and '"kind":"ran"' not in rows  # nothing ran
+    assert pipe(theirs, "job_run", taken["seal"])["code"] == "job_refused"  # unsealed
+    assert pipe(theirs, "job_take", "package:" + "0" * 64)["code"] == "job_refused"
+
+
+@needs_kart
+def test_a_job_runs_once_sealed_and_only_numbers_go_back(box, mine, walt, tmp_path):
+    theirs = walt[0]
+    (tmp_path / "walt-pile" / "frost.md").write_text("frost\nFrost again\nno\n")
+    job = pipe(box, "job_write", COUNT)
+    seal(box, job["seal"])
+    sent = pipe(box, "share_send", {"answers": job["seal"], "for": "Walt"})
+    got = pipe(theirs, "share_receive", sent["file"])
+    taken = pipe(theirs, "job_take", got["package"])
+    seal(theirs, taken["seal"])
+    ran = pipe(theirs, "job_run", taken["seal"])
+    assert ran["state"] == "ran" and ran["seal"].startswith("proposal:"), ran
+    assert open(ran["file"]).read().split() == ["2"]  # theirs to read, on their machine
+    back = {"answers": ran["seal"], "for": "Ines"}
+    pipe(theirs, "share_person", {"name": "Ines", "key": mine[0]})
+    assert pipe(theirs, "share_send", back)["code"] == "share_refused"  # not sealed
+    seal(theirs, ran["seal"])
+    answer = pipe(theirs, "share_send", back)
+    assert answer["state"] == "packed", answer
+    home = pipe(box, "share_receive", answer["file"])
+    assert home["verdict"] == "good"
+    total = pipe(box, "job_gather", {"packages": [home["package"]]})
+    assert total["state"] == "waiting" and "total" in total["said"], total
+    assert "Kessler" not in open(answer["file"]).read()  # no word of their files
+
+
+@needs_kart
+def test_a_job_that_prints_words_proposes_nothing_and_its_words_never_go(
+    box, mine, walt, tmp_path
+):
+    job = pipe(box, "job_write", "cat {pile}/*")
+    seal(box, job["seal"])
+    ran = pipe(box, "job_run", job["seal"])
+    assert ran["state"] == "ran" and "seal" not in ran, ran
+    assert "nothing is proposed" in ran["said"]
+    assert "frost" in open(ran["file"]).read()  # it stays on this machine
+    # a result run by hand without the shape, sealed: still never packed
+    out = tmp_path / "by-hand.txt"
+    run = runtime.kart(box, "run", "--box", str(box), "--job", job["seal"],
+                       "--to", str(out))  # fmt: skip
+    words = runtime.re.search(
+        r"^result (proposal:[0-9a-f]{64})", run.stdout, runtime.re.M
+    )
+    seal(box, words.group(1))
+    got = pipe(box, "share_send", {"answers": words.group(1), "for": "Walt"})
+    assert (got["state"], got["code"]) == ("refused", "share_refused")

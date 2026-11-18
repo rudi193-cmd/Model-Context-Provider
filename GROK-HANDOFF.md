@@ -173,8 +173,8 @@ pattern:
 3. [x] Minimal seal-gated task queue
 4. [x] MCP Resources for sealed pages + a couple of prompts
 5. [x] share and/or handover as distinctive Willow flavour
-   - **Note:** `share` is built. A job that travels in a package (kart's
-     `write`, `take` and `run`) is not wired here yet.
+   - **Note:** `share` is built, and with it a job that travels in a
+     package (kart's `write`, `take`, `run` and `gather`).
 
 ### Fun / differentiating angles
 
@@ -348,10 +348,15 @@ so none is lost. A box is ticked when it is built.
   `shares`; a model's has `share_propose` (a package for the person's
   seal, for someone they named, never by key) and `share_received` (under
   a session's grant).
-  - **Needs:** `rotate`, `witness` and corrections (`--replaces` walked hop
-    by hop); a job sent in a package, run by kart, its result sent back
-    (the second half of `demo/johnson`); trying it between two real
-    records.
+  - **Note:** `share_rotate` and `share_witness` built the same day.
+    `backup` leaves the identity out, so the owner keeps a copy of
+    `share.id` themselves.
+  - **Note:** corrections (`replaces`, and `forward_with` on receiving
+    one) and a job that travels (`job_write`, `job_take`, `job_run`,
+    `job_gather`, on the person's door) built the same day. The owner's
+    ruling: only numbers go back from a job.
+  - **Needs:** trying it between two real records. Not built: kart's
+    `wasm` and noised counts (the third part of `demo/johnson`).
 - [ ] **`timeline` and `rss-out`**: ways out to another person or place.
   Each needs a ruling.
 
@@ -376,7 +381,9 @@ so none is lost. A box is ticked when it is built.
   earlier in a command isn't followed, `$VAR` paths aren't filled in, and
   code a model runs that builds a path at run time gets through. The pin
   moved to Willow's `hook-guard` 0.1.1.
-- [ ] `uv.lock` is untracked: commit it or ignore it.
+- [x] `uv.lock` is untracked: commit it or ignore it.
+  - **Note:** ignored, on the owner's word: it locks only the dev tools,
+    and nothing here reads it.
 - [ ] Not yet seen in a real client: reading notes back, bringing a vault
   in, the checks on a sentence, "What a model can never do", the desktop
   dialog, a folder skill, and a task added under a grant.
@@ -399,8 +406,8 @@ so none is lost. A box is ticked when it is built.
 What is left, gathered from the lines above, in the order the owner last
 gave:
 
-1. The rest of `share`: `rotate`, `witness`, corrections, and a job that
-   travels in a package; then `timeline` and `rss-out`, each on a ruling.
+1. `share` tried between two real records; then `timeline` and
+   `rss-out`, each on a ruling.
 2. The per-item seal paths reviewed for what can go, now that a session's
    yes covers reading.
 3. The paces list above.
@@ -409,5 +416,6 @@ gave:
    size of `tasks`; quoted speech in the todo report (needs the owner's
    yes); `milestones`, `projects`, `handover`, `pile-store` not looked at.
 5. The owner's own: name socratic-fork as a folder; an `ask-here` file to
-   turn the dialog on; a `deny.txt` for `hook-shell`; `uv.lock` committed
-   or ignored; the Willow commits pushed when the time comes.
+   turn the dialog on; a `deny.txt` for `hook-shell`; a copy of
+   `share.id` kept somewhere safe; the Willow commits pushed when the time
+   comes.
