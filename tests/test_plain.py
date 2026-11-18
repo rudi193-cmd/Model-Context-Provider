@@ -151,10 +151,72 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         call = {"hook_event_name": "PreToolUse", "tool_name": "Bash",
                 "tool_input": {"command": "ls"}}  # fmt: skip
         return runtime.call(box, "event", call, door="guard")
+    if code in BRING:
+        return BRING[code](box, tmp_path_factory)
     if code == "willow_unpinned":
         monkeypatch.setattr(runtime, "PIN", usb / "no-pin.json")
         return runtime.call(box, "read", FROST, door="pipe")
+    if code in ("task_refused", "no_such_task", "task_taken", "task_not_held"):
+        here = str(usb)
+        words = {"text": "Order the tubers.", "project": ""}
+        if code == "task_refused":
+            return runtime.call(box, "task_add", {"text": " ", "project": ""},
+                                door="mcp", where=here)  # fmt: skip
+        if code == "no_such_task":
+            return runtime.call(box, "task_claim", "model-" + "a1" * 6, door="mcp", where=here)  # fmt: skip
+        added = runtime.call(box, "task_add", words, door="mcp", where=here)
+        seal(box, added["seal"])
+        runtime.note_session(box, {"cwd": here, "session_id": "first"})
+        if code == "task_not_held":
+            return runtime.call(box, "task_done", {"id": added["task"], "result": "x"},
+                                door="mcp", where=here)  # fmt: skip
+        runtime.call(box, "task_claim", added["task"], door="mcp", where=here)
+        runtime.note_session(box, {"cwd": here, "session_id": "second"})
+        return runtime.call(box, "task_claim", added["task"], door="mcp", where=here)
+    if code == "notes_too_long":
+        seal(box, runtime.call(box, "capture", "A note to keep.", door="mcp")["seal"])
+        monkeypatch.setattr(runtime, "NOTES_MOST", 5)
+        return runtime.call(box, "notes", door="mcp")
     raise AssertionError(f"no scenario for {code}")
+
+
+def _bring(box, src, kind="notes", name="mine"):
+    arg = {"kind": kind, "from": str(src), "as": name}
+    return runtime.call(box, "bring_in", arg, door="pipe")
+
+
+def _vault(tmp_path_factory):
+    v = tmp_path_factory.mktemp("vault")
+    (v / "a.md").write_text("Rosemary is potted in April.\n")
+    return v
+
+
+def _bring_exists(box, tmp_path_factory):
+    _bring(box, _vault(tmp_path_factory))
+    return _bring(box, _vault(tmp_path_factory))
+
+
+def _bring_record(box, tmp_path_factory):
+    (runtime.state(box) / "brought-in.json").write_text("not json")
+    return runtime.call(box, "brought_in", door="pipe")
+
+
+def _bring_no_folder(box, tmp_path_factory):
+    (box / "kernel.json").write_text(json.dumps({"pile": str(box.parent / "gone")}))
+    return _bring(box, _vault(tmp_path_factory))
+
+
+#: how each refusal of bring_in is reached (used by scenario above)
+BRING = {
+    "bring_what": lambda box, t: _bring(box, _vault(t), kind="photos"),
+    "bring_name": lambda box, t: _bring(box, _vault(t), name="../x"),
+    "bring_no_folder": _bring_no_folder,
+    "bring_inside": lambda box, t: _bring(box, box.parent / "pile"),
+    "bring_exists": _bring_exists,
+    "bring_nothing": lambda box, t: _bring(box, t.mktemp("empty")),
+    "bring_failed": lambda box, t: _bring(box, box.parent / "no-such-folder"),
+    "bring_record": _bring_record,
+}
 
 
 @pytest.mark.parametrize("code", sorted(runtime.PLAIN))

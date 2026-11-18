@@ -34,6 +34,7 @@ ADD_ONS = (
     "backup",
     "batch-ask",  # index-cache and claude-code load its scan
     "box-health",
+    "calendar",  # an importer: loads only the kernel
     "claude-code",
     "coming-up",  # loads pieces
     "digest",  # loads coming-up and stale-answers
@@ -46,6 +47,7 @@ ADD_ONS = (
     "hook-shell",
     "index-cache",
     "local-model",
+    "notes",  # an importer: loads only the kernel
     "on-this-day",
     "openai-compatible",  # local-model loads it
     "pieces",  # coming-up loads it from beside it

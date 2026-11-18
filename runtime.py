@@ -116,8 +116,22 @@ def waiting(box: Path) -> dict:
             item["preview"] = {"preview": subject}
         if subject in set_aside(box):  # the person said not now: still waiting
             item["later"] = True
+        if subject in checks_kept(box):  # a sentence: what code checked, if kept
+            item["checks"] = checks_kept(box)[subject]
         out.append(item)
     return {"state": "waiting" if out else "empty", "waiting": out}
+
+
+def checks_kept(box: Path) -> dict:
+    """What code checked on each sentence that was proposed, by its subject:
+    each check's name and what it said, and the hash of the page it was held
+    to. Kept beside the record; never the page's words."""
+    f = state(box) / "checks.json"
+    try:
+        got = json.loads(f.read_text())
+    except (OSError, ValueError):
+        return {}
+    return got if isinstance(got, dict) else {}
 
 
 def set_aside(box: Path) -> list[str]:
@@ -181,6 +195,9 @@ def backup(box: Path, to: Path) -> dict:
     shelf_dir = src / "shelf"  # the one folder that goes too: the shelves
     if shelf_dir.is_dir():
         files += sorted(p for p in shelf_dir.rglob("*") if p.is_file())
+    tasks_dir = src / "tasks"  # and the tasks' bookkeeping
+    if tasks_dir.is_dir():
+        files += sorted(p for p in tasks_dir.iterdir() if p.is_file())
     files = [f for f in files if kept_name(f.relative_to(src).as_posix())]
     names = {f: f.relative_to(src).as_posix() for f in files}
     with zipfile.ZipFile(zip_to, "w", zipfile.ZIP_DEFLATED) as z:
@@ -209,11 +226,15 @@ def backup(box: Path, to: Path) -> dict:
 def kept_name(n: str) -> bool:
     """Whether a name is one the runtime keeps beside the box: a file's own
     name with no folder, or a shelf's card (shelf/KEY.json) or one thing on a
-    shelf (shelf/KEY/NAME). Never a path that climbs or names nothing."""
+    shelf (shelf/KEY/NAME), or the tasks' bookkeeping (tasks/state.json). Never a path that climbs or names nothing."""
     parts = n.split("/")
     if any(p in ("", ".", "..") or "\\" in p or Path(p).name != p for p in parts):
         return False
-    return len(parts) == 1 or (parts[0] == "shelf" and len(parts) in (2, 3))
+    return (
+        len(parts) == 1
+        or (parts[0] == "shelf" and len(parts) in (2, 3))
+        or (parts[0] == "tasks" and len(parts) == 2)
+    )
 
 
 def restore(box: Path, frm: Path) -> dict:
@@ -270,6 +291,18 @@ SHELF_SAID = {
     "shelf_list": "the names on its project's shelf",
     "shelf_read": "something read back from its project's shelf",
 }
+#: what each task or note verb is, as a person reads it on the sent log, by
+#: the state it ended in: never a word of a task or a note, only what happened
+TASK_SAID = {
+    ("task_add", "waiting"): "a task it handed in, waiting on your seal",
+    ("tasks", "populated"): "the tasks you sealed for its project",
+    ("tasks", "waiting"): "that a task it handed in still waits on your seal",
+    ("tasks", "empty"): "that there are no tasks for its project",
+    ("task_claim", "claimed"): "a task you sealed, taken up by a session",
+    ("task_done", "done"): "a task marked done, its result put on its project's shelf",
+    ("notes", "populated"): "the notes you sealed to keep",
+    ("notes", "empty"): "that you have kept no notes",
+}
 SHELF_SAID.update(shelve=SHELF_SAID["shelf_add"], shelf=SHELF_SAID["shelf_list"],
                   take=SHELF_SAID["shelf_read"])  # fmt: skip
 
@@ -311,6 +344,8 @@ def shared(box: Path) -> dict:
             what = "a note handed in to keep, waiting on your seal"
         elif r["verb"] in SHELF_SAID:
             what = SHELF_SAID[r["verb"]]
+        elif (r["verb"], r["state"]) in TASK_SAID:
+            what = TASK_SAID[(r["verb"], r["state"])]
         elif r["verb"] in ("resources", "prompts", "prompt"):
             what = {"resources": "the list of what it can ask this for",
                     "prompts": "the list of prompts you can start",
@@ -730,6 +765,32 @@ PLAIN = {
                     "It lists the reports (todo, coming-up, on-this-day), the page you last sealed, and what is on this project's shelf."),
     "no_prompt": ("That prompt can't be started.",
                   "The prompts are plate (what's on your plate), ask (a question for your files) and wrap_up (keep what a session found)."),
+    "bring_what": ("That isn't a notes vault or a calendar to bring in.",
+                   'Say what, where from and what to call it: {{"kind": "notes" or "calendar", "from": "/path/to/the/folder", "as": "a-plain-name"}}.'),
+    "bring_name": ("That name isn't one plain folder name.",
+                   "Use letters, digits, dots, dashes and underscores, starting with a letter or digit, at most 64: vault-2024."),
+    "bring_no_folder": ("There's no folder of yours to bring this into.",
+                        "Check that your record points at the folder it reads."),
+    "bring_inside": ("That folder is inside your record or your folder, or holds them, so nothing was brought in.",
+                     "Point at the original vault or calendar folder, kept somewhere else."),
+    "bring_exists": ("There's already a copy by that name that isn't of this folder, and it's never written over.",
+                     "Choose another name, or bring in the same folder again under the same name."),
+    "bring_nothing": ("There was nothing in that folder it could read, so nothing was brought in.",
+                      "Check it holds a notes vault (.md files) or calendar files (.ics, .vcf) as plain text."),
+    "bring_failed": ("The step that brings files in couldn't run, so nothing was brought in.",
+                     "Check that the folder is there and that WILLOW points at your Willow folder."),
+    "bring_record": ("The list of what you brought in can't be read.",
+                     "Look at brought-in.json beside your record: put back its last backup, or move it aside."),
+    "task_refused": ("That task couldn't be handed in.",
+                     "Say it in other words: an empty or very long task isn't kept, a task needs a folder it is for, and the same task is only handed in once."),
+    "no_such_task": ("There's no task by that name that this project may take.",
+                     "See what it may take (tasks): each shows the name to ask for. A task the person hasn't sealed waits on them."),
+    "task_taken": ("Another session already has that task, or it is done.",
+                   "Leave it alone. To give it to someone else, the person drops it (task_drop) and it is added again."),
+    "task_not_held": ("This session hasn't claimed that task, so it wasn't marked done.",
+                      "Claim it first (task_claim), then mark it done with what you found."),
+    "notes_too_long": ("The notes you sealed are too long to give whole, so nothing was given.",
+                       "Read them yourself (captured); nothing is cut short."),
 }  # fmt: skip
 
 
@@ -1119,6 +1180,11 @@ def answer(box: Path, sentence: str) -> dict:
             "why": (run.stderr or run.stdout).strip(),
         }
     subject = next((w for w in run.stdout.split() if w.startswith("proposal:")), None)
+    if subject:  # the guarantee the person is shown: kept, a hash of the page, no words
+        kept = checks_kept(box)
+        kept[subject] = {"page": page_hash,
+                         "checks": [{"name": k, "said": v} for k, v in checks.items()]}  # fmt: skip
+        (state(box) / "checks.json").write_text(json.dumps(kept, indent=1))
     return {"state": "waiting", "seal": subject, "checks": checks, "path": prop["path"]}
 
 
@@ -1165,10 +1231,13 @@ def owed(box: Path) -> dict:
         card_path.unlink(missing_ok=True)
         return {"state": "empty", "later": len(aside)}
     sessions = sum(1 for x in w if str(x.get("path", "")).startswith("sessions/"))
-    other = len(w) - sessions
+    tasks = sum(1 for x in w if str(x.get("path", "")).startswith("tasks/"))
+    other = len(w) - sessions - tasks
     each = []
     if sessions:
         each.append(f"{sessions} session{'s' * (sessions != 1)}")
+    if tasks:
+        each.append(f"{tasks} task{'s' * (tasks != 1)}")
     if other:
         each.append(f"{other} page{'s' * (other != 1)} or sentence{'s' * (other != 1)}")
     pipe = shlex.join(["python3", str(HERE / "doors" / "pipe.py"), "--box", str(box)])
@@ -1179,7 +1248,9 @@ def owed(box: Path) -> dict:
            "{\"waiting\": true}")  # fmt: skip
     rows = []
     for x in w:
-        kind = ("session" if str(x.get("path", "")).startswith("sessions/")
+        path = str(x.get("path", ""))
+        kind = ("session" if path.startswith("sessions/")
+                else "task" if path.startswith("tasks/")
                 else "page or sentence")  # fmt: skip
         claim = str(x.get("claim") or "").strip() or "waiting"
         if len(claim) > 160:
@@ -1194,7 +1265,7 @@ def owed(box: Path) -> dict:
             + f"\nLeave alone by doing nothing. Preview a page: {pipe} and "
               "{\"preview\": true}.")  # fmt: skip
     card_path.write_text(card + "\n")
-    return {"state": "waiting", "sessions": sessions, "other": other,
+    return {"state": "waiting", "sessions": sessions, "tasks": tasks, "other": other,
             "later": len(aside), "say": say, "card": card}  # fmt: skip
 
 
@@ -1283,7 +1354,8 @@ def capture(box: Path, note, kind: str = "note") -> dict:
     question of its own, so it stands for no question a page was sealed
     for, and it waits like anything else. Sealed, the kernel writes it
     under written/captured/ in the box: the one place kept things go.
-    Nothing is kept until the person seals it, and no door reads it back."""
+    Nothing is kept until the person seals it; a model reads back only what
+    they sealed (notes_to_model)."""
     text = str(note or "").strip()
     if not text:
         return {"state": "refused", "code": "capture_refused",
@@ -1320,6 +1392,168 @@ def captured(box: Path) -> dict:
                 if str(w.get("path", "")).startswith("captured/")]  # fmt: skip
     return {"state": "populated" if kept or owed_now else "empty",
             "kept": kept, "waiting": owed_now}  # fmt: skip
+
+
+#: the importers, and the folder inside the person's own that each mirror goes
+#: in. They only read the original and write the mirror; the person's act.
+BRING_IN = {"notes": "adapters/stdlib/notes/notes.py",
+            "calendar": "adapters/stdlib/calendar/cal.py"}  # fmt: skip
+BROUGHT_IN = "brought-in"
+BRING_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
+
+
+def brought(box: Path) -> list[dict] | None:
+    """What was brought in, as kept beside the box (brought-in.json, a flat
+    file, so backup and restore carry it); None if the file can't be read."""
+    f = state(box) / "brought-in.json"
+    if not f.is_file():
+        return []
+    try:
+        rows = json.loads(f.read_text())
+    except (OSError, ValueError):
+        return None
+    ok = isinstance(rows, list) and all(isinstance(r, dict) for r in rows)
+    return rows if ok else None
+
+
+def bring_in(box: Path, arg) -> dict:
+    """Write a text mirror of a notes vault (Obsidian, Logseq) or of calendar
+    and contact files into the folder the box reads, so the next question
+    finds them: the person's act on their own files, so no model's door and no
+    host's door has it. Willow's notes or calendar add-on does the writing, by
+    its command line, into PILE/brought-in/KIND-NAME/; it never writes inside
+    the original, and neither does this.
+
+    A mirror is never written over unless it is this one's own again: the
+    same kind and name from the same folder, as recorded. Then the add-on's
+    own re-mirror is safe (it overwrites each mirror file with the same
+    original's text, and removes nothing), so a note deleted since stays in the
+    mirror. The box's index needs nothing: every read goes through index(),
+    which rebuilds when a file in the folder changed."""
+    asked = arg if isinstance(arg, dict) else {}
+    kind, src, name = asked.get("kind"), asked.get("from"), asked.get("as")
+    if kind not in BRING_IN or not isinstance(src, str) or not src.strip():
+        return {"state": "refused", "code": "bring_what",
+                "why": 'wanted {"kind": "notes" or "calendar", "from": PATH, "as": NAME}'}  # fmt: skip
+    if not isinstance(name, str) or not BRING_NAME.fullmatch(name) or ".." in name:
+        return {"state": "refused", "code": "bring_name",
+                "why": f"{name!r} is not one plain folder name"}  # fmt: skip
+    try:
+        pile = Path(json.loads((box / "kernel.json").read_text())["pile"]).resolve()
+    except (OSError, ValueError, KeyError, TypeError):
+        pile = None
+    if pile is None or not pile.is_dir():
+        return {"state": "refused", "code": "bring_no_folder",
+                "why": f"no box with a folder to read at {box}"}  # fmt: skip
+    rows = brought(box)
+    if rows is None:
+        return {"state": "refused", "code": "bring_record",
+                "why": "brought-in.json beside the box can't be read"}  # fmt: skip
+    mirror = pile / BROUGHT_IN / f"{kind}-{name}"
+    if mirror.resolve() != pile.resolve() / BROUGHT_IN / f"{kind}-{name}":
+        return {"state": "refused", "code": "bring_exists",
+                "why": f"{mirror} leads somewhere else; never written through"}  # fmt: skip
+    origin = Path(src).expanduser().resolve()
+    here = (box.resolve(), pile, mirror)
+    if any(origin.is_relative_to(p) for p in here) or any(
+        p.is_relative_to(origin) for p in here
+    ):
+        return {"state": "refused", "code": "bring_inside",
+                "why": f"{origin} is inside, or holds, the box, your folder or the mirror"}  # fmt: skip
+    mine = [r for r in rows if r.get("kind") == kind and r.get("name") == name]
+    if (mirror.exists() or mirror.is_symlink()) and not (
+        mine and mine[0].get("from") == str(origin)
+    ):
+        return {"state": "refused", "code": "bring_exists",
+                "why": f"{mirror} is there already, not from {origin}; never written over"}  # fmt: skip
+    run = willow(BRING_IN[kind], "mirror", "--from", str(origin), "--to", str(mirror))
+    said = run.stdout.strip()
+    if run.returncode == 42:
+        return {"state": "refused", "code": "bring_nothing",
+                "why": said or f"nothing readable in {origin}"}  # fmt: skip
+    if run.returncode != 0:
+        return {"state": "refused", "code": "bring_failed",
+                "why": (run.stderr or run.stdout).strip()}  # fmt: skip
+    found = re.search(r"wrote (\d+) files? to .*; skipped (\d+)", said)
+    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    row = {"kind": kind, "name": name, "from": str(origin),
+           "mirror": mirror.relative_to(pile).as_posix(), "at": now,
+           "first": mine[0].get("first", now) if mine else now,
+           "times": (mine[0].get("times", 1) + 1) if mine else 1,
+           "wrote": int(found.group(1)) if found else None,
+           "skipped": int(found.group(2)) if found else None}  # fmt: skip
+    keep = [r for r in rows if r not in mine] + [row]
+    f = state(box) / "brought-in.json"
+    tmp = f.with_name("brought-in.json.tmp")
+    tmp.write_text(json.dumps(keep, indent=1, sort_keys=True) + "\n")
+    tmp.replace(f)
+    return {"state": "brought", "said": said, "again": bool(mine), **row,
+            "to": str(mirror)}  # fmt: skip
+
+
+def brought_in(box: Path) -> dict:
+    """What the person brought in, from where and when, as recorded."""
+    rows = brought(box)
+    if rows is None:
+        return {"state": "refused", "code": "bring_record",
+                "why": "brought-in.json beside the box can't be read"}  # fmt: skip
+    return {"state": "populated" if rows else "empty", "brought_in": rows}
+
+
+#: the most of the notes a person sealed that a model is given at once; over
+#: it nothing is given, and nothing is cut short
+NOTES_MOST = 20_000
+NOTE_FILE = re.compile(r"note-([0-9a-f]{12})\.md")
+
+
+def asked_of_kernel(box: Path, question: str) -> dict:
+    """The kernel's own answer to one question, or its refusal. That bite is
+    the record's last, and it isn't a question a model read."""
+    run = bite(box, question)
+    if run.returncode == 2:
+        return {"state": "refused", "code": "record_broken",
+                "why": run.stderr.strip()}  # fmt: skip
+    forget_read(box)
+    return json.loads(run.stdout)
+
+
+def notes_to_model(box: Path) -> dict:
+    """The notes the person sealed to keep, given to a model (the person's
+    ruling of 2026-11-17: a model may read back what they sealed to keep).
+
+    Nothing under written/ is read on trust: a file there only suggests a
+    name to ask about. Each note is asked of the kernel under its own
+    question, and is given only when the kernel says it is sealed, and
+    its words are the ones that question names (their hash is in it).
+    A note waiting, or declined, is never given, and nothing says how many
+    wait. What leaves is withheld, whole, and over the most it is refused."""
+    d = box / "written" / "captured"
+    kept = []
+    for p in sorted(d.glob("note-*.md")) if d.is_dir() else []:
+        m = NOTE_FILE.fullmatch(p.name)
+        if m is None:
+            continue
+        doc = asked_of_kernel(box, f"captured note {m.group(1)}")
+        if doc.get("state") == "refused":
+            return doc
+        said = doc.get("answer")
+        if doc.get("state") != "sealed" or not isinstance(said, str):
+            continue
+        if not said.endswith("\n") or (
+            hashlib.sha256(said[:-1].encode()).hexdigest()[:12] != m.group(1)
+        ):
+            continue  # not the words that question names
+        kept.append(said.strip())
+    if not kept:
+        return {"state": "empty"}
+    try:
+        texts = withhold(box, kept)
+    except RuntimeError as why:  # can't withhold: nothing leaves
+        return {"state": "refused", "code": "scrub_failed", "why": str(why)}
+    if sum(len(t) for t in texts) > NOTES_MOST:  # said without its size
+        return {"state": "refused", "code": "notes_too_long",
+                "why": "the notes are over the most that is given at once"}  # fmt: skip
+    return {"state": "populated", "notes": [{"text": t} for t in texts]}
 
 
 def capturing(box: Path) -> set[str]:
@@ -1465,6 +1699,286 @@ def shelves(box: Path) -> dict:
     return {"state": "populated" if out else "empty", "shelves": out}
 
 
+#: a task's words, at most; a task is a line or two, not a document
+TASK_MOST = 2_000
+
+
+def task_folder(where) -> str:
+    """A project's folder as a task names it: whole, or "" for none."""
+    if not where or not isinstance(where, str):
+        return ""
+    return str(Path(where).expanduser().resolve())
+
+
+def task_parse(data: str) -> tuple[str, str]:
+    """A task's proposed words: ("any" or a folder, the words). The first
+    line is always `for: FOLDER`, or `for: any`."""
+    first, _, rest = data.partition("\n")
+    if first.startswith("for: "):
+        return first[len("for: ") :], rest.rstrip("\n")
+    return "", data.rstrip("\n")
+
+
+def tasks_known(box: Path) -> dict:
+    """Each task proposed here, by id: its seal, who wrote it, which folder
+    it is for, the fingerprint of its words, and its bookkeeping (claimed,
+    done, dropped). Beside the box, never in it, and no seal: it holds no
+    words of the person's, only who has taken a task up."""
+    f = state(box) / "tasks" / "state.json"
+    return json.loads(f.read_text()) if f.exists() else {}
+
+
+def tasks_keep(box: Path, doc: dict) -> None:
+    d = state(box) / "tasks"
+    d.mkdir(exist_ok=True)
+    (d / "state.json").write_text(json.dumps(doc, sort_keys=True))
+
+
+def task_at(box: Path, where) -> str:
+    """The session working in this folder, as the shelf card has it (the one
+    seen last): "" when no host has said."""
+    at = shelf_at(box, where)
+    return str(shelf_card(at[1], where).get("session", "")) if at else ""
+
+
+def task_visible(entry: dict, where) -> bool:
+    """A task for any project, or for the folder this door works in."""
+    return entry.get("for") == "any" or (
+        bool(where) and entry.get("for") == task_folder(where)
+    )
+
+
+def task_add(box: Path, by: str, text, project, where) -> dict:
+    """A task, proposed for the person's seal. It is proposed through the
+    kernel under a question of its own (so it stands for no page and no
+    note), at tasks/BY-DIGEST.md. A model's task is for the folder it works
+    in unless it names another; the person's is for any project unless they
+    name one. Sealed, it means "yes, do this" and nothing else."""
+    text = str(text or "").strip()
+    folder = task_folder(project) or (task_folder(where) if by == "model" else "any")
+    if not text or len(text) > TASK_MOST or not folder or "\n" in folder:
+        return {"state": "refused", "code": "task_refused",
+                "why": "no words, too many, or no folder it is for"}  # fmt: skip
+    data = f"for: {folder}\n{text}\n"
+    digest = hashlib.sha256(data.encode()).hexdigest()[:12]
+    tid = f"{by}-{digest}"
+    asked = asked_of_kernel(box, f"task {tid}")
+    if asked.get("state") == "refused":
+        return asked
+    who = "a task you wrote" if by == "you" else "a task a model proposed"
+    prop = {"path": f"tasks/{tid}.md", "data": data, "cites": [],
+            "claim": f"{who}, to do"}  # fmt: skip
+    with tempfile.TemporaryDirectory() as d:
+        f = Path(d) / "suggestions.jsonl"
+        f.write_text(json.dumps(prop) + "\n")
+        run = willow("kernel.py", "propose", "--box", str(box), "--file", str(f))
+    subject = next((w for w in run.stdout.split() if w.startswith("proposal:")), None)
+    if run.returncode == 2 or "refused" in run.stdout or subject is None:
+        return {"state": "refused", "code": "task_refused",
+                "why": (run.stderr or run.stdout).strip()[-300:]}  # fmt: skip
+    known = tasks_known(box)
+    known[tid] = {"seal": subject, "by": by, "for": folder, "digest": digest,
+                  "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}  # fmt: skip
+    tasks_keep(box, known)
+    return {"state": "waiting", "seal": subject, "task": tid}
+
+
+def sealed_task(box: Path, tid: str, entry: dict) -> dict | None:
+    """A task's words, only when the kernel says it is sealed: asked under
+    the task's own question, answered by the seal this runtime proposed it
+    under, in the words whose hash the id holds and that name the folder it
+    was proposed for. Nothing under written/ is read. None when it isn't;
+    or the kernel's refusal."""
+    doc = asked_of_kernel(box, f"task {tid}")
+    if doc.get("state") == "refused":
+        return doc
+    said = doc.get("answer")
+    if doc.get("state") != "sealed" or not isinstance(said, str):
+        return None
+    folder, words = task_parse(said)
+    if (
+        doc.get("by") != entry.get("seal")
+        or hashlib.sha256(said.encode()).hexdigest()[:12] != entry.get("digest")
+        or folder != entry.get("for")
+    ):
+        return None
+    return {"for": folder, "text": words}
+
+
+def waiting_seals(box: Path) -> set[str]:
+    return {w["seal"] for w in waiting(box).get("waiting", [])}
+
+
+def tasks_to_model(box: Path, where) -> dict:
+    """The tasks this project's session may take up, and what a model learns
+    before a seal: that a task it handed in waits, or that nothing does. Never
+    the words of one unsealed, never a count, and never a word of one the
+    person dropped or one for another project. A sealed task is given as the
+    kernel holds it, withheld, with whether it is open, claimed or done."""
+    owed_now, out, texts = waiting_seals(box), [], []
+    mine = {t: e for t, e in tasks_known(box).items()
+            if task_visible(e, where) and not e.get("dropped")}  # fmt: skip
+    for tid, e in sorted(mine.items()):
+        if e["seal"] in owed_now:
+            continue
+        got = sealed_task(box, tid, e)
+        if got is not None and got.get("state") == "refused":
+            return got
+        if got is None:
+            continue
+        row = {"id": tid, "by": e["by"], "status": "open"}
+        if e.get("done"):
+            row["status"] = "done"
+        else:
+            texts.append(got["text"])
+            if e.get("claimed"):
+                row.update(status="claimed", held_by=e["claimed"]["session"],
+                           since=e["claimed"]["ts"])  # fmt: skip
+        out.append(row)
+    if texts:
+        try:
+            said = iter(withhold(box, texts))
+        except RuntimeError as why:  # can't withhold: nothing leaves
+            return {"state": "refused", "code": "scrub_failed", "why": str(why)}
+        for row in out:
+            if row["status"] != "done":
+                row["text"] = next(said)
+    if out:
+        return {"state": "populated", "tasks": out}
+    # only that its own task waits: the person's own tasks aren't hinted at
+    if any(e["by"] == "model" and e["seal"] in owed_now for e in mine.values()):
+        return {"state": "waiting"}
+    return {"state": "empty"}
+
+
+def task_mine(box: Path, tid, where):
+    """(its entry, its words, None) for a task that is sealed, not dropped,
+    and for this folder; else (None, None, the refusal). A task that isn't
+    sealed, one that doesn't exist and one for another project are refused
+    the same way, so a refusal tells a model nothing."""
+    e = tasks_known(box).get(tid) if isinstance(tid, str) else None
+    no = {"state": "refused", "code": "no_such_task",
+          "why": f"no sealed task {tid!r} for this project"}  # fmt: skip
+    if e is None or e.get("dropped") or not task_visible(e, where):
+        return None, None, no
+    if e["seal"] in waiting_seals(box):
+        return None, None, no
+    got = sealed_task(box, tid, e)
+    if got is None:
+        return None, None, no
+    if got.get("state") == "refused":
+        return None, None, got
+    return e, got, None
+
+
+def task_claim(box: Path, tid, where) -> dict:
+    """Take a sealed task up, for this session. First claim wins; a claim is
+    a convenience and not a lock, as the shelf is not one."""
+    e, got, refused = task_mine(box, tid, where)
+    if refused:
+        return refused
+    session = task_at(box, where)
+    held = e.get("claimed")
+    if e.get("done") or (held and held["session"] != session):
+        why = (
+            "it is done"
+            if e.get("done")
+            else (f"session {held['session'] or '(unnamed)'} took it at {held['ts']}")
+        )
+        return {"state": "refused", "code": "task_taken", "why": why}
+    if not held:
+        known = tasks_known(box)
+        known[tid]["claimed"] = {"session": session,
+                                 "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}  # fmt: skip
+        tasks_keep(box, known)
+    try:
+        (text,) = withhold(box, [got["text"]])
+    except RuntimeError as why:  # can't withhold: nothing leaves
+        return {"state": "refused", "code": "scrub_failed", "why": str(why)}
+    return {"state": "claimed", "task": tid, "text": text}
+
+
+def task_done(box: Path, arg, where, door: str = "") -> dict:
+    """Mark a task this session claimed done, and put its result on this
+    project's shelf as task-ID.md. The shelf takes no seal and leaves nothing."""
+    tid = arg.get("id") if isinstance(arg, dict) else None
+    e, _, refused = task_mine(box, tid, where)
+    if refused:
+        return refused
+    held = e.get("claimed")
+    if not held or held["session"] != task_at(box, where):
+        return {"state": "refused", "code": "task_not_held",
+                "why": "this session doesn't hold the claim"}  # fmt: skip
+    put = shelve(
+        box, where, {"name": f"task-{tid}.md", "text": arg.get("result")}, door
+    )
+    if put["state"] != "shelved":
+        return put
+    known = tasks_known(box)
+    known[tid]["done"] = {"ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                          "shelf": put["name"]}  # fmt: skip
+    tasks_keep(box, known)
+    return {"state": "done", "task": tid, "shelf": put["name"]}
+
+
+def tasks_listed(box: Path) -> dict:
+    """Every task, as the person reads them: its words, who wrote it, which
+    folder it is for, and where it stands: waiting on their seal, sealed
+    (open, claimed by which session and when, or done, and the shelf name of
+    its result), dropped, or not given (declined, or its words changed).
+    Reading needs no grant."""
+    owed_now, out = waiting_seals(box), []
+    for tid, e in sorted(tasks_known(box).items()):
+        try:
+            prop = json.loads(
+                (
+                    box / "proposals" / f"{e['seal'][len('proposal:') :]}.json"
+                ).read_text()
+            )
+            words = task_parse(str(prop.get("data", "")))[1]
+        except (OSError, ValueError):
+            words = ""
+        row = {"id": tid, "by": e["by"], "for": e["for"], "words": words}
+        if e.get("dropped"):
+            row["stands"] = "dropped"
+        elif e["seal"] in owed_now:
+            row["stands"] = "waiting on your seal"
+        else:
+            got = sealed_task(box, tid, e)
+            if got is not None and got.get("state") == "refused":
+                return got
+            if got is None:
+                row["stands"] = "not given: you declined it, or its words changed"
+            else:
+                row["stands"] = ("done" if e.get("done")
+                                 else "claimed" if e.get("claimed") else "open")  # fmt: skip
+        for k in ("claimed", "done"):
+            if e.get(k):
+                row[k] = e[k]
+        out.append(row)
+    return {"state": "populated" if out else "empty", "tasks": out}
+
+
+def task_drop(box: Path, tid) -> dict:
+    """Take a task out of every model's list, and free its claim. It needs no
+    key: it only ever narrows what a model is given."""
+    known = tasks_known(box)
+    if not isinstance(tid, str) or tid not in known:
+        return {"state": "refused", "code": "no_such_task",
+                "why": f"no task {tid!r}"}  # fmt: skip
+    known[tid]["dropped"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    known[tid].pop("claimed", None)
+    tasks_keep(box, known)
+    return {"state": "dropped", "task": tid}
+
+
+def task_person(box: Path, arg) -> dict:
+    """The person's own task: its words, or {"text": ..., "for": FOLDER}."""
+    if isinstance(arg, dict):
+        return task_add(box, "you", arg.get("text"), arg.get("for"), "")
+    return task_add(box, "you", arg, None, "")
+
+
 def event(box: Path, sent) -> dict:
     """A moment of the assistant's session, as its host sent it, decided
     here for every door that carries one.
@@ -1540,6 +2054,7 @@ VERBS = {
         "back": lambda box, arg, **kw: later(box, str(arg), back=True),
         "waiting": lambda box, arg, **kw: waiting(box),
         "status": lambda box, arg, **kw: status(box),
+        "promises": lambda box, arg, **kw: promises(),
         "backup": lambda box, arg, **kw: backup(box, Path(str(arg))),
         "restore": lambda box, arg, **kw: restore(box, Path(str(arg))),
         "pin": lambda box, arg, **kw: pin_sent(box, Path(str(arg))),
@@ -1551,6 +2066,12 @@ VERBS = {
         "report": lambda box, arg, **kw: report(box, arg),
         "capture": lambda box, arg, **kw: capture(box, arg),
         "captured": lambda box, arg, **kw: captured(box),
+        # the person's act on their own files: never a model's or a host's
+        "bring_in": lambda box, arg, **kw: bring_in(box, arg),
+        "brought_in": lambda box, arg, **kw: brought_in(box),
+        "task": lambda box, arg, **kw: task_person(box, arg),
+        "tasks": lambda box, arg, **kw: tasks_listed(box),
+        "task_drop": lambda box, arg, **kw: task_drop(box, arg),
         "shelves": lambda box, arg, **kw: shelves(box),
         "shelf_read": lambda box, arg, **kw: (
             take(box, arg.get("project"), arg.get("name"))
@@ -1559,8 +2080,22 @@ VERBS = {
         ),
     },
     "model": {
-        # a model hands a note in; it waits on the seal, and never comes back
+        # a model hands a note in; it waits on the seal, and comes back to a
+        # model only once the person has sealed it
         "capture": lambda box, arg, **kw: capture(box, arg),
+        "notes": lambda box, arg, **kw: notes_to_model(box),
+        # a task for the person's seal ("yes, do this"), taken up and finished
+        # by a session with no seal of its own: bookkeeping beside the box
+        "task_add": lambda box, arg, **kw: (
+            task_add(box, "model", arg.get("text"), arg.get("project"), kw.get("where"))
+            if isinstance(arg, dict)
+            else task_add(box, "model", arg, None, kw.get("where"))
+        ),
+        "tasks": lambda box, arg, **kw: tasks_to_model(box, kw.get("where")),
+        "task_claim": lambda box, arg, **kw: task_claim(box, arg, kw.get("where")),
+        "task_done": lambda box, arg, **kw: task_done(
+            box, arg, kw.get("where"), kw.get("door", "")
+        ),
         # a session's own makings, on the shelf of the folder it works in:
         # no seal, since they never were the person's files
         "shelf_add": lambda box, arg, **kw: shelve(
@@ -1614,6 +2149,7 @@ def what_waits(w: dict, known: dict) -> str:
                         ("reports/", "a report to share"),
                         ("answers/", "a model's sentence"),
                         ("captured/", "a note to keep"),
+                        ("tasks/", "a task"),
                         ("feedback/", "a correction of yours")):  # fmt: skip
         if path.startswith(opens):
             return name
@@ -1685,8 +2221,19 @@ def status(box: Path) -> dict:
         rows.append(("the last time", lines[len(log["rows"]) - 1]))
     group("Shared", rows)
 
+    mine = tasks_known(box).values()
+    live = [t for t in mine if not t.get("dropped")]
+    group("Tasks", [(w, str(n)) for w, n in (
+        ("claimed, not done", sum(1 for t in live if t.get("claimed") and not t.get("done"))),
+        ("done, results on the shelf", sum(1 for t in live if t.get("done"))),
+        ("dropped", len(mine) - len(live)),
+    ) if n])  # fmt: skip
     kept = captured(box)["kept"]
     group("Kept", [("notes you sealed", str(len(kept)))] if kept else [])
+    group("Brought in", [
+        (f"{r.get('kind')} {r.get('name')}",
+         f"from {r.get('from')}, {r.get('wrote')} files, last {r.get('at')}")
+        for r in brought(box) or []])  # fmt: skip
     group("Shelves", [(s["project"], count(len(s["items"]), "thing"))
                       for s in shelves(box)["shelves"]])  # fmt: skip
 
@@ -1884,6 +2431,91 @@ LISTED = {
         "prompt": lambda box, arg, **kw: prompt(arg),
     },
 }
+
+
+#: the standing promises, in plain words, each with the test that holds it.
+#: The words are written here; the test must exist (tests/test_promises.py
+#: parses the test files and fails on a name that doesn't)
+HELD = [
+    ("tests/test_doors.py::test_a_model_learns_whether_the_files_hold_it_never_what_they_say",
+     "A model learns only whether your files hold a question: no passage, no file name, no count."),
+    ("tests/test_leave.py::test_nothing_leaves_without_a_seal",
+     "Nothing leaves your files unsealed."),
+    ("tests/test_stale.py::test_a_passage_changed_since_the_seal_means_nothing_leaves",
+     "A sealed page leaves only whole: if a sealed passage changed since, nothing leaves."),
+    ("tests/test_scopes.py::test_a_stopped_scope_never_leaves_by_any_door",
+     "A page you stopped never leaves again, by any door."),
+    ("tests/test_doors.py::test_a_door_imports_only_the_runtime",
+     "A door imports the runtime and nothing else that decides."),
+    ("tests/test_doors.py::test_a_door_never_calls_willow_itself",
+     "A door never calls Willow itself."),
+    ("tests/test_doors.py::test_mcp_lists_the_runtimes_verbs_and_no_seal",
+     "The MCP door's tools are exactly the runtime's verbs for a model, and none of them is seal."),
+    ("tests/test_guard.py::test_the_hosts_doors_have_two_verbs_and_none_of_a_models",
+     "The assistant's host has two verbs, and none of a model's."),
+    ("tests/test_doors.py::test_a_door_the_runtime_does_not_know_is_treated_as_facing_a_model",
+     "A door nobody named is treated as facing a model."),
+    ("tests/test_report.py::test_a_model_learns_there_is_one_and_not_a_line_of_it",
+     "Before your seal, a model learns that a report exists and not one line of it."),
+    ("tests/test_shelf.py::test_take_never_reads_outside_the_shelf",
+     "A model reading its shelf never reaches a file outside the shelf."),
+    ("tests/test_sent.py::test_a_model_cannot_read_the_log",
+     "A model cannot read the sent log."),
+    ("tests/test_plain.py::test_every_refusal_is_plain_with_a_next_step",
+     "Every refusal says what happened in plain words, and what to do next."),
+    ("tests/test_willow_pin.py::test_no_door_runs_on_a_willow_it_wasnt_built_on",
+     "No door runs on a Willow whose files differ from the pinned ones."),
+    ("tests/test_seal_page.py::test_the_key_is_never_read_here_and_the_runtime_still_cannot_seal",
+     "The seal page never reads your key, and the runtime still cannot seal."),
+]  # fmt: skip
+
+
+def promises() -> dict:
+    """What a model can never do, from the code itself: the verbs each kind of
+    door has, read from VERBS and LISTED as they stand; what no model's door
+    can do, each worked out from them; and the promises held by a test, each
+    with its name. Same shape as `status`. It reads nothing of the person's,
+    decides nothing and changes nothing."""
+    kinds = (("model", "A model's door"), ("host", "The assistant's host"),
+             ("person", "Your door"))  # fmt: skip
+    groups: list[dict] = []
+
+    def group(name: str, rows: list[tuple[str, str]]) -> None:
+        groups.append({"name": name,
+                       "rows": [{"where": w, "what": x} for w, x in rows]})  # fmt: skip
+
+    def names_of(face: str) -> set:
+        return set(VERBS.get(face, {})) | set(LISTED.get(face, {}))
+
+    for face, title in kinds:
+        doors = sorted(d for d, f in FACES.items() if f == face)
+        rows = [("doors", ", ".join(doors) or "none"),
+                ("verbs", ", ".join(sorted(VERBS.get(face, {}))) or "none")]  # fmt: skip
+        if LISTED.get(face):
+            rows.append(("also listed and read", ", ".join(sorted(LISTED[face]))))
+        group(title, rows)
+
+    every = set().union(*(names_of(f) for f in set(FACES.values()) | set(VERBS)))
+    sealing = sorted(every & {"seal", "decline", "sign", "approve"})
+    asked = "an unknown door"
+    group("What no model's door can do", [
+        ("seal or decline",
+         "no verb of that name on any door" if not sealing
+         else "A VERB OF THAT NAME EXISTS: " + ", ".join(sealing)),
+        ("only you have", ", ".join(sorted(names_of("person") - names_of("model")))),
+        ("only the host has", ", ".join(sorted(names_of("host") - names_of("model"))) or "none"),
+        (asked, f"is treated as facing a {FACES.get('no such door', 'model')}"),
+    ])  # fmt: skip
+
+    group("Held by a test", list(HELD))
+    said = f"{len(HELD)} promises, each held by a test"
+    text = [f"promises: {said}"]
+    for g in groups:
+        wide = min(max(len(r["where"]) for r in g["rows"]), 44)
+        text.append(f"## {g['name']}")
+        text += [f"  {r['where']:<{wide}}  {r['what']}".rstrip() for r in g["rows"]]
+    return {"state": "populated", "said": said, "groups": groups,
+            "text": "\n".join(text) + "\n"}  # fmt: skip
 
 
 def call(

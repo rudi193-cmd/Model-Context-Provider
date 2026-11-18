@@ -4,6 +4,45 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **`promises`: what a model can never do, to look at.** On the person's
+  door, and a fourth page of the seal page. It lists the verbs each kind of
+  door has, read from the code as it stands; what no model's door can do
+  (no verb to seal or decline, the verbs only the person has, an unknown
+  door treated as a model's); and fifteen promises, each with the test that
+  holds it. A test fails if a named test is gone, or if the list of verbs
+  drifts from the code. Nothing on the page but Close. No model's door has
+  it, and it writes nothing to the sent log.
+- **The checks on a sentence, shown on its card.** When a model's sentence
+  stands and is proposed, the runtime keeps each check `sentence-check` ran
+  and what it said, with the hash of the page it was held to and none of the
+  page's words, in `checks.json` beside the box. `waiting` hands them on, and
+  the seal page lists them under the sentence in plain words. A sentence with
+  no kept checks says its record isn't kept, never that it passed.
+- **`bring_in` and `brought_in`: a notes vault or a calendar, brought into
+  your folder.** On the person's door only: Willow's `notes` and `calendar`
+  add-ons write a text mirror of an Obsidian or Logseq vault, or of .ics and
+  .vcf files, into `brought-in/KIND-NAME/` in the folder the record reads,
+  so the next question finds it. The original is never changed. A `from`
+  inside the record or the folder, a name that is not one plain folder name,
+  and a mirror that is already there from somewhere else are refused. The
+  same folder again under the same name is safe: files are written again
+  and none removed. What was brought in is kept in `brought-in.json` beside
+  the record (so `backup` carries it), listed by `brought_in` and shown in
+  `status`. `notes` and `calendar` join the pin.
+- **A task queue, and the notes you kept.** A model can read back the notes
+  you sealed to keep (`notes`, the person's ruling of 2026-11-17): each is
+  asked of the kernel under its own question and given only when sealed,
+  withheld, whole, and never over 20,000 characters (then refused, not cut).
+  A task is proposed by you (`task`) or a model (`task_add`) for your seal,
+  which means "yes, do this" and grants nothing else. A model is given only
+  sealed tasks of its own project (`tasks`), takes one up (`task_claim`, the
+  first wins) and finishes it (`task_done`, the result on the project's shelf).
+  `task_drop` takes one off every list and needs no seal. Before a seal a model
+  learns only that its own task waits. Nothing under `written/` is read on
+  trust, nothing runs a task, and the seal page, `owed` and `status` show a
+  task as a task. Five new refusals in plain words. `capture` no longer says
+  a model cannot read a note back.
+
 - **`status`: how things stand, in one look.** On the person's door, and a
   third page of the seal page: what waits on the seal, counted by what each
   thing is; what the folder needs (Willow's `digest`, less the folders left
@@ -75,7 +114,8 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   note, a finding), from a model's door or the person's: it is proposed
   under a question of its own and waits on the seal. Sealed, the kernel
   writes it under `written/captured/` in the box, and `captured`, on the
-  person's door only, reads it there. A model can't read it back.
+  person's door only, reads it there. A model reads back only what was
+  sealed, through `notes`.
 - **A guard door.** `doors/guard.py` carries Claude Code's hooks around what
   the assistant does to one new verb, `event`, decided in the runtime by
   seven of Willow's hooks, now pinned. Before a tool call: `hook-guard` (the

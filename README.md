@@ -57,19 +57,22 @@ beside the person's record.
 | `propose`: a question to share | `propose`: the same, waiting on the person |
 | `leave`: the sealed page, as a file | `leave`: the sealed page, as the one thing it may read |
 | `status`: how things stand, in one look | |
+| `promises`: what no model's door can do, and the test that holds each promise | |
 | `waiting`: what waits on their seal, and what each one is | `answer`: one sentence, checked, then waiting |
 | `scopes`: every question proposed, and where each stands | `draft`: ask a model for that sentence |
 | `stop`: never let a scope leave again | `context`: the sealed page for this question, if there is one |
-| `preview`: the page a scope would let leave, before they seal it | `capture`: one thing to keep, waiting on the person; never read back |
+| `preview`: the page a scope would let leave, before they seal it | `capture`: one thing to keep, waiting on the person; `notes` gives it back once sealed |
 | `capture`, `captured`: hand in a thing to keep, and read what was kept | `shelf_add`, `shelf_list`, `shelf_read`: what it made, on its project's shelf, with no seal |
 | `shelves`, `shelf_read`: every project's shelf, and anything on one | `report`: that there is a report of the files; the report itself once sealed |
-| `report`: a report of their files, as it is | |
+| `report`: a report of their files, as it is | `notes`: the notes they sealed to keep, withheld and whole |
+| `task`, `tasks`, `task_drop`: a task of their own, every task and where it stands, and take one off every model's list | `task_add`, `tasks`, `task_claim`, `task_done`: a task waiting on their seal; once sealed, take it up and put its result on the shelf |
 | `later`, `back`: not now, and bring it back; never on the record | |
 | `shared`: what left, as places, not hashes | |
 | `close`: this session's actions, for one seal | |
 | `owed`: what waits on their seal, in one line | |
 | `restore`: what `backup` kept beside the record, put back, never over a file | |
 | `draft`, `models`, `backup`, `pin`, `check`, `sent` | |
+| `bring_in`, `brought_in`: bring a notes vault or a calendar into their folder, and list what was brought | |
 
 Neither side can seal or decline. Sealing is the person's, with their key,
 outside every door: typed, or clicked on [the seal page](#the-seal-page).
@@ -80,7 +83,7 @@ next.
 
 You need Python 3.9 or newer and a Willow checkout at the commit
 [willow.pin.json](willow.pin.json) names. The pin holds every file of Willow
-this runs (the kernel and twenty-four add-ons) by its SHA-256, and nothing runs
+this runs (the kernel and twenty-six add-ons) by its SHA-256, and nothing runs
 on a Willow whose files differ: `python3 willow_pin.py check` says which.
 Nothing else in Willow matters to it. Make your record in Willow's UI: pick
 your folders, type your own words into the words step, seal it, and press
@@ -261,7 +264,48 @@ proposed under a question of its own, so it never stands in for a page you
 sealed for a question, and it waits on your seal like anything else. Sealed,
 the kernel writes it under `written/captured/` in your record, and
 `{"captured": true}` on your door reads what is there and what still waits.
-A model can hand a note in; it can't seal it, and it can't read it back.
+A model can hand a note in; it can't seal it. Once you have sealed it, a model
+can read it back with `notes`, as the next section says.
+
+## A task queue, and the notes you kept
+
+Two things a model is given back, both only once you have sealed them (your
+ruling of 2026-11-17: a model may read back what you sealed to keep). Each is
+asked of the kernel under a question of its own and given only when the
+kernel says it is sealed, in the words that question names and this runtime
+proposed. A file under `written/` is never read on trust: change one, or
+plant one, and it is not given. Everything a model is given is withheld as a
+page is (your names, numbers and emails) and is on the sent log by hash.
+
+**The notes.** `notes` gives a model every note you sealed to keep, whole. A
+note still waiting on you, or one you declined, is not given, and a model is
+not told how many wait. Over 20,000 characters in all, nothing is given and
+the model is told to tell you; no note is cut short. The seal page says a
+model may then be given the note.
+
+**The tasks.** A task is a line or two on what to do, proposed under a
+question of its own at `tasks/` in your record, by you (`task`) or by a model
+(`task_add`, for the folder it works in unless it names another). It waits
+like anything else, and the seal page shows it as "A task to do" with a button,
+"Seal: yes, do this". Sealing grants a task nothing else: no tool, no file, no
+leave. The guard door still holds every tool call, and what is done is
+still closed over for one seal.
+
+| | Before your seal | After it |
+|---|---|---|
+| `tasks` (a model) | only that a task it handed in waits, or that nothing does: never your own tasks, a count or words | the tasks sealed for this project (or for any), each open, claimed or done, with its words if not done |
+| `task_claim` | refused as a task that doesn't exist | the first session to claim holds it; another is refused and told which and when |
+| `task_done` | refused, as above | with the claim held, puts its result on this project's shelf as `task-ID.md` (no seal; nothing leaves) |
+
+A task you dropped (`task_drop`, which needs no seal of yours) is never given
+to a model again and its claim is freed; one you declined never was. A task
+for another project is refused as one that doesn't exist. Who claimed what,
+and what is done, is kept in `BOX.runtime/tasks/state.json`, beside your
+record and in `backup`: no seal, since it holds none of your words. A claim is
+a convenience, not a lock: the session is the one a host last said was in that
+folder. Nothing runs a task: no worker, no daemon. A session you start picks
+one up, or nothing does. `tasks` on your door shows every task and where it
+stands, and `status` and `owed` count one waiting as "a task".
 
 ## A shelf for each project
 
@@ -306,7 +350,13 @@ your seal, each as what it is:
 - **a session**: which rows of your record, and what was done in them;
 - **a page to share**: the page as it would leave, withheld, by file and
   line (the runtime's `preview`);
-- **a model's sentence**: its words, and where it would be kept.
+- **a model's sentence**: its words, where it would be kept, and under it
+  each check code ran on it ("What code checked before this reached you"),
+  kept beside the box with the hash of the page it was held to. A sentence
+  from before this was kept says its checks aren't on record, not that it
+  passed;
+- **a task to do**: its words, who proposed it and for which project, with
+  **Seal: yes, do this**, which grants it nothing else.
 
 Under each, "Exactly what you'd be sealing" unfolds the bytes your key
 signs, and three buttons:
@@ -333,6 +383,15 @@ whether the record is all right (Willow's `box-health`, the pinned Willow,
 the sent log). A part that couldn't be looked at says so, and the rest
 still shows. On your own door it is `{"status": true}`. No model's door
 has it.
+
+A fourth page, **What a model can never do**, is the runtime's `promises`,
+and has nothing to click. It lists the verbs each kind of door has, read
+from the code as it stands, not typed by hand; what no model's door can do
+(no verb to seal or decline, the verbs only you have, an unknown door
+treated as a model's); and the standing promises, each with the test that
+holds it. A test fails if a test it names is gone, or if the verbs it lists
+differ from the code. On your own door it is `{"promises": true}`. No
+model's door has it.
 
 **Close this page** stops it. To start it with a double-click:
 
@@ -443,10 +502,45 @@ Claude Code 2.1.326 and nothing else of the person's loaded:
 Claude Code 2.1.326 doesn't offer MCP sampling, so `draft` there uses a model
 named in `model.json`.
 
+## Bringing in a notes vault or a calendar
+
+Your Obsidian or Logseq vault, or your calendar and contact files, can be
+written out as plain text in the folder the record reads, so the next
+question finds them. This is yours to do, on your own files, so only your
+door has it; a model's door and the assistant's hooks do not, and so can
+never cause a file to be written into your folder.
+
+    {"bring_in": {"kind": "notes", "from": "/path/to/vault", "as": "garden"}}
+    {"bring_in": {"kind": "calendar", "from": "/path/to/calendars", "as": "family"}}
+    {"brought_in": true}
+
+The mirror goes in `brought-in/KIND-NAME/` inside the folder the record
+reads, made by Willow's `notes` or `calendar` add-on, run by its command
+line. The answer says what it said: how many files were written and how
+many skipped. The original is never written to or changed, here or by the
+add-on. `brought_in` lists what was brought in, from where and when, and
+`status` shows it under "Brought in". The list is `brought-in.json` beside
+the record, so `backup` and `restore` carry it.
+
+It is refused, in plain words, when `from` is inside the record or your
+folder, or holds them, or is the mirror itself; when the name is not one
+plain folder name; when there is nothing it can read; and when a mirror of
+that name is already there and was not made from the same folder (never
+written over, and a folder you made yourself is never taken for one of its
+own).
+
+**A second run** over the same folder, under the same name, is safe, as the
+add-ons make it: each note or calendar is written again with its present
+text, a new one is added, and nothing is removed. A note you deleted from
+the vault since stays in the mirror until you delete the mirror file
+yourself. Nothing needs doing about the index: every question brings it
+current first, and rebuilds it only when a file in the folder changed.
+
 ## What it stands on
 
 | From Willow | Used for |
 |---|---|
+| `notes`, `calendar` | bringing in a vault or calendar files, as a text mirror in the folder |
 | the kernel: `bite`, `propose`, `seal`, the record | reading, proposing, and the person's seal |
 | `approved-only` | the sealed scope as one page, by name, only whole |
 | `sentence-check` | holding the model's sentence to its page |

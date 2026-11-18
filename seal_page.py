@@ -72,7 +72,7 @@ import runtime  # noqa: E402
 
 SUBJECT = re.compile(r"proposal:[0-9a-f]{64}")
 ACTS = ("seal", "decline", "later", "back", "stop")
-PAGES = ("/", "/shared", "/status")
+PAGES = ("/", "/shared", "/status", "/promises")
 MOST = 8192  # bytes of a form; ours are a few hundred
 
 HEADERS = {
@@ -276,6 +276,45 @@ def note_of(got: dict) -> tuple[str, str]:
     return "Nothing was done: " + (say or got.get("why") or "refused") + ".", "refused"
 
 
+# What each of sentence-check's checks holds, said plainly and no larger than
+# it is (it checks words and numbers, not what a sentence means).
+CHECKED = {
+    "every cite was served": "Every passage it cites is one on the page you sealed.",
+    "every box cited": "Every passage on that page is cited.",
+    "nothing the boxes lack": "No number or word in it is missing from that "
+    "page (bar small joining words).",
+    "your words quoted exactly": "Anything it puts in quotes is in your own "
+    "words, exactly.",
+}
+
+
+def checked(kept) -> str:
+    """The lines under a sentence: each check that was run, from what it said.
+    A check that held is said by what it holds; one that said anything else is
+    shown as it said it. No record of them says so, and never that it passed."""
+    rows = kept.get("checks") if isinstance(kept, dict) else None
+    head = "<p><b>What code checked before this reached you</b></p>"
+    if not isinstance(rows, list) or not rows:
+        return (
+            head + '<p class="soft">The record of its checks isn’t kept for '
+            "this sentence, so it can’t be shown here that any passed.</p>"
+        )
+    lines = []
+    for r in rows:
+        name, said = str(r.get("name", "")), str(r.get("said", ""))
+        if said == "held" and name in CHECKED:
+            lines.append(f"{CHECKED[name]} (held)")
+        elif said == "nothing quoted" and name in CHECKED:
+            lines.append("It quotes no one, so there was nothing to check there.")
+        else:
+            lines.append(f"{name}: {said}")
+    return (
+        head + "<ul>" + "".join(f"<li>{esc(x)}</li>" for x in lines) + "</ul>"
+        '<p class="soft">This checks words and numbers against the page. It '
+        "doesn’t check that the sentence is true, or what it means.</p>"
+    )
+
+
 def kind_of(w: dict) -> str:
     path = str(w.get("path", ""))
     if path.startswith("sessions/"):
@@ -286,6 +325,8 @@ def kind_of(w: dict) -> str:
         return "sentence"
     if path.startswith("reports/"):
         return "report"
+    if path.startswith("tasks/"):
+        return "task"
     return "suggestion"
 
 
@@ -343,7 +384,8 @@ def card(box: Path, token: str, w: dict) -> str:
         body = (
             '<p class="kind">A model’s sentence</p>'
             f"<blockquote>{esc(data.strip())}</blockquote>"
-            f'<p class="soft">{esc(w.get("claim", ""))}. Sealing keeps it in your '
+            + checked(w.get("checks"))
+            + f'<p class="soft">{esc(w.get("claim", ""))}. Sealing keeps it in your '
             f"record, at {esc(w.get('path', ''))}.</p>"
         )
         sealing = "Seal: keep this sentence"
@@ -358,12 +400,33 @@ def card(box: Path, token: str, w: dict) -> str:
             f"<pre>{esc(data.strip())}</pre>"
         )
         sealing = "Seal: share this report"
+    elif kind == "task":
+        folder, said = runtime.task_parse(data)
+        by = "a model proposed" if "/model-" in str(w.get("path", "")) else "you wrote"
+        body = (
+            '<p class="kind">A task to do</p>'
+            f"<h2>{esc(w.get('claim') or 'A task')}</h2>"
+            f"<blockquote>{esc(said)}</blockquote>"
+            f'<p class="soft">This task: {esc(by)}. For: '
+            f"{esc('any project' if folder == 'any' else folder)}. Sealing says "
+            "yes, do this: a session in that project may be given these words, "
+            "withheld as a page is, and may claim the task. It grants no tool, "
+            "no file and no leave: the guard still holds every tool call, and "
+            "what is done is still closed over for one seal.</p>"
+        )
+        sealing = "Seal: yes, do this"
     else:
         body = (
             '<p class="kind">A suggestion</p>'
             f"<h2>{esc(w.get('claim') or 'A suggestion')}</h2>"
             f"<blockquote>{esc(data.strip()[:2000])}</blockquote>"
-            f'<p class="soft">Sealing writes it to {esc(w.get("path", ""))}.</p>'
+            f'<p class="soft">Sealing writes it to {esc(w.get("path", ""))}.'
+            + (
+                " A model may then be given this note, withheld as a page is."
+                if str(w.get("path", "")).startswith("captured/note-")
+                else ""
+            )
+            + "</p>"
         )
         sealing = "Seal"
     exact = exactly(box, subject, prop)
@@ -412,7 +475,8 @@ def page(box: Path, token: str, note: tuple[str, str] = ("", "")) -> str:
 def shell(box: Path, token: str, at: str, parts: list[str]) -> str:
     """Any page, whole: its name, the way to the others, and a way to stop."""
     titles = {"/": "Waiting on your seal", "/shared": "What you’ve shared",
-              "/status": "How things stand"}  # fmt: skip
+              "/status": "How things stand",
+              "/promises": "What a model can never do"}  # fmt: skip
     nav = " · ".join(
         f"<strong>{esc(t)}</strong>" if href == at else f'<a href="{href}">{esc(t)}</a>'
         for href, t in titles.items()
@@ -501,6 +565,31 @@ def status_page(box: Path, token: str, note: tuple[str, str] = ("", "")) -> str:
     return shell(box, token, "/status", parts)
 
 
+def promises_page(box: Path, token: str, note: tuple[str, str] = ("", "")) -> str:
+    """What a model can never do, from the code itself: the runtime's
+    `promises`, each part a card. It only shows; nothing on it changes anything."""
+    parts = []
+    if note[0]:
+        parts.append(f'<section class="card note {esc(note[1])}">{esc(note[0])}</section>')  # fmt: skip
+    got = runtime.call(box, "promises", door="page")
+    if got.get("state") == "refused":
+        say = " ".join(x for x in (got.get("say"), got.get("next")) if x)
+        parts.append(f'<section class="card note refused">{esc(say)}</section>')
+    else:
+        said = str(got.get("said", ""))
+        parts.append(f'<section class="card">{esc(said[:1].upper() + said[1:])}.</section>')  # fmt: skip
+    for g in got.get("groups", []):
+        rows = "".join(
+            f"<tr><th>{esc(r['where'])}</th><td>{esc(r['what'])}</td></tr>"
+            for r in g["rows"]
+        )
+        parts.append(
+            f'<section class="card"><p class="kind">{esc(g["name"])}</p>'
+            f"<table>{rows}</table></section>"
+        )
+    return shell(box, token, "/promises", parts)
+
+
 def handler(box: Path, secret: str):
     """The page's requests, each held to the table at the top of this file
     before anything is read or done."""
@@ -556,7 +645,8 @@ def handler(box: Path, secret: str):
                 return self.say(404, "404\n", "text/plain")
             self.server.last = time.monotonic()
             note, Page.note = Page.note, ("", "")
-            show = {"/": page, "/shared": shared_page, "/status": status_page}
+            show = {"/": page, "/shared": shared_page, "/status": status_page,
+                    "/promises": promises_page}  # fmt: skip
             self.say(200, show[url.path](box, secret, note))
 
         def do_POST(self):

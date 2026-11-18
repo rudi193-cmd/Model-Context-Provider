@@ -66,25 +66,32 @@ pattern:
     of 20,000 characters, and tighter marks in Willow's `todo` (0.1.2).
     Needs: the person's `report-skip.txt` for this record (commits, code
     and graph were 362 of the 571 lines).
-- [ ] **notes**
-  - **Note:** an importer, not a notes surface: it mirrors an Obsidian or
-    Logseq vault into a folder the box can read. Needs: a decision on
-    whether importing is this project's job at all.
+- [x] **notes**
+  - **Note:** an importer, not a notes surface: built as `bring_in` with
+    `{"kind": "notes", ...}` and `brought_in`, on the person's door only. The
+    mirror lands in `brought-in/notes-NAME/` in the folder the box reads. A
+    second run over the same folder is safe (it overwrites, removes
+    nothing); a different folder under the same name is refused. Not yet
+    tried on a real vault.
 - [x] **capture**
   - **Note:** built as `capture` / `captured`, but not with Willow's
     add-on. Willow's `capture` writes straight into the folder and caps a
     note at 500 characters; here a note is proposed through the kernel and
     waits on the seal, then lands under `written/captured/`. A model can
-    hand one in and can't read it back.
+    hand one in, and read it back only once the person has sealed it
+    (`notes`, below).
 - [ ] **people**
   - **Note:** read-only report: everyone the files name, and where. The
     report path is built now, so this is a line in `runtime.REPORTS` and a
     pin. Held back on purpose: it names everyone in the files, so what
     leaves deserves a closer look first (the names list withholds only the
     names the person listed).
-- [ ] **calendar**
+- [x] **calendar**
   - **Note:** an importer (`.ics` events and `.vcf` contacts as dated
-    lines), not a calendar. Needs: the same decision as notes.
+    lines), not a calendar: built with notes, as `bring_in` with
+    `{"kind": "calendar", ...}`, into `brought-in/calendar-NAME/`. A
+    recurring event is written once under its first date, so `coming-up`
+    still counts each repeat. Not yet tried on a real calendar.
 - [x] **on-this-day**
   - **Note:** built as `report on-this-day`, the same way as todo. Its
     sibling `coming-up` (dates in the next 14 days) wasn't in the list and
@@ -121,16 +128,22 @@ pattern:
 
 ### What still needs building / more design
 
-- [ ] First-class **sealed collection / knowledge surface** (model reads
+- [x] First-class **sealed collection / knowledge surface** (model reads
   only after seal; can only propose writes)
-  - **Note:** half built. Proposing writes is `capture`. Reading a kept
-    note back is not built, but the way is found: reports (2026-11-17) leave
-    by being proposed as their own words under a question that names those
-    words, with no change to Willow. A kept note could be read back the
-    same way. Needs: the person's say on whether a model may read back a
-    note they sealed, since `capture` promised it couldn't.
-- [ ] **Seal-gated task / work queue** (even a minimal one)
-  - **Note:** nothing in Willow is this. New design.
+  - **Note:** built. Proposing writes is `capture`; `notes` gives a model
+    back the notes the person sealed, each asked of the kernel under its own
+    question, withheld, whole, capped at 20,000 characters (the person's
+    ruling of 2026-11-17). Nothing under `written/` is trusted. A thin
+    wrapper over Willow's `notes` or `capture` add-ons did not fit: those
+    mirror a vault and write straight into the folder. Not yet seen in a
+    real client.
+- [x] **Seal-gated task / work queue** (even a minimal one)
+  - **Note:** built: `task_add`, `tasks`, `task_claim`, `task_done` for a
+    model; `task`, `tasks`, `task_drop` for the person. The seal means "yes,
+    do this" and grants nothing else; claims and results are bookkeeping
+    and the shelf. Nothing in Willow holds a claim or a done state
+    (night-batch, make-it-so, decisions, handover, projects), so this is new
+    code with no new add-on. No worker. Not yet seen in a real client.
 - [x] Proper **MCP Resources + Prompts**
   - **Note:** built. Resources: the three reports, the page last sealed,
     this project's shelf; each read is its verb. Prompts: `plate`, `ask`,
@@ -147,10 +160,10 @@ pattern:
 
 ### Suggested near-term order (from last discussion)
 
-1. [ ] todo + capture + notes (or thin sealed-collection wrapper)
-   - **Note:** capture done; todo and notes as above.
+1. [x] todo + capture + notes (or thin sealed-collection wrapper)
+   - **Note:** capture done; todo as above; kept notes read back as `notes`.
 2. [ ] people + calendar + on-this-day (everyday utility + delight)
-3. [ ] Minimal seal-gated task queue
+3. [x] Minimal seal-gated task queue
 4. [ ] MCP Resources for sealed pages + a couple of prompts
 5. [ ] share and/or handover as distinctive Willow flavour
 
@@ -162,12 +175,15 @@ pattern:
 - [ ] handover as multi-session primitive
   - **Note:** the session-to-session part is built (`hook-handoff`: a new
     session is told once where the last one ended).
-- [ ] sentence-check as a hard, visible guarantee
-  - **Note:** it is hard already (a struck sentence goes nowhere). Not yet
-    visible to the person beyond the claim on the seal page.
-- [ ] "What the model can never do" made inspectable
-  - **Note:** partly: `shared` reads the sent log back in plain words, and
-    a blocked tool call is on it by the guard's name.
+- [x] sentence-check as a hard, visible guarantee
+  - **Note:** hard (a struck sentence goes nowhere) and visible: the seal
+    page lists each check run on a waiting sentence, from `checks.json`.
+- [x] "What the model can never do" made inspectable
+  - **Note:** done: `promises` on the person's door, and "What a model can
+    never do" on the seal page. The verbs of each door are read from the
+    code, and each promise names the test that holds it; a test fails if a
+    named test is gone. `shared` still reads the sent log back in plain
+    words.
 - [x] Keep pure-stdlib + pin discipline
   - **Note:** held. The pin is at Willow `14efe16d`, which so far exists
     only on this machine.
@@ -218,11 +234,70 @@ pattern:
   code from Claude Code's `error`. Committed on this machine; not pushed.
 - [x] **The check runs here** (`check.py`, and a git hook that holds `main`).
 
+## Thrown in along the way (the owner's, 2026-11-17 and 18)
+
+Things the owner said in passing while other work was going on, kept here
+so none is lost. A box is ticked when it is built.
+
+- [ ] **Skills** (Willow pull request 375, merged 2026-11-18: five ideas,
+  `skill-picks`, `server-picks`, `which-one`, `still-kept`, `my-installs`;
+  none built). They find and judge other people's skills, tools and MCP
+  servers. This project's part is the last step: a `skill` verb that seals
+  a skill file by its exact words and gives a model only those bytes, so a
+  skill that changed after it was vetted waits on a new seal.
+  - **Needs:** the owner's yes on that shape. No change to Willow.
+- [ ] **`my-installs`** (from the same pull request): what is installed on
+  this machine (skills, plugins, hooks), what each can touch, and what
+  changed since last looked. The audit half of the guard gap below.
+  - **Needs:** building in Willow first; it is only an idea there.
+- [ ] **Socratic** (the owner: "making the news recently"). On Willow's
+  list as an idea: "asks you questions about your own notes instead of
+  answering, each citing the passage it asked from". The owner's own
+  `socratic-fork` is a skill of 697 questions.
+  - **Needs:** small: a fourth prompt that has a model question the person
+    over a page they sealed, citing each passage, and answer nothing.
+    Larger: `socratic-fork` as the first skill served by the `skill` verb.
+- [ ] **Depend on GitHub less.** The check and the hook that holds `main`
+  are built and run here. Still on GitHub alone: the four Willow commits
+  this pin stands on (`hook-errors`, two for `todo`, `hook-handoff`), which
+  are on this machine only; the owner said to save that pull request for
+  later.
+- [ ] **Quoted speech in the todo report.** About a dozen of the 91 lines
+  are the owner quoted saying "I need to…" in a past session, not tasks.
+  - **Needs:** the owner's yes; it is a change to Willow's `todo`, and it
+    would also drop a real task that happens to be quoted.
+- [ ] **The `people` report.** Built by an agent and held back: Willow's
+  `people` has no JSON, so it is run once a person, each run reading the
+  whole folder, and every mention of everyone is far past what may leave.
+  - **Needs:** a `--json` in Willow's `people`, then one line a person
+    (how many mentions, in how many files, over what dates).
+- [ ] **More reports, cheaply.** `report()` takes any exit but 0 as a
+  failure, and Willow's audit add-ons exit 42 when they find something.
+  Fixing that opens `ref-check`, `pii-audit` and `secrets-audit`;
+  `minutes` fits as it is. Ranked list in the agents' assessment.
+- [ ] **More importers.** `joplin` takes the same command line as `notes`
+  and `calendar`: a line in `BRING_IN` and a pin.
+- [ ] **The task queue's edges.** Listing tasks has no limit on its whole
+  size; each `tasks` or `notes` call asks the kernel once a sealed thing,
+  a row on the record each time.
+- [ ] **`share`**, and with it `timeline` and `rss-out`: ways out to
+  another person or place. The owner will take `share` with the main
+  session once the agents' work is merged; each needs a ruling.
+
 ## Still loose
 
-- [ ] Push the Willow fix, or the GitHub workflow can't find the pinned commit.
+- [ ] Push the Willow commits, or the GitHub workflow can't find the pinned
+  commit.
 - [ ] `hook-shell` is off until there is a `deny.txt` beside the record.
 - [ ] A correction ("No, …") hasn't been tried in a real session.
 - [ ] The guard covers the box, not `BOX.runtime` (`stopped.json`,
-  `scopes.json`, `names.txt`, `deny.txt`).
+  `scopes.json`, `names.txt`, `deny.txt`). An agent confirmed it: a write or
+  an `rm` there is allowed. The fix is a second folder for Willow's
+  `hook-guard` (`--also DIR`), one line in `guards()`, and a repin. Three
+  more gaps in the same script: `mv` checks only where it puts a thing, a
+  `cd` earlier in a command isn't followed, and `$VAR` paths aren't filled
+  in.
 - [ ] `uv.lock` is untracked: commit it or ignore it.
+- [ ] Nothing built on 2026-11-18 by the agents has been seen in a real
+  client yet: the task queue, reading notes back, bringing a vault in, the
+  checks on a sentence, and "What a model can never do".
