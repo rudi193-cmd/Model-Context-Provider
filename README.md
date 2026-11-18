@@ -83,7 +83,7 @@ next.
 
 You need Python 3.9 or newer and a Willow checkout at the commit
 [willow.pin.json](willow.pin.json) names. The pin holds every file of Willow
-this runs (the kernel and twenty-six add-ons) by its SHA-256, and nothing runs
+this runs (the kernel and twenty-seven add-ons) by its SHA-256, and nothing runs
 on a Willow whose files differ: `python3 willow_pin.py check` says which.
 Nothing else in Willow matters to it. Make your record in Willow's UI: pick
 your folders, type your own words into the words step, seal it, and press
@@ -187,6 +187,7 @@ each, and a model can ask for one (the person's ruling of 2026-11-17):
 | `todo` | every line marked to do (TODO, FIXME, "need to", "remember to", an open checkbox), oldest first |
 | `coming-up` | every line holding a date in the next 14 days, soonest first, with the repeats of a birthday or a calendar's rule |
 | `on-this-day` | what you wrote on this date in earlier years |
+| `people` | everyone your files name, a line each: how often, in how many files, over what dates. Never every place they are mentioned. Its first line and the seal page say it names people; a name on your list is withheld, and any other is yours to read before you seal |
 
 It goes the way a question goes:
 
@@ -239,7 +240,7 @@ beside it.
 
 | Resource | Reading it is | So |
 |---|---|---|
-| `provider://report/todo`, `…/coming-up`, `…/on-this-day` | `report` | the report once you've sealed it; until then only whether there is one, and it waits on you |
+| `provider://report/todo`, `…/coming-up`, `…/on-this-day`, `…/people` | `report` | the report once you've sealed it; until then only whether there is one, and it waits on you |
 | `provider://page/last` | `leave` | the page you last sealed; without a seal, nothing |
 | `provider://shelf/NAME` | `shelf_read` | something a model wrote for this project |
 
@@ -548,7 +549,7 @@ current first, and rebuilds it only when a file in the folder changed.
 | `backup`, `local-model` | the record's backup, and finding models on this machine |
 | `session-seal` | one seal over a session's actions |
 | `index-cache`, `claude-code`'s `bite` | a bite answered from an index of the folder |
-| `todo`, `coming-up` (with `pieces`), `on-this-day` | the reports of the person's files |
+| `todo`, `coming-up` (with `pieces`), `on-this-day`, `people` | the reports of the person's files |
 | `hook-guard`, `hook-leaks`, `hook-shell`, `hook-read-first`, `hook-errors` | the rules a tool call is held to before it runs |
 | `hook-handoff`, `hook-feedback` | where a session ended, and a correction kept for the person's seal |
 | `digest` (with `stale-answers`), `box-health` | what the folder needs from the person, and whether the record is all right, in `status` |

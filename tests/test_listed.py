@@ -42,7 +42,8 @@ def test_the_door_says_it_lists_resources_and_prompts(box, tmp_path):
 def test_the_list_names_reports_the_last_page_and_this_projects_shelf(box, tmp_path):
     assert uris(box, tmp_path) == [
         "provider://report/todo", "provider://report/on-this-day",
-        "provider://report/coming-up", "provider://page/last",
+        "provider://report/coming-up", "provider://report/people",
+        "provider://page/last",
     ]  # fmt: skip
     runtime.call(box, "shelf_add", {"name": "report.md", "text": REPORT},
                  door="mcp", where=str(tmp_path))  # fmt: skip

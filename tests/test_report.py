@@ -11,6 +11,68 @@ from test_leave import seal
 import runtime
 
 
+@pytest.fixture
+def folk(box):
+    """The box's folder, with two people in it: Kati three times, Priya once."""
+    pile = box.parent / "pile"
+    (pile / "log.md").write_text(
+        "2026-01-02 Kati came by.\nthanks kati!\nmet Priya at the market\n"
+    )
+    (pile / "mail").mkdir()
+    (pile / "mail" / "2026-02-01.txt").write_text("KATI'S invoice attached\n")
+    return box
+
+
+def test_the_people_report_is_a_line_a_person_and_no_place_they_are_mentioned(folk):
+    got = runtime.call(folk, "report", "people", door="pipe")
+    lines = got["text"].splitlines()
+    assert lines[0] == "people: names 2 people, by how often your files do"
+    assert lines[1] == "  Kati  3 mentions in 2 files, 2026-01-02 to 2026-02-01"
+    assert lines[2].startswith("  Priya  1 mention in 1 file")
+    assert len(lines) == 3  # most mentioned first, and nothing else
+    for word in ("came by", "invoice", "market", "log.md", "mail/"):
+        assert word not in got["text"]
+
+
+def test_a_model_learns_there_is_a_people_report_and_no_name_in_it(folk):
+    got = runtime.call(folk, "report", "people", door="mcp")
+    assert (got["state"], got["report"]) == ("waiting", "people")
+    told = json.dumps(got) + (runtime.state(folk) / "sent.jsonl").read_text()
+    assert "Kati" not in told and "Priya" not in told
+    (owed,) = runtime.waiting(folk)["waiting"]
+    assert "which names people" in owed["claim"]  # said before they seal
+    seal(folk, got["seal"])
+    page = runtime.call(folk, "report", "people", door="mcp")["page"]
+    assert page == owed["words"] and "Kati  3 mentions" in page
+
+
+def test_a_name_the_person_listed_is_withheld_from_the_people_report(folk):
+    (runtime.state(folk) / "names.txt").write_text("Kati\n")
+    got = runtime.call(folk, "report", "people", door="mcp")
+    (owed,) = runtime.waiting(folk)["waiting"]
+    assert "Kati" not in owed["words"] and "[withheld: name]" in owed["words"]
+    seal(folk, got["seal"])
+    page = runtime.call(folk, "report", "people", door="mcp")["page"]
+    assert "Kati" not in page and "Priya" in page
+
+
+def test_a_folder_left_out_is_counted_in_no_ones_line(folk):
+    (runtime.state(folk) / "report-skip.txt").write_text("mail\n")
+    text = runtime.call(folk, "report", "people", door="pipe")["text"]
+    assert "  Kati  2 mentions in 1 file, 2026-01-02 to 2026-01-02" in text
+    (runtime.state(folk) / "report-skip.txt").write_text("mail\nlog.md\n")
+    assert runtime.call(folk, "report", "people", door="mcp") == {
+        "state": "empty", "report": "people"}  # fmt: skip
+
+
+def test_a_folder_that_names_no_one_has_no_people_report(box):
+    """Willow's people exits 42 for no one, with a report that says so: an
+    exit code says what was found, never that the report failed."""
+    assert runtime.call(box, "report", "people", door="mcp") == {
+        "state": "empty", "report": "people"}  # fmt: skip
+    assert runtime.waiting(box)["state"] == "empty"
+
+
 def test_coming_up_is_a_report_of_the_dates_ahead(box):
     assert runtime.call(box, "report", "coming-up", door="mcp") == {
         "state": "empty", "report": "coming-up"}  # fmt: skip

@@ -4,6 +4,18 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **`people`, a fourth report.** Everyone the person's files name, a line
+  each: how often, in how many files, over what dates; never every place
+  they are mentioned. Its first line and its claim on the seal page say it
+  names people. It is one call to Willow: the pin moves to a Willow whose
+  `people` 0.1.2 gives its roster and every drill-down as one report
+  (`--json`), where asking a person at a time read the whole folder once a
+  person. Proposed as a task on the queue, sealed by the person, and done
+  from it.
+- **A report's exit code says what it found.** `report` took any exit but
+  0 for a failure; Willow's reports exit 42 when something waits on the
+  person, or when there is nothing. 0 and 42 are both read by what the
+  report says.
 - **`promises`: what a model can never do, to look at.** On the person's
   door, and a fourth page of the seal page. It lists the verbs each kind of
   door has, read from the code as it stands; what no model's door can do

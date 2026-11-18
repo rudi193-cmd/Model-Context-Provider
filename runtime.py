@@ -756,13 +756,13 @@ PLAIN = {
     "not_on_shelf": ("There's nothing by that name on this project's shelf.",
                      "See what is there (shelf_list): each shows the name to ask for."),
     "no_report": ("That isn't a report this makes.",
-                  "The reports are: todo (what you wrote down to do), coming-up (dates in your files in the next two weeks) and on-this-day (what you wrote on this date in earlier years)."),
+                  "The reports are: todo (what you wrote down to do), coming-up (dates in your files in the next two weeks), on-this-day (what you wrote on this date in earlier years) and people (everyone your files name, a line each)."),
     "report_failed": ("The report couldn't be made, so nothing was shared.",
                       "Check that WILLOW points at your Willow folder."),
     "report_too_long": ("The report is too long to share whole, so nothing was shared.",
                         "Leave folders out of it: list each, one a line, in report-skip.txt beside your record, then ask again."),
     "no_resource": ("That isn't something this door lists.",
-                    "It lists the reports (todo, coming-up, on-this-day), the page you last sealed, and what is on this project's shelf."),
+                    "It lists the reports (todo, coming-up, on-this-day, people), the page you last sealed, and what is on this project's shelf."),
     "no_prompt": ("That prompt can't be started.",
                   "The prompts are plate (what's on your plate), ask (a question for your files) and wrap_up (keep what a session found)."),
     "bring_what": ("That isn't a notes vault or a calendar to bring in.",
@@ -985,7 +985,17 @@ REPORTS = {
     "todo": "adapters/stdlib/todo/todo.py",
     "on-this-day": "adapters/stdlib/on-this-day/on_this_day.py",
     "coming-up": "adapters/stdlib/coming-up/coming_up.py",
+    "people": "adapters/stdlib/people/people.py",
 }
+
+#: a report that names people. It is said so in its first line and in what
+#: is proposed, so the person sees that before they seal. Each person is one
+#: line (how often, in how many files, over what dates), never every place
+#: they are mentioned: that is far more than a person reads before sealing.
+#: No name is hidden for not being on names.txt: the person reads and seals
+#: the exact words, and a name they listed is withheld as anywhere else.
+NAMES_PEOPLE = frozenset({"people"})
+DATED = re.compile(r"\d{4}-\d\d-\d\d")
 
 
 def reports(box: Path) -> dict:
@@ -1008,15 +1018,25 @@ def report(box: Path, name) -> dict:
         doc = json.loads(run.stdout)
     except ValueError:
         doc = None
-    if run.returncode != 0 or not isinstance(doc, dict):
+    # a report's exit code says what it found (42: something that waits on
+    # the person, or nothing at all), never whether it ran: its own words do
+    if run.returncode not in (0, 42) or not isinstance(doc, dict):
         return {"state": "refused", "code": "report_failed",
                 "why": (run.stderr or run.stdout).strip()[-300:]}  # fmt: skip
     if doc.get("state") != "populated":
         return {"state": "empty", "report": name}
-    skip, out, kept, total = left_out(box), [], 0, 0
+    skip, out, kept, total, who = left_out(box), [], 0, 0, 0
     for g in doc.get("groups", []):
         rows = [r for r in g["rows"] if not is_left_out(r["where"], skip)]
         total, kept = total + len(g["rows"]), kept + len(rows)
+        if rows and name in NAMES_PEOPLE:  # one line a person
+            files = len({r["where"].rsplit(":", 1)[0] for r in rows})
+            dated = sorted(d for r in rows for d in DATED.findall(r["what"][:10]))
+            span = f", {dated[0]} to {dated[-1]}" if dated else ""
+            who += 1
+            out.append(f"  {g.get('name')}  {len(rows)} mention{'s' * (len(rows) != 1)}"
+                       f" in {files} file{'s' * (files != 1)}{span}")  # fmt: skip
+            continue
         if rows and g.get("name") is not None:
             out.append(f"## {g['name']}")
         out += [f"  {r['where']}  {r['what']}".rstrip() for r in rows]
@@ -1024,6 +1044,8 @@ def report(box: Path, name) -> dict:
         return {"state": "empty", "report": name, "left_out": total}
     # Willow's own first line when nothing was left out; else only what is here
     said = doc.get("said", "") if kept == total else f"{kept} line{'s' * (kept != 1)}"
+    if name in NAMES_PEOPLE:  # always plain that it names people
+        said = f"names {who} {'person' if who == 1 else 'people'}, by how often your files do"  # fmt: skip
     return {"state": "populated", "report": name, "left_out": total - kept,
             "text": "\n".join([f"{name}: {said}", *out]) + "\n"}  # fmt: skip
 
@@ -1093,7 +1115,9 @@ def report_to_model(box: Path, name) -> dict:
             return {"state": "left", "report": name, "page": text}
         return {"state": "populated", "report": name}  # sealed, but not from here
     prop = {"path": f"reports/{name}-{digest}.md", "data": text, "cites": [],
-            "claim": f"the {name} report of your files, to share with a model"}  # fmt: skip
+            "claim": (f"the {name} report of your files"
+                      f"{', which names people' * (name in NAMES_PEOPLE)}, "
+                      "to share with a model")}  # fmt: skip
     with tempfile.TemporaryDirectory() as d:
         f = Path(d) / "suggestions.jsonl"
         f.write_text(json.dumps(prop) + "\n")

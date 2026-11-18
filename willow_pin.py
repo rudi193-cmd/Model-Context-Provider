@@ -50,6 +50,7 @@ ADD_ONS = (
     "notes",  # an importer: loads only the kernel
     "on-this-day",
     "openai-compatible",  # local-model loads it
+    "people",  # loads only the kernel
     "pieces",  # coming-up loads it from beside it
     "privacy",
     "sentence-check",

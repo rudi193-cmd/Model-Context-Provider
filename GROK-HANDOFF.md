@@ -266,11 +266,10 @@ so none is lost. A box is ticked when it is built.
   are the owner quoted saying "I need to…" in a past session, not tasks.
   - **Needs:** the owner's yes; it is a change to Willow's `todo`, and it
     would also drop a real task that happens to be quoted.
-- [ ] **The `people` report.** Built by an agent and held back: Willow's
-  `people` has no JSON, so it is run once a person, each run reading the
-  whole folder, and every mention of everyone is far past what may leave.
-  - **Needs:** a `--json` in Willow's `people`, then one line a person
-    (how many mentions, in how many files, over what dates).
+- [x] **The `people` report.** A line a person (how often, in how many
+  files, over what dates), from one call to Willow: `people` 0.1.2 has a
+  `--json`. Proposed on the task queue, sealed by the owner, and done from
+  it: the first task the queue carried. Not yet seen over the real record.
 - [ ] **More reports, cheaply.** `report()` takes any exit but 0 as a
   failure, and Willow's audit add-ons exit 42 when they find something.
   Fixing that opens `ref-check`, `pii-audit` and `secrets-audit`;
