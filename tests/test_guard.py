@@ -232,3 +232,56 @@ def test_the_hosts_doors_have_two_verbs_and_none_of_a_models(box):
             assert (got["state"], got["code"]) == ("refused", "no_verb")
     assert runtime.call(box, "event", {}, door="mcp")["code"] == "no_verb"
     assert runtime.call(box, "event", {}, door="pipe")["code"] == "no_verb"
+
+
+def side_of(box):
+    return runtime.state(box)
+
+
+def test_a_write_edit_or_rm_into_the_runtimes_folder_is_blocked_and_the_rule_named(box):
+    side = side_of(box)
+    for name in ("stopped.json", "names.txt", "sent.jsonl"):
+        for tool in ("Write", "Edit"):
+            run = guard(box, before(tool, file_path=str(side / name)))
+            assert run.returncode == 2 and "rule beside-write" in run.stderr, (
+                tool,
+                name,
+            )
+        for command in (
+            f"rm {side}/{name}",
+            f"echo x > {side}/{name}",
+            f"mv {side}/{name} /tmp/x",
+        ):
+            run = guard(box, before("Bash", command=command))
+            assert run.returncode == 2 and "rule beside-write" in run.stderr, command
+    assert guard(box, before("Bash", command=f"rm -rf {side}")).returncode == 2
+
+
+def test_reading_the_runtimes_folder_is_still_allowed(box):
+    side = side_of(box)
+    for name in ("stopped.json", "names.txt", "sent.jsonl"):
+        assert guard(box, before("Read", file_path=str(side / name))).returncode == 0
+        run = guard(box, before("Bash", command=f"cat {side}/{name}"))
+        assert (run.returncode, run.stderr) == (0, "")
+
+
+def test_the_runtime_itself_can_still_write_beside_the_box(box, tmp_path):
+    side = side_of(box)
+    sent = side / "sent.jsonl"
+    runtime.call(box, "shelf_add", {"name": "note.md", "text": "found\n"},
+                 door="mcp", where=str(tmp_path / "proj"))  # fmt: skip
+    assert sent.exists(), "the runtime wrote its sent log"
+    assert guard(box, before("Write", file_path=str(sent))).returncode == 2
+
+
+def test_a_sibling_that_only_starts_with_the_same_name_is_not_protected(box):
+    old = box.parent / (box.name + ".runtime-old")
+    run = guard(box, before("Write", file_path=str(old / "stopped.json")))
+    assert (run.returncode, run.stderr) == (0, "")
+    run = guard(box, before("Bash", command=f"rm {old}/names.txt"))
+    assert (run.returncode, run.stderr) == (0, "")
+
+
+def test_guards_hand_hook_guard_the_runtimes_folder(box):
+    asked = dict(runtime.guards(box))["hook-guard"]
+    assert asked[-2:] == ("--also", str(runtime.state(box)))

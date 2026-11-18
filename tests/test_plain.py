@@ -130,6 +130,18 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         return runtime.call(box, "resource", "provider://key/the-key", door="mcp")
     if code == "no_prompt":
         return runtime.call(box, "prompt", {"name": "horoscope"}, door="mcp")
+    if code == "no_skill":
+        return runtime.call(box, "skill", "nope", door="mcp")
+    if code == "skill_refused":
+        return runtime.call(
+            box, "skill_add", {"path": str(box / "record.jsonl")}, door="pipe"
+        )
+    if code == "skill_too_long":
+        (usb / "long.md").write_text("Do a thing. " * 20)
+        monkeypatch.setattr(runtime, "SKILL_MOST", 10)
+        return runtime.call(
+            box, "skill_add", {"path": str(usb / "long.md")}, door="pipe"
+        )
     if code == "no_report":
         return runtime.call(box, "report", "horoscope", door="mcp")
     if code == "report_failed":

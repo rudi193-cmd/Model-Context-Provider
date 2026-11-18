@@ -120,7 +120,7 @@ def test_what_is_listed_is_not_a_tool(box, tmp_path):
 
 def test_the_prompts_tell_a_model_which_verbs_to_use_and_hold_nothing_else(box):
     listed = runtime.call(box, "prompts", door="mcp")["prompts"]
-    assert [p["name"] for p in listed] == ["plate", "ask", "wrap_up"]
+    assert [p["name"] for p in listed] == ["plate", "ask", "wrap_up", "question_me"]
     assert listed[1]["arguments"][0]["name"] == "question"
     plate = runtime.call(box, "prompt", {"name": "plate"}, door="mcp")
     assert plate["state"] == "prompt"
@@ -195,6 +195,7 @@ def test_over_the_wire_lists_reads_and_prompts(box, tmp_path):
         "plate",
         "ask",
         "wrap_up",
+        "question_me",
     ]
     (said,) = got["result"]["messages"]
     assert said["role"] == "user" and FROST in said["content"]["text"]

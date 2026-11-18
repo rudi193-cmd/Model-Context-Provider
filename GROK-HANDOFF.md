@@ -239,13 +239,15 @@ pattern:
 Things the owner said in passing while other work was going on, kept here
 so none is lost. A box is ticked when it is built.
 
-- [ ] **Skills** (Willow pull request 375, merged 2026-11-18: five ideas,
+- [x] **Skills** (Willow pull request 375, merged 2026-11-18: five ideas,
   `skill-picks`, `server-picks`, `which-one`, `still-kept`, `my-installs`;
   none built). They find and judge other people's skills, tools and MCP
   servers. This project's part is the last step: a `skill` verb that seals
   a skill file by its exact words and gives a model only those bytes, so a
   skill that changed after it was vetted waits on a new seal.
-  - **Needs:** the owner's yes on that shape. No change to Willow.
+  - **Note:** built 2026-11-18 on the owner's go: `skill_add` and `skills`
+    on the person's door, `skill` on a model's. Not yet seen in a real
+    client.
 - [ ] **`my-installs`** (from the same pull request): what is installed on
   this machine (skills, plugins, hooks), what each can touch, and what
   changed since last looked. The audit half of the guard gap below.
@@ -254,9 +256,24 @@ so none is lost. A box is ticked when it is built.
   list as an idea: "asks you questions about your own notes instead of
   answering, each citing the passage it asked from". The owner's own
   `socratic-fork` is a skill of 697 questions.
+  - **Note:** the prompt is built 2026-11-18, as `question_me`.
   - **Needs:** small: a fourth prompt that has a model question the person
     over a page they sealed, citing each passage, and answer nothing.
     Larger: `socratic-fork` as the first skill served by the `skill` verb.
+- [ ] **Kart** (the owner: "I completely forgot to bring Kart in, and that
+  will fix a lot of our issues"; "it's got a card in Willow already").
+  Willow's `adapters/deps/kart`: a job someone sent you, run in
+  Kartikeya's sandbox over your own folder only once you seal it, its
+  result yours to seal before it goes back. The sandbox sees the folder
+  read-only and never the box or its key. It rides on `share`.
+  - **Needs:** to be done with `share`, by the main session. It is what
+    runs a sealed task (the queue has no worker), and what the guard can
+    only approximate. It needs the `kartikeya` package and `bwrap`, run
+    through Willow by command line.
+- [ ] **Willow's demos of sharing** (the owner: "a few demos in Willow as
+  well to pull how share should work"): `demo/johnson` (one report, five
+  willows), `demo/shared-runs`, `demo/known-gaps`, `demo/craft-assembly`.
+  - **Needs:** reading before `share` is designed.
 - [ ] **Depend on GitHub less.** The check and the hook that holds `main`
   are built and run here. Still on GitHub alone: the four Willow commits
   this pin stands on (`hook-errors`, two for `todo`, `hook-handoff`), which
@@ -285,17 +302,24 @@ so none is lost. A box is ticked when it is built.
 
 ## Still loose
 
+- [ ] The guard beside the record stops careless tool writes, not code a
+  model runs: a path built at run time (`$VAR`, a substitution, a script it
+  writes), a `cd` earlier in the command, and `mv -t DIR src` still get
+  through. Kart's sandbox is the real fix.
 - [ ] Push the Willow commits, or the GitHub workflow can't find the pinned
   commit.
 - [ ] `hook-shell` is off until there is a `deny.txt` beside the record.
 - [ ] A correction ("No, …") hasn't been tried in a real session.
-- [ ] The guard covers the box, not `BOX.runtime` (`stopped.json`,
-  `scopes.json`, `names.txt`, `deny.txt`). An agent confirmed it: a write or
-  an `rm` there is allowed. The fix is a second folder for Willow's
-  `hook-guard` (`--also DIR`), one line in `guards()`, and a repin. Three
-  more gaps in the same script: `mv` checks only where it puts a thing, a
-  `cd` earlier in a command isn't followed, and `$VAR` paths aren't filled
-  in.
+- [x] The guard covers the box, not `BOX.runtime` (`stopped.json`,
+  `scopes.json`, `names.txt`, `deny.txt`). Closed for careless or direct
+  tool calls: `guards()` gives Willow's `hook-guard` `--also BOX.runtime`, so
+  a Write, Edit or a command that redirects into or runs `rm`, `mv`, `cp`,
+  `tee`, `sed -i` on it is blocked (rule `beside-write`); reading it is
+  fine; the runtime itself still writes there. `mv` out of a protected
+  folder is now caught too. Not closed, and said so in the README: a `cd`
+  earlier in a command isn't followed, `$VAR` paths aren't filled in, and
+  code a model runs that builds a path at run time gets through. The pin
+  moved to Willow's `hook-guard` 0.1.1.
 - [ ] `uv.lock` is untracked: commit it or ignore it.
 - [ ] Nothing built on 2026-11-18 by the agents has been seen in a real
   client yet: the task queue, reading notes back, bringing a vault in, the

@@ -327,6 +327,8 @@ def kind_of(w: dict) -> str:
         return "report"
     if path.startswith("tasks/"):
         return "task"
+    if path.startswith("skills/"):
+        return "skill"
     return "suggestion"
 
 
@@ -415,6 +417,20 @@ def card(box: Path, token: str, w: dict) -> str:
             "what is done is still closed over for one seal.</p>"
         )
         sealing = "Seal: yes, do this"
+    elif kind == "skill":
+        body = (
+            '<p class="kind">A skill to give a model</p>'
+            f"<h2>{esc(w.get('claim') or 'A skill')}</h2>"
+            '<p class="soft">These are instructions. A model that asks for this '
+            "skill by name will be given exactly these words and may follow "
+            "them, so read them as you would anything you let run: what they "
+            "tell it to do, and what they tell it to reach for. Sealing covers "
+            "these words alone. If the file changes afterwards, the skill is "
+            "given to no one until you name it again and seal what it then "
+            "says.</p>"
+            f"<pre>{esc(data.strip())}</pre>"
+        )
+        sealing = "Seal: give this skill"
     else:
         body = (
             '<p class="kind">A suggestion</p>'

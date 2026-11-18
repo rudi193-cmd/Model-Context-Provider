@@ -1,7 +1,7 @@
 {
   "_what": "The Willow this runtime was built on: its commit, and every file of what runs, by SHA-256. willow_pin.py refuses a checkout whose files differ; repin is the one way to move it.",
   "willow": "https://github.com/willow-memory/Willow",
-  "commit": "6822410b9c271c6697bb6a1e265be6bd74954c66",
+  "commit": "2f030c13e1d908aed8a755dd943c831452a3df22",
   "add_ons": [
     "approved-only",
     "backup",
@@ -53,8 +53,8 @@
     "adapters/stdlib/hook-errors/hook_errors.py": "9d25a4f19afee3b7427c6ecc1758c53dc82796c9096b08a0b528d7010a28d121",
     "adapters/stdlib/hook-feedback/README.md": "7d2f6c6c4eb833432575488c223ecceb83beb9bc7378b56f49442a4fe43e0506",
     "adapters/stdlib/hook-feedback/hook_feedback.py": "0cfdd2b15f628ea78409274094d2a57c34c5a6a8a8355a71697d0b16d5bc6d1a",
-    "adapters/stdlib/hook-guard/README.md": "488c25bcdd05d1084ba55122ff2f1dcf33f1062ac4e42503ba3790bc0466204c",
-    "adapters/stdlib/hook-guard/hook_guard.py": "3f2b5c62102bd1b850b8567358710fbc03daa936d56505ad968101083082aec3",
+    "adapters/stdlib/hook-guard/README.md": "0a65e9eee59a8fe24ca1eca9712978eb3db687be15eaec72f308891acf6540f0",
+    "adapters/stdlib/hook-guard/hook_guard.py": "9730190ceae87d9afae8376de096b04877cab3e4212546e66f52b98d77b007ed",
     "adapters/stdlib/hook-handoff/README.md": "f26f7a09ac7924cd0f67e66bf518972cbdd1a9d7eeca9c9ea8a833d45b2801e0",
     "adapters/stdlib/hook-handoff/hook_handoff.py": "e85893882a5ceb9f649ac7ede01c16855248eeadbedd39a7fa9a2645918ebab4",
     "adapters/stdlib/hook-leaks/README.md": "7c43654e50519cc4daddc94a345897e3276a1d222c837075fac18c71128bd975",

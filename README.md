@@ -141,7 +141,7 @@ fixed rule and never a reading of what the assistant meant:
 
 | When | What happens | Willow's |
 |---|---|---|
-| before a tool call | blocked if it names your key, or changes a file in your record other than through the kernel | `hook-guard` |
+| before a tool call | blocked if it names your key, changes a file in your record other than through the kernel, or changes a file in `BOX.runtime` (what the runtime keeps beside the box: what you stopped, the names withheld, the sent log, the shelf); reading them is fine | `hook-guard` (`--also`) |
 | | blocked if what it writes or runs holds a key, a password or a card number; the value is never shown | `hook-leaks` |
 | | blocked if it runs a command you denied, read the way the shell reads it | `hook-shell` |
 | | blocked if it edits a file the assistant hasn't read this session, or that changed since | `hook-read-first` |
@@ -160,6 +160,14 @@ tool call is ever blocked; a turn can always end.
 The commands you deny are yours to list, one a line, in `deny.txt` beside
 your record (`BOX.runtime/deny.txt`): `rm -rf`, `git push --force`. With no
 such file that guard isn't asked.
+
+That guard stops a careless or direct tool call: a Write or Edit of a file
+in the box or in `BOX.runtime`, or a command that redirects into it or runs
+`rm`, `mv`, `cp`, `tee`, `sed -i` and the like on it. It does not stop code
+a model runs: a script that builds the path at run time, a `$VAR` path, or a
+`cd` earlier in the same command gets through, and so would a call the host
+never sends to a hook. Nothing here hides the folder from a model that can
+run code as you; the seal page and the kernel are what hold the rest.
 
 What these hand a model is a rule's name, a session's id and folder, or a
 count. None of them hands it a word of your files: Willow's `hook-start`,
@@ -256,7 +264,38 @@ gets back. They hold nothing of yours:
 |---|---|
 | `plate` | "What's on my plate": asks for `todo` and `coming-up`, says what each holds if it was given, that it waits on your seal if it wasn't, and never guesses at one it wasn't given |
 | `ask` (a question) | the question's whole path: the sealed page and one cited sentence, or a page proposed for your seal, or that your files hold nothing |
+| `question_me` (what about) | being questioned, not answered: three questions over a page you sealed, one at a time, each naming the passage it came from; or a page proposed for your seal |
 | `wrap_up` | what this session found, written up and put on this project's shelf |
+
+## A skill, sealed by its words
+
+A skill is a file of instructions you chose for a model to follow. The
+trouble with one is that it can change after you read it. Here it can't
+change under you:
+
+- **You name it**, on your own door: `{"skill_add": {"path": "FILE"}}`. A
+  `SKILL.md` is named for its folder, any other file for itself, or give a
+  `"name"`. A model never names a file.
+- **Its words wait on your seal**, as the file reads now, with names and
+  numbers withheld. The seal page shows them as "A skill to give a model",
+  to be read as you would anything you let run.
+- **A model asks for it by name** (`skill`) and is given exactly the words
+  you sealed, and nothing if it still waits.
+- **If the file changes, it is given to no one.** A skill that reads
+  differently now than what you sealed is a different thing: name it again
+  and seal what it then says. Put the file back as it was and the first
+  seal stands again.
+- **`stop` works on it**, with no key, and `{"skills": true}` lists each
+  skill, its file, and where it stands.
+
+Nothing in your record is trusted for this: the words a model is given are
+the ones the kernel holds under your seal. A skill over 40,000 characters
+is never proposed: that is more than a person reads before sealing
+instructions.
+
+This is the last step of what Willow's `skill-picks`, `still-kept` and
+`my-installs` ideas are for (finding a skill, judging it, and seeing what
+changed): what you chose is pinned by the seal itself.
 
 ## One place to keep things
 

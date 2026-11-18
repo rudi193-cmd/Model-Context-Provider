@@ -4,6 +4,24 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A skill, sealed by its words.** `skill_add`, on the person's door
+  alone, names a file of instructions; its words as it reads now wait on
+  the seal. A model's `skill` asks by name and is given exactly the sealed
+  words, from the kernel, and never a file it named. A skill whose file
+  changed since is given to no one until it is named again and sealed as it
+  then reads; `stop` covers it; `skills` says where each stands; the seal
+  page shows one as instructions to read first.
+- **`question_me`, a fourth prompt.** Over a page the person sealed, the
+  model asks three questions one at a time, each naming its passage, and
+  answers nothing for them (Willow's `socratic` idea, as a prompt).
+- **The guard now covers `BOX.runtime`.** A model with file tools could write,
+  or `rm`, `stopped.json`, `names.txt`, `sent.jsonl` and the rest of what the
+  runtime keeps beside the box, and so un-stop a page or cut the sent log. The
+  guard gives Willow's `hook-guard` that folder (`--also`) and the pin moves to
+  a Willow where it holds it, and where a `mv` out of the box is refused too.
+  Reading the folder is still fine, and the runtime still writes there. It
+  stops a careless or direct tool call, not code a model runs that builds a
+  path at run time.
 - **`people`, a fourth report.** Everyone the person's files name, a line
   each: how often, in how many files, over what dates; never every place
   they are mentioned. Its first line and its claim on the seal page say it
