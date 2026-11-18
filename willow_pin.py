@@ -33,8 +33,10 @@ ADD_ONS = (
     "approved-only",
     "backup",
     "batch-ask",  # index-cache and claude-code load its scan
+    "box-health",
     "claude-code",
     "coming-up",  # loads pieces
+    "digest",  # loads coming-up and stale-answers
     "hook-errors",
     "hook-feedback",
     "hook-guard",
@@ -50,6 +52,7 @@ ADD_ONS = (
     "privacy",
     "sentence-check",
     "session-seal",
+    "stale-answers",  # digest loads it; it loads pieces
     "todo",  # batch-ask's scan loads it
 )
 

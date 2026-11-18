@@ -72,7 +72,7 @@ import runtime  # noqa: E402
 
 SUBJECT = re.compile(r"proposal:[0-9a-f]{64}")
 ACTS = ("seal", "decline", "later", "back", "stop")
-PAGES = ("/", "/shared")
+PAGES = ("/", "/shared", "/status")
 MOST = 8192  # bytes of a form; ours are a few hundred
 
 HEADERS = {
@@ -410,8 +410,9 @@ def page(box: Path, token: str, note: tuple[str, str] = ("", "")) -> str:
 
 
 def shell(box: Path, token: str, at: str, parts: list[str]) -> str:
-    """Either page, whole: its name, the way to the other, and a way to stop."""
-    titles = {"/": "Waiting on your seal", "/shared": "What you’ve shared"}
+    """Any page, whole: its name, the way to the others, and a way to stop."""
+    titles = {"/": "Waiting on your seal", "/shared": "What you’ve shared",
+              "/status": "How things stand"}  # fmt: skip
     nav = " · ".join(
         f"<strong>{esc(t)}</strong>" if href == at else f'<a href="{href}">{esc(t)}</a>'
         for href, t in titles.items()
@@ -475,6 +476,31 @@ def shared_page(box: Path, token: str, note: tuple[str, str] = ("", "")) -> str:
     return shell(box, token, "/shared", parts)
 
 
+def status_page(box: Path, token: str, note: tuple[str, str] = ("", "")) -> str:
+    """How things stand, in one look: the runtime's `status`, each part a
+    card. It only shows; nothing on it seals, stops or changes anything."""
+    parts = []
+    if note[0]:
+        parts.append(f'<section class="card note {esc(note[1])}">{esc(note[0])}</section>')  # fmt: skip
+    got = runtime.call(box, "status", door="page")
+    if got.get("state") == "refused":
+        say = " ".join(x for x in (got.get("say"), got.get("next")) if x)
+        parts.append(f'<section class="card note refused">{esc(say)}</section>')
+    else:
+        said = str(got.get("said", ""))
+        parts.append(f'<section class="card">{esc(said[:1].upper() + said[1:])}.</section>')  # fmt: skip
+    for g in got.get("groups", []):
+        rows = "".join(
+            f"<tr><th>{esc(r['where'])}</th><td>{esc(r['what'])}</td></tr>"
+            for r in g["rows"]
+        )
+        parts.append(
+            f'<section class="card"><p class="kind">{esc(g["name"])}</p>'
+            f"<table>{rows}</table></section>"
+        )
+    return shell(box, token, "/status", parts)
+
+
 def handler(box: Path, secret: str):
     """The page's requests, each held to the table at the top of this file
     before anything is read or done."""
@@ -530,8 +556,8 @@ def handler(box: Path, secret: str):
                 return self.say(404, "404\n", "text/plain")
             self.server.last = time.monotonic()
             note, Page.note = Page.note, ("", "")
-            show = page if url.path == "/" else shared_page
-            self.say(200, show(box, secret, note))
+            show = {"/": page, "/shared": shared_page, "/status": status_page}
+            self.say(200, show[url.path](box, secret, note))
 
         def do_POST(self):
             port = self.server.server_address[1]

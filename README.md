@@ -56,12 +56,13 @@ beside the person's record.
 | `read`: passages, with file and line | `read`: whether the files hold it, nothing more |
 | `propose`: a question to share | `propose`: the same, waiting on the person |
 | `leave`: the sealed page, as a file | `leave`: the sealed page, as the one thing it may read |
+| `status`: how things stand, in one look | |
 | `waiting`: what waits on their seal, and what each one is | `answer`: one sentence, checked, then waiting |
 | `scopes`: every question proposed, and where each stands | `draft`: ask a model for that sentence |
 | `stop`: never let a scope leave again | `context`: the sealed page for this question, if there is one |
 | `preview`: the page a scope would let leave, before they seal it | `capture`: one thing to keep, waiting on the person; never read back |
-| `capture`, `captured`: hand in a thing to keep, and read what was kept | `shelve`, `shelf`, `take`: what it made, on its project's shelf, with no seal |
-| `shelves`, `take`: every project's shelf, and anything on one | `report`: that there is a report of the files; the report itself once sealed |
+| `capture`, `captured`: hand in a thing to keep, and read what was kept | `shelf_add`, `shelf_list`, `shelf_read`: what it made, on its project's shelf, with no seal |
+| `shelves`, `shelf_read`: every project's shelf, and anything on one | `report`: that there is a report of the files; the report itself once sealed |
 | `report`: a report of their files, as it is | |
 | `later`, `back`: not now, and bring it back; never on the record | |
 | `shared`: what left, as places, not hashes | |
@@ -79,7 +80,7 @@ next.
 
 You need Python 3.9 or newer and a Willow checkout at the commit
 [willow.pin.json](willow.pin.json) names. The pin holds every file of Willow
-this runs (the kernel and twenty-one add-ons) by its SHA-256, and nothing runs
+this runs (the kernel and twenty-four add-ons) by its SHA-256, and nothing runs
 on a Willow whose files differ: `python3 willow_pin.py check` says which.
 Nothing else in Willow matters to it. Make your record in Willow's UI: pick
 your folders, type your own words into the words step, seal it, and press
@@ -123,7 +124,7 @@ Your own door, for everything a model can't do:
 | Door | Faces | What it is |
 |---|---|---|
 | `doors/pipe.py` | the person | one JSON request a line in, one answer a line out |
-| `doors/mcp.py` | a model | MCP over stdio, by hand; asks the client's model through sampling when the client offers it |
+| `doors/mcp.py` | a model | MCP over stdio, by hand: its tools, and [its resources and prompts](#listed-and-started-by-you); asks the client's model through sampling when the client offers it |
 | `doors/hook.py` | a model, through its host | Prompt hook (Claude Code, and `--host` for Gemini/Codex/OpenCode): the sealed page, or one line saying nothing is sealed. Cursor cannot inject; use MCP |
 | `doors/guard.py` | a model, through its host | Claude Code's hooks around what the assistant does: before and after a tool call, at a turn's end, at a session's start, before a summary |
 | `doors/session.py` | the person | Session start/end: each session closed for one seal; at the next start the person is told what waits (Claude `systemMessage`, Cursor `user_message` + desktop notice). Cursor also nudges after this server's MCP tools |
@@ -221,6 +222,38 @@ prose about todos in commits and code. That is where the skip list and the
 limit come from, and Willow's `todo` now counts a mark only as it is
 written to mark something (0.1.2).
 
+## Listed, and started by you
+
+The MCP door also speaks the protocol's two other lists. Neither is one of
+this door's tools; who may use them is the client's to say. In Claude Code
+a prompt is a command in your own menu, and a resource is what you name
+with `@` (type some of its name: the bare list shows only files). Claude
+Code also gives its model a way to list and read a server's resources
+(seen on 2026-11-17), which is why reading one is never more than the verb
+beside it.
+
+**Resources** are what the door can list, each by where to read it:
+
+| Resource | Reading it is | So |
+|---|---|---|
+| `provider://report/todo`, `…/coming-up`, `…/on-this-day` | `report` | the report once you've sealed it; until then only whether there is one, and it waits on you |
+| `provider://page/last` | `leave` | the page you last sealed; without a seal, nothing |
+| `provider://shelf/NAME` | `shelf_read` | something a model wrote for this project |
+
+The list says nothing of your files: the reports' names are the same for
+everyone, and the shelf's names are a model's own. Reading one is the verb
+beside it, decided, refused and written down as that verb always is.
+Nothing else can be read this way.
+
+**Prompts** only tell a model which verbs to use and how to say what it
+gets back. They hold nothing of yours:
+
+| Prompt | What it starts |
+|---|---|
+| `plate` | "What's on my plate": asks for `todo` and `coming-up`, says what each holds if it was given, that it waits on your seal if it wasn't, and never guesses at one it wasn't given |
+| `ask` (a question) | the question's whole path: the sealed page and one cited sentence, or a page proposed for your seal, or that your files hold nothing |
+| `wrap_up` | what this session found, written up and put on this project's shelf |
+
 ## One place to keep things
 
 `capture` hands in one thing to keep: a note, a decision, a finding. It is
@@ -240,7 +273,7 @@ shelf:
   in. Every session on that folder adds to the same shelf, and each thing
   on it says when it was put there and by which session.
 - **No seal, either way.** A model puts something on its project's shelf
-  (`shelve`), lists it (`shelf`) and reads it back (`take`). It was written
+  (`shelf_add`), lists it (`shelf_list`) and reads it back (`shelf_read`). It was written
   by a model and it leaves nothing, so line 1 isn't crossed: your files stay
   behind the seal as before. Each of the three is on the sent log, by hash.
 - **Beside your record, never in it.** Shelves live under
@@ -250,7 +283,7 @@ shelf:
 - **Never written over.** A name already there is kept beside it as
   `NAME.2`.
 - **Yours to read.** `{"shelves": true}` on your door lists every
-  project's shelf; `{"take": {"project": "FOLDER", "name": "NAME"}}` reads
+  project's shelf; `{"shelf_read": {"project": "FOLDER", "name": "NAME"}}` reads
   one thing.
 
 A model reaches only the shelf of the folder its door was started in. That
@@ -289,6 +322,17 @@ share, by file and line, and where each stands: waiting, sealed, changed in
 your files since, or stopped. **Stop sharing this** is the runtime's `stop`:
 the page is never given to a model again, by any door, and it needs no key.
 Under them is what has left, to whom and when (the runtime's `shared`).
+
+A third page, **How things stand**, is the runtime's `status`, and has
+nothing to click: what waits on your seal, counted by what each thing is;
+what your folder needs from you (approvals gone stale, dates coming up,
+questions it never answered: Willow's `digest`, less the folders you leave
+out of reports); what you've shared and kept, and each project's shelf; how
+this is set (names withheld, folders left out, commands denied); and
+whether the record is all right (Willow's `box-health`, the pinned Willow,
+the sent log). A part that couldn't be looked at says so, and the rest
+still shows. On your own door it is `{"status": true}`. No model's door
+has it.
 
 **Close this page** stops it. To start it with a double-click:
 
@@ -413,6 +457,7 @@ named in `model.json`.
 | `todo`, `coming-up` (with `pieces`), `on-this-day` | the reports of the person's files |
 | `hook-guard`, `hook-leaks`, `hook-shell`, `hook-read-first`, `hook-errors` | the rules a tool call is held to before it runs |
 | `hook-handoff`, `hook-feedback` | where a session ended, and a correction kept for the person's seal |
+| `digest` (with `stale-answers`), `box-health` | what the folder needs from the person, and whether the record is all right, in `status` |
 
 It uses Willow by its command line only, and never imports or changes
 Willow's kernel. When Willow lacks something, the fix goes to Willow:

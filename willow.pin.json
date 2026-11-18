@@ -6,8 +6,10 @@
     "approved-only",
     "backup",
     "batch-ask",
+    "box-health",
     "claude-code",
     "coming-up",
+    "digest",
     "hook-errors",
     "hook-feedback",
     "hook-guard",
@@ -23,6 +25,7 @@
     "privacy",
     "sentence-check",
     "session-seal",
+    "stale-answers",
     "todo"
   ],
   "files": {
@@ -33,10 +36,14 @@
     "adapters/stdlib/backup/backup.py": "4f07f0f958bab14f01aedb1986bf0337c8473fb1803feb5c2a79543f89dc5d63",
     "adapters/stdlib/batch-ask/README.md": "9de8e1949c875562b0cbc96a9c5efa8241afce5eae3f93efc94d23e1c247f291",
     "adapters/stdlib/batch-ask/scan.py": "ff3717e7f280eb0a3dea479136bdab43360cd72cd6861d7827fbdf1504c2ce9d",
+    "adapters/stdlib/box-health/README.md": "11c55420bf3440b8b501a85fe6d0db14f77279e95dde0a2246b9fa2bade81b9a",
+    "adapters/stdlib/box-health/box_health.py": "92aa894cb10309752f7cd9c8ed5ed426fcf8106c2e50e6f895687f18b1065d78",
     "adapters/stdlib/claude-code/README.md": "c06409f35ad28984de99d4fea61a33bd84b97fefb84335b1b6ff58a4df9fc6e5",
     "adapters/stdlib/claude-code/hook.py": "9da6a3e7852aef2cd4117f3abf7fd78b1593095e2548237c2ad68457f18491c9",
     "adapters/stdlib/coming-up/README.md": "27e7c24956c6a5e0b60c3c8a5b20ca6490d255876ef7f8e1aefbdff5d7008501",
     "adapters/stdlib/coming-up/coming_up.py": "7d0c870f5840e1210eaac01853de763bc4db19305deb3dcc0bb472cc5ab88d81",
+    "adapters/stdlib/digest/README.md": "71bb5488d17c7e41e67c52d13469c347bb5da9a7fba4f1820b266e93f2296a21",
+    "adapters/stdlib/digest/digest.py": "46f7b89ae1665800097809cf2b2d67e987358a09d68d25b18083aad0713a4bf8",
     "adapters/stdlib/hook-errors/README.md": "8540171325d53156b689dfc0d883f6e8df2c0d1a4059da1ac729480b5bab3870",
     "adapters/stdlib/hook-errors/hook_errors.py": "9d25a4f19afee3b7427c6ecc1758c53dc82796c9096b08a0b528d7010a28d121",
     "adapters/stdlib/hook-feedback/README.md": "7d2f6c6c4eb833432575488c223ecceb83beb9bc7378b56f49442a4fe43e0506",
@@ -70,6 +77,8 @@
     "adapters/stdlib/sentence-check/sentence_check.py": "6b3dbcd1021273412def988e69aef62ff9db7c5ad5c2cd9c608e54913f12780f",
     "adapters/stdlib/session-seal/README.md": "b1520317a3df54a3facd90c4f477577dfb3112e2d18678b7b9d85b88268ac8e2",
     "adapters/stdlib/session-seal/session_seal.py": "23fd4eda0302b7db8115b23cc1c162d5bb3bee51f0dcfb09853f37b83c43f458",
+    "adapters/stdlib/stale-answers/README.md": "637f866eb51b2e032d89c28193365def5f80750202a26b6504d175c5985a687c",
+    "adapters/stdlib/stale-answers/stale_answers.py": "54616e180d41e4e812b01cf5db98556e2f53298a47c73a71ff3421ee250be5d1",
     "adapters/stdlib/todo/README.md": "051e37ce0904f2c1dc79ccc7ab32703262fb6700c84d768fa9519b6c02cafdb1",
     "adapters/stdlib/todo/todo.py": "186f227770f8eaf7b0d2ed42c8b93da1facd72766f1ae3d2e59aed2385f72bab"
   }

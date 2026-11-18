@@ -131,13 +131,17 @@ pattern:
     note they sealed, since `capture` promised it couldn't.
 - [ ] **Seal-gated task / work queue** (even a minimal one)
   - **Note:** nothing in Willow is this. New design.
-- [ ] Proper **MCP Resources + Prompts**
-  - **Note:** not started. Worth doing once there are sealed pages and
-    kept notes to list.
-- [ ] Richer single **status / overview** verb
-  - **Note:** partly there: the person has `owed`, `waiting`, `scopes`,
-    `shared`, `captured`; a model is told a count of what waits at a
-    session's start. No one verb gathers them.
+- [x] Proper **MCP Resources + Prompts**
+  - **Note:** built. Resources: the three reports, the page last sealed,
+    this project's shelf; each read is its verb. Prompts: `plate`, `ask`,
+    `wrap_up`. Seen in Claude Code on 2026-11-17: a resource named with
+    `@` gave the sealed todo report, and `plate` ran from the menu. Claude
+    Code also gives its model a tool to list and read resources. `ask` was
+    confusing to use, so each prompt's menu line now says what to type.
+- [x] Richer single **status / overview** verb
+  - **Note:** built as `status` on the person's door and a third page of
+    the seal page, on top of Willow's own `digest` and `box-health`. Not
+    yet seen on a real record.
 - [ ] Optional sealed/version-pinned skills/behaviours
   - **Note:** not started.
 
@@ -195,7 +199,7 @@ pattern:
 
 ## Added since (not in the handoff)
 
-- [x] **A shelf for each project** (`shelve`, `shelf`, `take`; `shelves`
+- [x] **A shelf for each project** (`shelf_add`, `shelf_list`, `shelf_read`; `shelves`
   for the person): where a session puts the reports and working notes it
   makes for the project it is on. No seal, beside the record, never
   written over. The person's ruling of 2026-11-17: filed under the

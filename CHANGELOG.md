@@ -4,6 +4,31 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **`status`: how things stand, in one look.** On the person's door, and a
+  third page of the seal page: what waits on the seal, counted by what each
+  thing is; what the folder needs (Willow's `digest`, less the folders left
+  out of reports); what was shared and kept, and each project's shelf; how
+  this is set; and whether the record is all right (Willow's `box-health`).
+  A part that couldn't be looked at says so and the rest still shows.
+  `digest`, `stale-answers` and `box-health` join the pin. No model's door
+  has it.
+- **A propose scopes its own read.** One record hears every session, and
+  another session's question could land on it between this door's read and
+  its propose: the propose then refused with nothing to share, or scoped
+  the other question's passages (which failed closed when the page was
+  asked for). The question is now asked again at the propose, from this
+  process's memory and nowhere written down.
+- **Prompts that say what to type.** Each prompt's menu line says what to
+  type after it and what comes back; `ask` no longer needs its question
+  typed after the command: run bare, the assistant asks for it.
+- **Resources and prompts.** The MCP door lists what it can be asked for
+  (the reports by name, the page last sealed, this project's shelf) and
+  reads each as the verb it stands for (`report`, `leave`, `shelf_read`), so a
+  read is decided, refused and written down as that verb is, and the list
+  says nothing of the person's files. It also lists three prompts the
+  person can start from their own client: `plate` (what's on my plate),
+  `ask` (a question, by its sealed page) and `wrap_up` (keep what a session
+  found). Neither list is a tool: a model is never offered them to call.
 - **A report of your files.** `report` gives a model one of Willow's
   reports over the person's files, `todo` or `on-this-day`, the way a
   question goes (the person's ruling of 2026-11-17): unsealed, the model
@@ -31,12 +56,12 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   made a long report hard to read; only running prose keeps a short line.
 - **A shelf for each project.** A session puts what it makes (a report, a
   list, working notes) on the shelf of the folder it is working in:
-  `shelve`, `shelf` and `take` on a model's door, with no seal, since
+  `shelf_add`, `shelf_list` and `shelf_read` on a model's door, with no seal, since
   nothing on a shelf was ever the person's files and nothing on it leaves.
   Shelves live under `BOX.runtime/shelf/`, beside the record and outside
   the folder questions read; nothing on one is written over; each thing
   says which session put it there; `backup` and `restore` carry them; and
-  `shelves` and `take` on the person's door read any of it. A moment named
+  `shelves` and `shelf_read` on the person's door read any of it. A moment named
   in `capture.txt` now goes on the shelf, not to the seal. The MCP door
   tells the runtime the folder it was started in, and its tools can take
   two strings.

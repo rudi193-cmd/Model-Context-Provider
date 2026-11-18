@@ -126,6 +126,10 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         return runtime.call(box, "restore", str(usb / made), door="pipe")
     if code == "capture_refused":
         return runtime.call(box, "capture", "  ", door="mcp")
+    if code == "no_resource":
+        return runtime.call(box, "resource", "provider://key/the-key", door="mcp")
+    if code == "no_prompt":
+        return runtime.call(box, "prompt", {"name": "horoscope"}, door="mcp")
     if code == "no_report":
         return runtime.call(box, "report", "horoscope", door="mcp")
     if code == "report_failed":
@@ -136,10 +140,10 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         monkeypatch.setattr(runtime, "REPORT_MOST", 10)
         return runtime.call(box, "report", "todo", door="mcp")
     if code == "shelf_refused":
-        return runtime.call(box, "shelve", {"name": "../x", "text": "t"},
+        return runtime.call(box, "shelf_add", {"name": "../x", "text": "t"},
                             door="mcp", where=str(usb))  # fmt: skip
     if code == "not_on_shelf":
-        return runtime.call(box, "take", "nope.md", door="mcp", where=str(usb))
+        return runtime.call(box, "shelf_read", "nope.md", door="mcp", where=str(usb))
     if code == "event_unread":
         return runtime.call(box, "event", "not json", door="guard")
     if code == "guard_failed":

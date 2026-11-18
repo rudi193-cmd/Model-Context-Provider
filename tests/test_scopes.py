@@ -20,6 +20,19 @@ def proposed(box, q=FROST):
     return runtime.call(box, "propose", door="mcp")["seal"]
 
 
+def test_another_sessions_question_between_a_read_and_its_propose_changes_nothing(box):
+    """One record hears every session (seen 2026-11-17: a propose refused
+    with nothing to share, straight after a read that found something)."""
+    runtime.call(box, "read", FROST, door="mcp")
+    for theirs in ("what colour is the boat", "when is the car's MOT due"):
+        assert runtime.willow("kernel.py", "bite", "--box", str(box), theirs).returncode != 2  # fmt: skip
+    got = runtime.call(box, "propose", door="mcp")
+    assert got["state"] == "waiting"
+    seal(box, got["seal"])
+    page = runtime.call(box, "context", FROST, door="hook")["page"]
+    assert "late October" in page and "MOT" not in page
+
+
 def test_a_scope_reads_as_its_places_and_where_it_stands(box):
     subject = proposed(box)
     assert stands(box) == [(["garden.md:1"], "waiting on your seal")]
