@@ -18,6 +18,17 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   20,000 characters is never proposed, and a model is told so without its
   size; and the pin moves to Willow `fca52619`, where `todo` 0.1.2 counts a
   mark only as it is written to mark something.
+- **`coming-up`, a third report.** Every line of the person's folder that
+  holds a date in the next 14 days, soonest first, sealed like the others.
+  Willow's `coming-up` and the `pieces` it loads join the pin.
+- **A session hears its own folder's handoff.** One record hears every
+  project's sessions, and a session here was told to pick up where one in
+  another project had stopped. The pin moves to a Willow where
+  `hook-handoff` 0.1.1 gives the last handoff that ended in the asking
+  session's folder, and `todo` no longer counts a checkbox that opens with a
+  template's blank (`- [ ] {item}`).
+- **The seal page fills its window.** It was held to a fixed width, which
+  made a long report hard to read; only running prose keeps a short line.
 - **A shelf for each project.** A session puts what it makes (a report, a
   list, working notes) on the shelf of the folder it is working in:
   `shelve`, `shelf` and `take` on a model's door, with no seal, since

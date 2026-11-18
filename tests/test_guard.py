@@ -152,6 +152,19 @@ def test_a_turn_can_always_end(box, monkeypatch):
     assert runtime.call(box, "event", stop, door="guard")["state"] == "refused"
 
 
+def test_a_session_is_told_where_its_own_folder_left_off_not_another_one(box, tmp_path):
+    """One record hears every folder's sessions (seen 2026-11-17: a session
+    here was told to pick up where one in another project had stopped)."""
+    here, there = str(tmp_path / "here"), str(tmp_path / "there")
+    guard(box, {"hook_event_name": "Stop", "session_id": "s1", "cwd": here})
+    guard(box, {"hook_event_name": "Stop", "session_id": "s2", "cwd": there})
+    start = {"hook_event_name": "SessionStart", "session_id": "s3", "cwd": here}
+    said = json.loads(guard(box, start).stdout)["hookSpecificOutput"]["additionalContext"]  # fmt: skip
+    assert f"session s1 ended in {here}" in said and there not in said
+    nowhere = {**start, "session_id": "s4", "cwd": str(tmp_path / "new")}
+    assert guard(box, nowhere).stdout == ""
+
+
 def test_a_session_starts_with_a_count_of_what_waits_and_no_words(box):
     start = {"hook_event_name": "SessionStart", "session_id": "s1"}
     assert guard(box, start).stdout == ""  # nothing waits: nothing said

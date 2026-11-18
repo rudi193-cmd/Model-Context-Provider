@@ -96,12 +96,14 @@ CSS = """
   --paper: #191815; --card: #22201c; --line: #3a372f; --go: #8fc79c;
   --no: #e39a8f; } }
 * { box-sizing: border-box; }
-body { margin: 0 auto; max-width: 46rem; padding: 2rem 1rem 4rem;
+/* the page is as wide as its window, so a page or a report to seal is read
+   whole; only running prose is kept to a line a person reads easily */
+body { margin: 0; padding: 2rem clamp(1rem, 4vw, 4rem) 4rem;
   background: var(--paper); color: var(--ink);
   font: 1rem/1.5 Georgia, 'Iowan Old Style', serif; }
 h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
 h2 { font-size: 1.1rem; margin: 0 0 .25rem; }
-p { margin: .4rem 0; }
+p { margin: .4rem 0; max-width: 46rem; }
 .soft, .kind { color: var(--soft); font-size: .9rem; }
 .kind { text-transform: uppercase; letter-spacing: .06em; font-size: .75rem; }
 .card { background: var(--card); border: 1px solid var(--line);

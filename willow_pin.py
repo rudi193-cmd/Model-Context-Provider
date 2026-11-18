@@ -34,6 +34,7 @@ ADD_ONS = (
     "backup",
     "batch-ask",  # index-cache and claude-code load its scan
     "claude-code",
+    "coming-up",  # loads pieces
     "hook-errors",
     "hook-feedback",
     "hook-guard",
@@ -45,6 +46,7 @@ ADD_ONS = (
     "local-model",
     "on-this-day",
     "openai-compatible",  # local-model loads it
+    "pieces",  # coming-up loads it from beside it
     "privacy",
     "sentence-check",
     "session-seal",

@@ -3,11 +3,28 @@ until the person seals it; then exactly the words they sealed, and no
 others (the person's ruling of 2026-11-17)."""
 
 import json
+import time
 
 import pytest
 from test_leave import seal
 
 import runtime
+
+
+def test_coming_up_is_a_report_of_the_dates_ahead(box):
+    assert runtime.call(box, "report", "coming-up", door="mcp") == {
+        "state": "empty", "report": "coming-up"}  # fmt: skip
+    soon = time.strftime("%Y-%m-%d", time.gmtime(time.time() + 3 * 86400))
+    (box.parent / "pile" / "diary.md").write_text(
+        f"Dentist on {soon}, bring the form.\n"
+    )
+    theirs = runtime.call(box, "report", "coming-up", door="pipe")
+    assert theirs["state"] == "populated" and f"## {soon}" in theirs["text"]
+    got = runtime.call(box, "report", "coming-up", door="mcp")
+    assert got["state"] == "waiting" and "Dentist" not in json.dumps(got)
+    seal(box, got["seal"])
+    page = runtime.call(box, "report", "coming-up", door="mcp")["page"]
+    assert "diary.md:1" in page and "bring the form" in page
 
 
 @pytest.fixture

@@ -681,7 +681,7 @@ PLAIN = {
     "not_on_shelf": ("There's nothing by that name on this project's shelf.",
                      "See what is there (shelf): each shows the name to ask for."),
     "no_report": ("That isn't a report this makes.",
-                  "The reports are: todo (what you wrote down to do) and on-this-day (what you wrote on this date in earlier years)."),
+                  "The reports are: todo (what you wrote down to do), coming-up (dates in your files in the next two weeks) and on-this-day (what you wrote on this date in earlier years)."),
     "report_failed": ("The report couldn't be made, so nothing was shared.",
                       "Check that WILLOW points at your Willow folder."),
     "report_too_long": ("The report is too long to share whole, so nothing was shared.",
@@ -879,6 +879,7 @@ def stop(box: Path, subject: str) -> dict:
 REPORTS = {
     "todo": "adapters/stdlib/todo/todo.py",
     "on-this-day": "adapters/stdlib/on-this-day/on_this_day.py",
+    "coming-up": "adapters/stdlib/coming-up/coming_up.py",
 }
 
 

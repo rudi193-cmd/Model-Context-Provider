@@ -87,9 +87,10 @@ pattern:
     lines), not a calendar. Needs: the same decision as notes.
 - [x] **on-this-day**
   - **Note:** built as `report on-this-day`, the same way as todo. Its
-    sibling `coming-up` (dates in the next N days) wasn't in the list and
-    isn't built: it loads Willow's `pieces` add-on from beside it, so that
-    has to be read and pinned too.
+    sibling `coming-up` (dates in the next 14 days) wasn't in the list and
+    is built too, as `report coming-up`; it loads Willow's `pieces` add-on
+    from beside it, so both are pinned. It reads the box's main folder
+    only, not extra sources. Not yet tried in a real session.
 - [ ] **timeline**
   - **Note:** writes a dated, cited timeline of one matter to a file, to
     hand to someone. That is a way out: it needs the leave rules.

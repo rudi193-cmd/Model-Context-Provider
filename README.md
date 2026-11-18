@@ -79,7 +79,7 @@ next.
 
 You need Python 3.9 or newer and a Willow checkout at the commit
 [willow.pin.json](willow.pin.json) names. The pin holds every file of Willow
-this runs (the kernel and nineteen add-ons) by its SHA-256, and nothing runs
+this runs (the kernel and twenty-one add-ons) by its SHA-256, and nothing runs
 on a Willow whose files differ: `python3 willow_pin.py check` says which.
 Nothing else in Willow matters to it. Make your record in Willow's UI: pick
 your folders, type your own words into the words step, seal it, and press
@@ -145,7 +145,7 @@ fixed rule and never a reading of what the assistant meant:
 | after a command | a failure is kept on your record by the command's hash and exit code, never its words | `hook-errors` |
 | at a prompt | a correction ("no", "wrong", "I said") is proposed, and waits on your seal like anything else | `hook-feedback` |
 | at a turn's end | where the session ended is kept: its id and folder | `hook-handoff` |
-| at the next session's start, or first prompt | the model is told that, once: "session S ended in FOLDER" | `hook-handoff` |
+| at the next session's start in that same folder, or its first prompt | the model is told that, once: "session S ended in FOLDER". A session in another folder isn't told: one record hears every project's sessions, and each picks up its own | `hook-handoff` |
 | at a session's start, and before a summary | the model is told how many things wait on your seal: a count, and nothing of what they are | the runtime |
 
 A blocked call is told why, in the guard's own words, and that goes on the
@@ -181,6 +181,7 @@ each, and a model can ask for one (the person's ruling of 2026-11-17):
 | Report | What it lists |
 |---|---|
 | `todo` | every line marked to do (TODO, FIXME, "need to", "remember to", an open checkbox), oldest first |
+| `coming-up` | every line holding a date in the next 14 days, soonest first, with the repeats of a birthday or a calendar's rule |
 | `on-this-day` | what you wrote on this date in earlier years |
 
 It goes the way a question goes:
@@ -409,7 +410,7 @@ named in `model.json`.
 | `backup`, `local-model` | the record's backup, and finding models on this machine |
 | `session-seal` | one seal over a session's actions |
 | `index-cache`, `claude-code`'s `bite` | a bite answered from an index of the folder |
-| `todo`, `on-this-day` | the reports of the person's files |
+| `todo`, `coming-up` (with `pieces`), `on-this-day` | the reports of the person's files |
 | `hook-guard`, `hook-leaks`, `hook-shell`, `hook-read-first`, `hook-errors` | the rules a tool call is held to before it runs |
 | `hook-handoff`, `hook-feedback` | where a session ended, and a correction kept for the person's seal |
 
