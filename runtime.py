@@ -108,8 +108,32 @@ def waiting(box: Path) -> dict:
                 "path": prop.get("path", ""), "words": str(prop.get("data", ""))[:500]}  # fmt: skip
         if subject in scopes(box):  # its words are a hash: the page says what it is
             item["preview"] = {"preview": subject}
+        if subject in set_aside(box):  # the person said not now: still waiting
+            item["later"] = True
         out.append(item)
     return {"state": "waiting" if out else "empty", "waiting": out}
+
+
+def set_aside(box: Path) -> list[str]:
+    """What the person said "not now" to, kept beside the record and never on
+    it: each still waits on their seal, and nobody is told again until they
+    bring it back."""
+    f = state(box) / "later.json"
+    return json.loads(f.read_text()) if f.exists() else []
+
+
+def later(box: Path, subject: str, back: bool = False) -> dict:
+    """Not now: stop telling the person about one thing that waits on them,
+    or (back) start again. It is no answer: nothing goes on the record, no
+    key is used, and the thing waits as it did. Only a seal or a decline,
+    which are the person's own with their key, settle it."""
+    owes = {w["seal"] for w in waiting(box).get("waiting", [])}
+    if subject not in owes:
+        return {"state": "refused", "code": "not_waiting",
+                "why": f"{subject} isn't waiting on a seal here"}  # fmt: skip
+    kept = ({*set_aside(box)} & owes) - {subject} | (set() if back else {subject})
+    (state(box) / "later.json").write_text(json.dumps(sorted(kept)))
+    return {"state": "waiting" if back else "later", "seal": subject}
 
 
 BACKUP = "adapters/stdlib/backup/backup.py"
@@ -597,6 +621,8 @@ PLAIN = {
                     "See them with scopes: each shows the seal to name."),
     "not_pin": ("That file isn't a pin.",
                 "Point check at the file pin wrote."),
+    "not_waiting": ("That isn't something waiting on you.",
+                    "See what waits on you (waiting): each shows the seal to name."),
     "willow_unpinned": ("Your Willow isn't the one this was built on, so nothing was done.",
                         "Run: python3 willow_pin.py check (it names what differs), then put "
                         "Willow at the commit it names, or point WILLOW at a copy that is."),
@@ -619,7 +645,8 @@ def plain(got: dict, box: Path, faces: str, verbs) -> dict:
 
 #: who is on the far side of each door. A door not named here faces a model:
 #: an unknown door fails closed.
-FACES = {"pipe": "person", "mcp": "model", "hook": "model", "session": "person"}
+FACES = {"pipe": "person", "mcp": "model", "hook": "model", "session": "person",
+         "page": "person"}  # fmt: skip
 
 
 SENTENCE_CHECK = "adapters/stdlib/sentence-check/sentence_check.py"
@@ -893,7 +920,11 @@ def owed(box: Path) -> dict:
     if got["state"] != "waiting":
         card_path.unlink(missing_ok=True)
         return got
-    w = got["waiting"]
+    aside = [x for x in got["waiting"] if x.get("later")]
+    w = [x for x in got["waiting"] if not x.get("later")]
+    if not w:  # all of it set aside: it waits, and nobody is told again
+        card_path.unlink(missing_ok=True)
+        return {"state": "empty", "later": len(aside)}
     sessions = sum(1 for x in w if str(x.get("path", "")).startswith("sessions/"))
     other = len(w) - sessions
     each = []
@@ -902,8 +933,11 @@ def owed(box: Path) -> dict:
     if other:
         each.append(f"{other} page{'s' * (other != 1)} or sentence{'s' * (other != 1)}")
     pipe = shlex.join(["python3", str(HERE / "doors" / "pipe.py"), "--box", str(box)])
-    say = (f"Waiting on your seal: {' and '.join(each)}. To see what each is and "
-           f"the line that seals it, run {pipe} and type {{\"waiting\": true}}")  # fmt: skip
+    page = shlex.join(["python3", str(HERE / "seal_page.py"), "--box", str(box)])
+    say = (f"Waiting on your seal: {' and '.join(each)}. To read each and seal it "
+           f"with a click, run {page} in a terminal of your own. To see what each "
+           f"is and the line that seals it, run {pipe} and type "
+           "{\"waiting\": true}")  # fmt: skip
     rows = []
     for x in w:
         kind = ("session" if str(x.get("path", "")).startswith("sessions/")
@@ -916,11 +950,13 @@ def owed(box: Path) -> dict:
         )
         rows.append(f"- {kind}: {claim} — {seal}")
     card = ("Waiting on your seal:\n" + "\n".join(rows)
+            + f"\nRead each and seal it with a click: {page} (in a terminal of "
+              "your own)."
             + f"\nLeave alone by doing nothing. Preview a page: {pipe} and "
               "{\"preview\": true}.")  # fmt: skip
     card_path.write_text(card + "\n")
     return {"state": "waiting", "sessions": sessions, "other": other,
-            "say": say, "card": card}  # fmt: skip
+            "later": len(aside), "say": say, "card": card}  # fmt: skip
 
 
 def nudge(text: str) -> None:
@@ -938,7 +974,9 @@ def nudge(text: str) -> None:
         pass
 
 
-#: the verbs, the same for every door. There is no verb to seal.
+#: the verbs, the same for every door. There is no verb to seal or decline:
+#: those are the person's, with their key, by the kernel's own command (typed,
+#: or clicked on seal_page.py, which is no door and which no door imports).
 VERBS = {
     "person": {
         "read": lambda box, arg, **kw: read(box, str(arg)),
@@ -949,6 +987,8 @@ VERBS = {
         "scopes": lambda box, arg, **kw: scope_list(box),
         "stop": lambda box, arg, **kw: stop(box, str(arg)),
         "preview": lambda box, arg, **kw: preview(box, arg),
+        "later": lambda box, arg, **kw: later(box, str(arg)),
+        "back": lambda box, arg, **kw: later(box, str(arg), back=True),
         "waiting": lambda box, arg, **kw: waiting(box),
         "backup": lambda box, arg, **kw: backup(box, Path(str(arg))),
         "restore": lambda box, arg, **kw: restore(box, Path(str(arg))),

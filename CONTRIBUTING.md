@@ -7,9 +7,14 @@ Read [README.md](README.md) first: the two lines are the whole design.
 
 ## The rules a change is held to
 
-- **Nothing seals, and nothing reads the person's key.** No door has a verb
-  to seal or decline; sealing is the person's, with their key, outside any
-  door. The key is the user's.
+- **Nothing decides a seal, and nothing reads the person's key.** No door
+  has a verb to seal or decline, and neither has the runtime; sealing is the
+  person's, with their key, outside any door. One file carries a seal out:
+  `seal_page.py`, on the person's click, by the kernel's own command line
+  (the person's ruling of 2026-11-17: code may carry out a seal decided
+  where no model's door reaches). It is no door, and no door may import it.
+  A change to it is held to the table at its top, and to
+  `tests/test_seal_page.py`. The key is the user's.
 - **A door decides nothing.** It imports `runtime` and nothing else that
   decides, and never calls Willow itself; `tests/test_doors.py` fails it
   otherwise. A new door gets a line in `runtime.FACES`, or it faces a model.
