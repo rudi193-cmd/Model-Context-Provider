@@ -14,6 +14,9 @@ welcome.
 - a door deciding anything: serving, sealing, or letting a page out by
   itself;
 - the person's key read, copied or printed;
+- a seal or a decline the person didn't click: the seal page reached from
+  another machine, another website, a frame, or a model's door, or made to
+  seal something that wasn't waiting;
 - what left not on the sent log, or the log changed without `check` saying
   so against a pin.
 

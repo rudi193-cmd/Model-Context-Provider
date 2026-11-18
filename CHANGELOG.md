@@ -4,6 +4,30 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A seal page.** `python seal_page.py --box DIR` prints a link and opens a
+  page, on this machine only, showing what waits on the person's seal: a
+  session's actions, a page as it would leave, a model's sentence, each with
+  the bytes the key would sign folded under it. **Seal** and **Decline** are
+  the kernel's own commands, proved with the key the kernel reads; **Not
+  now** writes nothing on the record. It is not a door, no door can import
+  it, and the runtime still has no verb to seal. Held to Willow browse's
+  table of who can reach it (127.0.0.1 only, a secret for each start as
+  cookie and form field, Origin and Host checked, never framed, no script),
+  in the tests and in a real Chrome.
+- **What you've shared, on the seal page.** A second page lists each page
+  the person was asked to share and where it stands, with **Stop sharing
+  this** (the runtime's `stop`), and what has left, to whom and when (its
+  `shared`). Held to the same table as the first.
+- **A launcher for the seal page.** `seal_page.py launcher --box DIR` prints
+  a double-click file for macOS, Windows and Linux; `--write` saves this
+  machine's, never over one that differs. **Close this page** stops the
+  page, and `--idle MINUTES` stops it when nobody has asked for that long.
+- **Not now.** The person's `later` sets one waiting thing aside, beside
+  the record and never on it, and `back` brings it back. `owed` and the
+  needs-you card leave out what was set aside; `waiting` still shows it. One
+  new refusal in plain words: `not_waiting`.
+- **The needs-you card names the seal page**, as a command for the person's
+  own terminal, never a link or its secret.
 - **Setup that finishes.** `hosts.py` keeps Willow's hosts table (Cursor,
   Copilot, Codex, Gemini, OpenCode, Windsurf, Zed) pointed at `doors/mcp.py`.
   `set_up.py --write cursor` (or `claude-code`, or `all`) merges the MCP door

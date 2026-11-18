@@ -2,8 +2,12 @@
 
 Read [README.md](README.md) first: the two lines are the whole design.
 
-- **Never seal, never read the person's key.** No door has a verb to seal.
-  The key is the user's.
+- **Never seal, never read the person's key.** No door has a verb to seal,
+  and the runtime has none either. `seal_page.py` alone carries out a seal
+  or a decline, on the person's click, by the kernel's own command; it is no
+  door, no door imports it, and the kernel reads the key, never this code.
+  Never start it, open its link or click it for the person. The key is the
+  user's.
 - **A door decides nothing.** It imports `runtime` and nothing else that
   decides; `tests/test_doors.py` fails it otherwise. A new door gets a line
   in `runtime.FACES`, or it is treated as facing a model.

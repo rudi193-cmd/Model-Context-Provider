@@ -60,6 +60,7 @@ beside the person's record.
 | `scopes`: every question proposed, and where each stands | `draft`: ask a model for that sentence |
 | `stop`: never let a scope leave again | `context`: the sealed page for this question, if there is one |
 | `preview`: the page a scope would let leave, before they seal it | |
+| `later`, `back`: not now, and bring it back; never on the record | |
 | `shared`: what left, as places, not hashes | |
 | `close`: this session's actions, for one seal | |
 | `owed`: what waits on their seal, in one line | |
@@ -67,8 +68,9 @@ beside the person's record.
 | `draft`, `models`, `backup`, `pin`, `check`, `sent` | |
 
 Neither side can seal or decline. Sealing is the person's, with their key,
-outside every door. Every refusal says what happened in plain words, and
-the one thing to do next.
+outside every door: typed, or clicked on [the seal page](#the-seal-page).
+Every refusal says what happened in plain words, and the one thing to do
+next.
 
 ## Set it up
 
@@ -121,6 +123,69 @@ Your own door, for everything a model can't do:
 | `doors/hook.py` | a model | Prompt hook (Claude Code, and `--host` for Gemini/Codex/OpenCode): the sealed page, or one line saying nothing is sealed. Cursor cannot inject; use MCP |
 | `doors/session.py` | the person | Session start/end: each session closed for one seal; at the next start the person is told what waits (Claude `systemMessage`, Cursor `user_message` + desktop notice). Cursor also nudges after this server's MCP tools |
 
+## The seal page
+
+    python seal_page.py --box BOX
+
+It prints a link and opens it in your browser. The page shows what waits on
+your seal, each as what it is:
+
+- **a session**: which rows of your record, and what was done in them;
+- **a page to share**: the page as it would leave, withheld, by file and
+  line (the runtime's `preview`);
+- **a model's sentence**: its words, and where it would be kept.
+
+Under each, "Exactly what you'd be sealing" unfolds the bytes your key
+signs, and three buttons:
+
+| Button | What it does |
+|---|---|
+| **Seal** | the kernel's own `seal`, proved with your key |
+| **Decline** | the kernel's own `decline`, proved with your key, and final; it asks for a tick first |
+| **Not now** | nothing on your record and no key: it still waits, and you aren't told about it again until you bring it back |
+
+A second page, **What you've shared**, lists every page you were asked to
+share, by file and line, and where each stands: waiting, sealed, changed in
+your files since, or stopped. **Stop sharing this** is the runtime's `stop`:
+the page is never given to a model again, by any door, and it needs no key.
+Under them is what has left, to whom and when (the runtime's `shared`).
+
+**Close this page** stops it. To start it with a double-click:
+
+    python seal_page.py launcher --box BOX --write
+
+That saves a launcher for this machine: on Linux an entry named "Seal page"
+in your applications menu, on macOS and Windows a file on your Desktop.
+Without `--write` it prints all three and where each goes, and writes
+nothing. It never writes over a file that differs. A page started that way
+stops itself after half an hour with nobody asking (`--idle 30`). The
+launcher holds no secret: each start makes its own. Only the Linux one has
+been run; the macOS and Windows files are untried.
+
+It is not a door, and it decides nothing. The decision is your click; the
+seal is the kernel's, run by its command line as if you had typed it; the
+kernel reads your key, and this project never does. No door imports the
+page, and the runtime still has no verb to seal, so nothing a model's door
+can ask for ends in a seal. Start it in a terminal of your own: the link
+holds a secret made at each start, and it is printed nowhere else.
+
+Who can reach it (the table Willow's `browse` is held to, the code written
+here):
+
+| Way in | What stops it |
+|---|---|
+| Another computer | It listens on 127.0.0.1 only. |
+| Another website, in a browser you've opened it in | The secret is an HttpOnly, SameSite=Strict cookie, and every form carries it too; without both, 403. A form whose Origin isn't this page, or is missing or `null`, gets 403. |
+| A website that renames itself as this machine | A Host that isn't `127.0.0.1:PORT` or `localhost:PORT` gets 403. |
+| A website that frames it under a button | `frame-ancestors 'none'` and `X-Frame-Options: DENY`. |
+| Words in a passage or a model's sentence | Every one is escaped, and the page allows no script at all. |
+| A program already running as you | Nothing. It could run `kernel.py seal` itself; that includes an assistant you've given a shell or your browser. |
+
+Checked in a real Chrome on 2026-11-17, over a made-up folder: the person's
+Seal, Not now and Decline each did what they say; a page on another port
+that framed it was refused by the CSP, and its form got 403 and left the
+record as it was.
+
 ## One seal a session
 
 A seal at every step is a lot to ask. At a session's end the session door
@@ -128,9 +193,9 @@ asks the runtime to `close` it: Willow's `session-seal` bundles the record's
 rows since the last close (each by number, kind and hash, no words) as one
 proposal, "yes, these were my actions". At the next start, the person is
 told what waits on them: a one-line count (Claude Code's `systemMessage`),
-and a card naming each claim with its seal line (Cursor's `user_message`, a
-desktop notice when the OS has one, and `BOX.runtime/needs-you.txt`). Nothing
-of that is put in the model's turn.
+and a card naming each claim with its seal line and the seal page's command
+(Cursor's `user_message`, a desktop notice when the OS has one, and
+`BOX.runtime/needs-you.txt`). Nothing of that is put in the model's turn.
 
 It proposes; it never seals. Sealing a session says the actions were the
 person's; it doesn't let a page leave. A page still leaves only on its own
@@ -212,10 +277,9 @@ this ([willow-memory/Willow#373](https://github.com/willow-memory/Willow/pull/37
 
 ## Not yet
 
-- **Sealing without a terminal.** A seal is still `python kernel.py seal`.
-  Two ways are open: MCP elicitation, where the client shows the person a
-  form, or a page to seal from. That choice is the person's to make.
-  [NOTES.md](NOTES.md) has both.
+- **Sealing away from the box.** The seal page is on this machine only; a
+  phone is not built. Nor is a seal through the client (MCP elicitation):
+  that form would sit on a model's door. [NOTES.md](NOTES.md) has both.
 - **Models off this machine** are refused. Sending even a sealed page to
   someone else's server is a bigger step, and would be the person's
   explicit line in `model.json`.
@@ -248,4 +312,5 @@ person seals while code only proposes.
 [AGENTS.md](AGENTS.md) is the short form for an agent;
 [SECURITY.md](SECURITY.md) says what counts as a hole. Apache-2.0.
 
-Nothing here reads the person's key. The key is the user's.
+Nothing here reads the person's key: the kernel does, when the person
+seals. The key is the user's.

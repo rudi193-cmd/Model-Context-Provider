@@ -89,6 +89,11 @@ def paste(box: Path) -> str:
         "",
         others.rstrip(),
         "",
+        "To seal what waits on you with a click, in a terminal of your own:",
+        "  python seal_page.py --box " + shlex.quote(str(box)),
+        "Or save a launcher to start it with a double-click:",
+        "  python seal_page.py launcher --box " + shlex.quote(str(box)) + " --write",
+        "",
         "Your door has more: python doors/pipe.py --box " + shlex.quote(str(box)),
         '  with {"waiting": true}, {"preview": true}, {"shared": true}, {"backup": "/media/usb"} a line.',
     ])  # fmt: skip
