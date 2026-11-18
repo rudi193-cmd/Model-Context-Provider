@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import json
+import os
 import re
 import shlex
 import subprocess
@@ -803,6 +804,12 @@ PLAIN = {
                    "Leave it alone. To give it to someone else, the person drops it (task_drop) and it is added again."),
     "task_not_held": ("This session hasn't claimed that task, so it wasn't marked done.",
                       "Claim it first (task_claim), then mark it done with what you found."),
+    "no_grant": ("This session hasn't been let into your files, so nothing ran and nothing was given.",
+                 "Say yes to it on your seal page (it shows as a session asking to read your files); it lasts until the session ends."),
+    "job_refused": ("That job couldn't be run.",
+                    "Nothing ran. The reason it gave says what to fix first: a job with a network line, a sandbox program that is missing (name a Python that has Kartikeya in kart-python beside your record), or a resource group that isn't running."),
+    "job_too_long": ("That job printed more than can be given whole, so nothing was given.",
+                     "Ask for less: a count, or the first lines (head)."),
     "notes_too_long": ("The notes you sealed are too long to give whole, so nothing was given.",
                        "Read them yourself (captured); nothing is cut short."),
 }  # fmt: skip
@@ -986,11 +993,12 @@ def stop(box: Path, subject: str) -> dict:
         subject not in scopes(box)
         and subject not in reports(box)
         and subject not in skill_seals(box)
+        and subject not in grant_seals(box)
     ):
         return {
             "state": "refused",
             "code": "not_a_scope",
-            "why": f"{subject} isn't a scope, a report or a skill proposed here",
+            "why": f"{subject} isn't a scope, a report, a skill or a grant proposed here",
         }
     f = state(box) / "stopped.json"
     f.write_text(json.dumps(sorted({*stopped(box), subject})))
@@ -2176,6 +2184,190 @@ def task_person(box: Path, arg) -> dict:
     return task_add(box, "you", arg, None, "")
 
 
+# ── a grant: one yes for one session in one folder ──────────────────────────
+#: this door's session: the assistant's own id for it when it gives one, else
+#: this process, so a grant never outlives the session it was asked for
+SESSION = (
+    os.environ.get("CLAUDE_CODE_SESSION_ID") or f"door-{os.getpid()}-{int(time.time())}"
+)
+KART = "adapters/deps/kart/kart.py"
+JOB_MOST = 20_000  # characters of a job, and of what it printed, given whole
+
+
+def grants_known(box: Path) -> dict:
+    """Every grant asked for here: its id → its seal, folder and session."""
+    f = state(box) / "grants.json"
+    try:
+        doc = json.loads(f.read_text()) if f.exists() else {}
+    except ValueError:
+        doc = {}
+    return doc if isinstance(doc, dict) else {}
+
+
+def grant_seals(box: Path) -> dict:
+    return {e["seal"]: g for g, e in grants_known(box).items()}
+
+
+def grant_of(where, session, known: dict | None = None) -> tuple[str, str, str]:
+    """(its id, its folder, the words the person seals) for a session in a
+    folder; an id of "" when either is missing. A session that ended and
+    started again (resumed, under the same id) asks anew: its words say
+    which asking this is, so an ended yes never opens again."""
+    folder = task_folder(where)
+    if not folder or not isinstance(session, str) or not session.strip():
+        return "", folder, ""
+    data = f"for: {folder}\nsession: {session.strip()}\n"
+    over = sum(1 for e in (known or {}).values()
+               if e.get("ended") and e.get("for") == folder
+               and e.get("session") == session.strip())  # fmt: skip
+    data += f"asked again: {over}\n" if over else ""
+    return hashlib.sha256(data.encode()).hexdigest()[:12], folder, data
+
+
+def grant_ask(box: Path, where, session) -> dict:
+    """Ask the person, once, to let this session read from their files while
+    it works in this folder. It is proposed through the kernel under a
+    question of its own; sealed, every tool answers this session directly
+    until the session ends or the person stops it. Asking again says where
+    it stands and proposes nothing twice."""
+    known = grants_known(box)
+    gid, folder, data = grant_of(where, session, known)
+    if not gid:
+        return {"state": "refused", "code": "no_grant",
+                "why": "no folder or no session to ask a grant for"}  # fmt: skip
+    if gid in known and not known[gid].get("ended"):
+        if granted(box, where, session):
+            return {"state": "granted", "grant": gid, "for": folder}
+        if known[gid]["seal"] in waiting_seals(box):
+            return {"state": "waiting", "seal": known[gid]["seal"], "grant": gid}
+    asked = asked_of_kernel(box, f"grant {gid}")
+    if asked.get("state") == "refused":
+        return asked
+    prop = {"path": f"grants/{gid}.md", "data": data, "cites": [],
+            "claim": f"a session working in {Path(folder).name} asks to read from "
+                     "your files until it ends"}  # fmt: skip
+    with tempfile.TemporaryDirectory() as d:
+        f = Path(d) / "suggestions.jsonl"
+        f.write_text(json.dumps(prop) + "\n")
+        run = willow("kernel.py", "propose", "--box", str(box), "--file", str(f))
+    subject = next((w for w in run.stdout.split() if w.startswith("proposal:")), None)
+    if run.returncode == 2 or "refused" in run.stdout or subject is None:
+        return {"state": "refused", "code": "no_grant",
+                "why": (run.stderr or run.stdout).strip()[-300:]}  # fmt: skip
+    known[gid] = {"seal": subject, "for": folder, "session": session.strip(),
+                  "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}  # fmt: skip
+    (state(box) / "grants.json").write_text(json.dumps(known, sort_keys=True))
+    if subject not in waiting_seals(box):  # sealed before, for this same session
+        return {"state": "granted", "grant": gid, "for": folder}
+    return {"state": "waiting", "seal": subject, "grant": gid}
+
+
+def granted(box: Path, where, session) -> bool:
+    """Whether the person's yes stands for this session in this folder: asked
+    for here, sealed (the kernel says so, by that seal, in those words), not
+    stopped, and the session not ended. Nothing beside the box is trusted
+    for the yes itself."""
+    known = grants_known(box)
+    gid, _, data = grant_of(where or str(Path.cwd()), session, known)
+    entry = known.get(gid) if gid else None
+    if not entry or entry.get("ended") or entry.get("seal") in stopped(box):
+        return False
+    doc = asked_of_kernel(box, f"grant {gid}")
+    return (doc.get("state") == "sealed" and doc.get("by") == entry["seal"]
+            and doc.get("answer") == data)  # fmt: skip
+
+
+def grant_end(box: Path, session) -> int:
+    """The session is over: every grant it held is ended, for good. How many."""
+    known, n = grants_known(box), 0
+    for entry in known.values():
+        if entry.get("session") == session and not entry.get("ended"):
+            entry["ended"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            n += 1
+    if n:
+        (state(box) / "grants.json").write_text(json.dumps(known, sort_keys=True))
+    return n
+
+
+def grants_listed(box: Path) -> dict:
+    """For the person: each grant, and where it stands."""
+    owed, off = waiting_seals(box), stopped(box)
+    out = []
+    for gid, e in sorted(grants_known(box).items(), key=lambda kv: kv[1].get("ts", "")):
+        stands = ("ended" if e.get("ended") else "stopped" if e["seal"] in off
+                  else "waiting on your seal" if e["seal"] in owed else "open")  # fmt: skip
+        out.append({"grant": gid, "for": e.get("for", ""), "seal": e["seal"],
+                    "since": e.get("ts", ""), "stands": stands})  # fmt: skip
+    return {"state": "listed" if out else "empty", "grants": out}
+
+
+def context_granted(box: Path, question: str) -> dict:
+    """Under a grant: what the files hold on these words, withheld, with
+    where each passage is from. No page is proposed and nothing waits."""
+    got = read(box, question)
+    served = got.get("served") if isinstance(got, dict) else None
+    if got.get("state") == "refused" or not served:
+        return (
+            {"state": got.get("state", "empty")}
+            if got.get("state") != "refused"
+            else got
+        )
+    try:
+        texts = withhold(box, [str(s.get("text", "")) for s in served])
+    except RuntimeError as why:  # can't withhold: nothing leaves
+        return {"state": "refused", "code": "scrub_failed", "why": str(why)}
+    page = "\n\n".join(
+        f"[{s.get('where', '?')}]\n{t.strip()}" for s, t in zip(served, texts)
+    )
+    (state(box) / "last-page.md").write_text(page)
+    return {"state": "left", "page": page, "by": "grant"}
+
+
+def kart_python(box: Path) -> str:
+    """The Python that runs a job: one that has Kartikeya, named in
+    kart-python beside the box; else the one this door runs on."""
+    f = state(box) / "kart-python"
+    named = f.read_text().strip() if f.exists() else ""
+    return named or sys.executable
+
+
+def job(box: Path, arg, where, session) -> dict:
+    """A job a session wrote, run over the person's folder in Kartikeya's
+    sandbox by Willow's kart: the folder read-only, no network, no box, no
+    key, none of the person's environment. Only under a grant. What it
+    printed comes back withheld; the run is on the record by the job's
+    hash, and nothing is proposed."""
+    if not granted(box, where, session):
+        return {"state": "refused", "code": "no_grant",
+                "why": "this session has no grant that stands"}  # fmt: skip
+    text = arg.get("text") if isinstance(arg, dict) else arg
+    if not isinstance(text, str) or not text.strip() or len(text) > JOB_MOST:
+        return {"state": "refused", "code": "job_refused",
+                "why": f"a job is text, not empty, at most {JOB_MOST} characters"}  # fmt: skip
+    with tempfile.TemporaryDirectory() as d:
+        src, out = Path(d) / "job.sh", Path(d) / "out.txt"
+        src.write_text(text if text.endswith("\n") else text + "\n")
+        run = subprocess.run(
+            [kart_python(box), KART, "try", "--box", str(box), "--file", str(src),
+             "--to", str(out)],
+            cwd=WILLOW, capture_output=True, text=True, check=False,
+        )  # fmt: skip
+        if run.returncode == 2 or not out.exists():
+            return {"state": "refused", "code": "job_refused",
+                    "why": (run.stderr or run.stdout).strip()[-400:]}  # fmt: skip
+        printed = out.read_text(errors="replace")
+    forget_read(box)  # the record's last row is the run, not a read
+    if len(printed) > JOB_MOST:
+        return {"state": "refused", "code": "job_too_long",
+                "why": f"it printed {len(printed)} characters; at most {JOB_MOST} is given"}  # fmt: skip
+    try:
+        (page,) = withhold(box, [printed])
+    except RuntimeError as why:
+        return {"state": "refused", "code": "scrub_failed", "why": str(why)}
+    return {"state": "left", "page": page, "by": "grant",
+            "ended": "well" if run.returncode == 0 else "badly"}  # fmt: skip
+
+
 def event(box: Path, sent) -> dict:
     """A moment of the assistant's session, as its host sent it, decided
     here for every door that carries one.
@@ -2211,6 +2403,18 @@ def event(box: Path, sent) -> dict:
     if name in ("PostToolUse", "PostToolUseFailure"):
         return judged(sent, [("hook-errors", (HOOK_ERRORS, "run", *at))])
     says = []
+    if name == "SessionEnd":
+        grant_end(box, sent.get("session_id"))
+        return {"state": "empty"}
+    if name == "SessionStart":
+        asked = grant_ask(box, sent.get("cwd"), sent.get("session_id"))
+        if asked.get("state") == "waiting":
+            says.append("Model Context Provider: this session has asked to read from "
+                        "the person's files. Until they say yes on their seal page, "
+                        "the tools say only whether there is something.")  # fmt: skip
+        elif asked.get("state") == "granted":
+            says.append("Model Context Provider: the person has let this session read "
+                        "from their files while it works in this folder.")  # fmt: skip
     if name == "UserPromptSubmit":
         run = hooked(sent, HOOK_FEEDBACK, "run", *at)
         if run.returncode != 0:
@@ -2264,6 +2468,7 @@ VERBS = {
         # naming a skill is the person's alone: a model never chooses a file
         "skill_add": lambda box, arg, **kw: skill_add(box, arg),
         "skills": lambda box, arg, **kw: skills_listed(box),
+        "grants": lambda box, arg, **kw: grants_listed(box),
         "capture": lambda box, arg, **kw: capture(box, arg),
         "captured": lambda box, arg, **kw: captured(box),
         # the person's act on their own files: never a model's or a host's
@@ -2309,7 +2514,11 @@ VERBS = {
         "propose": lambda box, arg, **kw: propose(box),
         "leave": lambda box, arg, **kw: leave_to_model(box),
         "answer": lambda box, arg, **kw: answer(box, str(arg)),
-        "context": lambda box, arg, **kw: context(box, str(arg)),
+        "context": lambda box, arg, **kw: (
+            context_granted(box, str(arg))
+            if granted(box, kw.get("where"), kw.get("session"))
+            else context(box, str(arg))
+        ),
         "draft": lambda box, arg, **kw: draft(
             box, str(arg), kw.get("ask"), kw.get("door", "")
         ),
@@ -2317,8 +2526,17 @@ VERBS = {
         "report": lambda box, arg, **kw: report_to_model(box, arg),
         # a skill the person named: its sealed words, by name, and no file
         "skill": lambda box, arg, **kw: skill_to_model(box, arg),
+        # the one yes of a session: asked for, or where it stands
+        "grant": lambda box, arg, **kw: grant_ask(
+            box, kw.get("where"), kw.get("session")
+        ),
+        # a job in Kartikeya's sandbox over the folder, under that yes
+        "job": lambda box, arg, **kw: job(box, arg, kw.get("where"), kw.get("session")),
     },
     "host": {
+        # a prompt hook asks at every prompt, wanted or not: it is given a
+        # page the person sealed for those words, and never a grant's
+        # passages, which a model asks for when it wants them
         "context": lambda box, arg, **kw: context(box, str(arg)),
         "event": lambda box, arg, **kw: event(box, arg),
     },
@@ -2352,6 +2570,7 @@ def what_waits(w: dict, known: dict) -> str:
                         ("answers/", "a model's sentence"),
                         ("captured/", "a note to keep"),
                         ("tasks/", "a task"),
+                        ("grants/", "a session asking to read your files"),
                         ("skills/", "a skill to give a model"),
                         ("feedback/", "a correction of yours")):  # fmt: skip
         if path.startswith(opens):
@@ -2439,6 +2658,9 @@ def status(box: Path) -> dict:
         for r in brought(box) or []])  # fmt: skip
     group("Shelves", [(s["project"], count(len(s["items"]), "thing"))
                       for s in shelves(box)["shelves"]])  # fmt: skip
+    group("Sessions let in", [(Path(g["for"]).name, f"{g['stands']} since {g['since']}")
+                              for g in grants_listed(box)["grants"]
+                              if g["stands"] in ("open", "waiting on your seal")])  # fmt: skip
     group("Skills", [(s["skill"], f"{s['stands']} ({s['path']})")
                      for s in skills_listed(box)["skills"]])  # fmt: skip
 
@@ -2767,8 +2989,9 @@ def promises() -> dict:
 
 
 def call(
-    box: Path, verb: str, arg=None, door: str = "", ask=None, where: str = ""
-) -> dict:
+    box: Path, verb: str, arg=None, door: str = "", ask=None, where: str = "",
+    session: str = "",
+) -> dict:  # fmt: skip
     """What every door calls: one verb, decided here, by who the door faces.
     Whatever reaches a model, and every file that leaves, is written down.
     A refusal comes back in plain words, with the one thing to do next.
@@ -2785,7 +3008,8 @@ def call(
         got = {"state": "refused", "code": "no_verb",
                "why": f"no verb {verb!r}; one of {sorted(verbs)}"}  # fmt: skip
         return plain(got, box, faces, verbs)
-    got = verbs[verb](box, arg, ask=ask, door=door, where=where)
+    got = verbs[verb](box, arg, ask=ask, door=door, where=where,
+                      session=session or SESSION)  # fmt: skip
     if got.pop("written_down", False):  # a resource: its own verb wrote it down
         return plain(got, box, faces, verbs)
     # a host's event is written down when it put words in the model's turn

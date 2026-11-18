@@ -55,9 +55,14 @@ ADD_ONS = (
     "privacy",
     "sentence-check",
     "session-seal",
+    "share",  # kart loads it: a job that came in a package, a result sent back
     "stale-answers",  # digest loads it; it loads pieces
     "todo",  # batch-ask's scan loads it
 )
+
+#: add-ons that need a package installed, under adapters/deps: Kartikeya runs
+#: a sealed job in its sandbox, in a Python that has it
+DEPS = ("kart",)
 
 
 def default_root() -> Path:
@@ -67,10 +72,11 @@ def default_root() -> Path:
 
 def files(root: Path) -> list[str]:
     """The files the pin covers in this checkout, as paths inside it: the
-    kernel, and every file of each add-on but its tests."""
+    kernel, and every file of each add-on but its tests, those that need a
+    package (adapters/deps) with the rest."""
     out = ["kernel.py"] if (root / "kernel.py").is_file() else []
-    for name in ADD_ONS:
-        d = root / "adapters" / "stdlib" / name
+    dirs = [root / "adapters" / "stdlib" / name for name in ADD_ONS]
+    for d in dirs + [root / "adapters" / "deps" / name for name in DEPS]:
         if d.is_dir():
             out += [
                 p.relative_to(root).as_posix()
@@ -136,6 +142,7 @@ def repin(root: Path, pin: Path = PIN) -> tuple[int, str]:
         "willow": "https://github.com/willow-memory/Willow",
         "commit": head.stdout.strip(),
         "add_ons": list(ADD_ONS),
+        "deps": list(DEPS),
         "files": new,
     }
     pin.write_text(json.dumps(doc, indent=2) + "\n")

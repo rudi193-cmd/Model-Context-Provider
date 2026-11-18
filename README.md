@@ -267,6 +267,42 @@ gets back. They hold nothing of yours:
 | `question_me` (what about) | being questioned, not answered: three questions over a page you sealed, one at a time, each naming the passage it came from; or a page proposed for your seal |
 | `wrap_up` | what this session found, written up and put on this project's shelf |
 
+## One yes for a session
+
+Sealing each page, report and result is the strict way, and it is still
+here. Day to day there is one yes:
+
+- **A session asks once**, when it starts, to read from your files while it
+  works in its folder. It shows on your seal page as "A session asking to
+  read your files".
+- **While that yes stands, its tools answer directly.** `context` gives what
+  your files hold on a question, with where each passage is from. `job`
+  runs a shell job over your folder in a sandbox and gives what it printed.
+  Names and numbers are withheld from both, and nothing waits on you.
+  It is given what it asks for: the prompt hook, which asks at every
+  prompt, still adds only a page you sealed for those words.
+- **It ends when the session ends**, and never opens again: a session that
+  starts again, resumed or new, asks anew. `stop` ends it sooner, with no
+  key. `{"grants": true}` lists each one and where it stands.
+- **Everything given is written down**, by hash, on the shared page.
+
+Without a yes, a session is told only whether your files hold something,
+as before. The yes is the kernel's: a file beside your record that claims
+one lets no one in.
+
+### A job, in the sandbox
+
+`job` is Willow's `kart`, which runs it through
+[Kartikeya](https://github.com/willow-memory/kartikeya) and bubblewrap:
+your folder read-only at `{pile}`, a scratch folder at `{scratch}`, no
+network, no home, and an environment of PATH, LANG and HOME alone. The box
+and its key are never in it. The run is on your record by the job's hash;
+what it printed is not, and nothing is proposed.
+
+Kartikeya needs Python 3.11 or later and `bwrap`. If the Python your doors
+run on doesn't have it, name one that does, on one line, in `kart-python`
+beside your record. Without it a job is refused and says so.
+
 ## A skill, sealed by its words
 
 A skill is a file of instructions you chose for a model to follow. The

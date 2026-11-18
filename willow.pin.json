@@ -1,7 +1,7 @@
 {
   "_what": "The Willow this runtime was built on: its commit, and every file of what runs, by SHA-256. willow_pin.py refuses a checkout whose files differ; repin is the one way to move it.",
   "willow": "https://github.com/willow-memory/Willow",
-  "commit": "2f030c13e1d908aed8a755dd943c831452a3df22",
+  "commit": "ba274db5a05982baff0711aa0c7cfc0ba5b9c89c",
   "add_ons": [
     "approved-only",
     "backup",
@@ -28,8 +28,12 @@
     "privacy",
     "sentence-check",
     "session-seal",
+    "share",
     "stale-answers",
     "todo"
+  ],
+  "deps": [
+    "kart"
   ],
   "files": {
     "kernel.py": "b5cd7e931429a859035b02be8e70bd8c4c9356f90ccb23e9529f8186ce6da746",
@@ -86,9 +90,16 @@
     "adapters/stdlib/sentence-check/sentence_check.py": "6b3dbcd1021273412def988e69aef62ff9db7c5ad5c2cd9c608e54913f12780f",
     "adapters/stdlib/session-seal/README.md": "b1520317a3df54a3facd90c4f477577dfb3112e2d18678b7b9d85b88268ac8e2",
     "adapters/stdlib/session-seal/session_seal.py": "23fd4eda0302b7db8115b23cc1c162d5bb3bee51f0dcfb09853f37b83c43f458",
+    "adapters/stdlib/share/README.md": "f89c46927753b89e19c205fdad8c5bc80c96d080ef8b787136cb9f0eef94f625",
+    "adapters/stdlib/share/ed25519.py": "ca54a7ae5f6b7b003d6333b62db4e83704fb09088c93cab63739884212d4487e",
+    "adapters/stdlib/share/share.py": "08134908e7e6ce83e6c173a5fbe109032385398ad0d820e7e1ee8ada6c28208b",
     "adapters/stdlib/stale-answers/README.md": "637f866eb51b2e032d89c28193365def5f80750202a26b6504d175c5985a687c",
     "adapters/stdlib/stale-answers/stale_answers.py": "54616e180d41e4e812b01cf5db98556e2f53298a47c73a71ff3421ee250be5d1",
     "adapters/stdlib/todo/README.md": "051e37ce0904f2c1dc79ccc7ab32703262fb6700c84d768fa9519b6c02cafdb1",
-    "adapters/stdlib/todo/todo.py": "186f227770f8eaf7b0d2ed42c8b93da1facd72766f1ae3d2e59aed2385f72bab"
+    "adapters/stdlib/todo/todo.py": "186f227770f8eaf7b0d2ed42c8b93da1facd72766f1ae3d2e59aed2385f72bab",
+    "adapters/deps/kart/README.md": "ba1535b3301585a1e6f410b85576dbd7ba85e70d3c2e28e4f1ccd8e1b8ffbdce",
+    "adapters/deps/kart/kart.py": "24b1cb9dc0c51e8390b0ae81575866efcf917331558c4b12ade2cdcdf57e2d17",
+    "adapters/deps/kart/requirements-floor.txt": "d04d431fa4e26567611c60c8ca21ba35315ac5199a80e3a2ef1c427a4becc9a8",
+    "adapters/deps/kart/requirements.txt": "f57c5eaf4102118b7bd6f3889303498e6854935f9df3bd36c899fa39165f6160"
   }
 }

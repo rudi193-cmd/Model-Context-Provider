@@ -4,6 +4,16 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **One yes for a session.** A session asks once, at its start, to read
+  from the person's files while it works in its folder; sealed, `context`
+  answers it directly, withheld, until the session ends or the person
+  stops it. A session that starts again asks anew. Without it, everything
+  is as before. (The owner, 2026-11-17: a seal should be something the
+  person really needs to do.)
+- **`job`, under that yes.** A shell job over the folder in Kartikeya's
+  sandbox, by Willow's `kart try`: read-only, no network, no box, no key.
+  The pin now covers `share` and `adapters/deps/kart`, and moves to Willow
+  ba274db5 (kart 0.1.4).
 - **A skill, sealed by its words.** `skill_add`, on the person's door
   alone, names a file of instructions; its words as it reads now wait on
   the seal. A model's `skill` asks by name and is given exactly the sealed

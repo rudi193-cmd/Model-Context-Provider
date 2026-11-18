@@ -329,6 +329,8 @@ def kind_of(w: dict) -> str:
         return "task"
     if path.startswith("skills/"):
         return "skill"
+    if path.startswith("grants/"):
+        return "grant"
     return "suggestion"
 
 
@@ -431,6 +433,23 @@ def card(box: Path, token: str, w: dict) -> str:
             f"<pre>{esc(data.strip())}</pre>"
         )
         sealing = "Seal: give this skill"
+    elif kind == "grant":
+        folder = next(
+            (ln[5:] for ln in data.splitlines() if ln.startswith("for: ")), "?"
+        )
+        body = (
+            '<p class="kind">A session asking to read your files</p>'
+            f"<h2>{esc(folder)}</h2>"
+            '<p class="soft">An assistant session working in this folder asks to '
+            "read from your files. If you say yes, it is answered directly "
+            "until that session ends: what your files hold on what it asks, "
+            "and what a job it runs in the sandbox prints, with names and "
+            "numbers withheld. You are not asked again for each one. "
+            "Everything it is given is on your shared page, and you can stop "
+            "it there at any time. It ends by itself when the session does."
+            "</p>"
+        )
+        sealing = "Seal: yes, for this session"
     else:
         body = (
             '<p class="kind">A suggestion</p>'

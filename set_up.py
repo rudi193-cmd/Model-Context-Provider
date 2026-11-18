@@ -79,7 +79,7 @@ def claude_hooks(box: Path) -> dict:
     return {"hooks": {
         "UserPromptSubmit": [{"hooks": [run("hook.py")]}],
         "SessionStart": [{"hooks": [run("session.py")]}, {"hooks": [guard]}],
-        "SessionEnd": [{"hooks": [run("session.py", timeout=60)]}],
+        "SessionEnd": [{"hooks": [run("session.py", timeout=60)]}, {"hooks": [guard]}],
         "PreToolUse": [{"matcher": GUARDED, "hooks": [guard]}],
         "PostToolUse": [{"matcher": "Bash", "hooks": [guard]}],
         "PostToolUseFailure": [{"matcher": "Bash", "hooks": [guard]}],

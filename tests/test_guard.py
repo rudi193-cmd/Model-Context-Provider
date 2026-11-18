@@ -162,7 +162,8 @@ def test_a_session_is_told_where_its_own_folder_left_off_not_another_one(box, tm
     said = json.loads(guard(box, start).stdout)["hookSpecificOutput"]["additionalContext"]  # fmt: skip
     assert f"session s1 ended in {here}" in said and there not in said
     nowhere = {**start, "session_id": "s4", "cwd": str(tmp_path / "new")}
-    assert guard(box, nowhere).stdout == ""
+    said = guard(box, nowhere).stdout  # no folder of its own to pick up from
+    assert "ended in" not in said and "has asked to read" in said
 
 
 def test_a_session_starts_with_a_count_of_what_waits_and_no_words(box):

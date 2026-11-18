@@ -260,7 +260,7 @@ so none is lost. A box is ticked when it is built.
   - **Needs:** small: a fourth prompt that has a model question the person
     over a page they sealed, citing each passage, and answer nothing.
     Larger: `socratic-fork` as the first skill served by the `skill` verb.
-- [ ] **Kart** (the owner: "I completely forgot to bring Kart in, and that
+- [x] **Kart** (the owner: "I completely forgot to bring Kart in, and that
   will fix a lot of our issues"; "it's got a card in Willow already").
   Willow's `adapters/deps/kart`: a job someone sent you, run in
   Kartikeya's sandbox over your own folder only once you seal it, its
@@ -270,6 +270,22 @@ so none is lost. A box is ticked when it is built.
     runs a sealed task (the queue has no worker), and what the guard can
     only approximate. It needs the `kartikeya` package and `bwrap`, run
     through Willow by command line.
+  - **Note:** built 2026-11-18. Willow's kart learned `write` (a job of
+    your own, sealed) and `try` (run with no seal, proposing nothing), and
+    stopped a fleet's settings reaching a job. Here: `job` on a model's
+    door, under a session's grant. Not yet seen in a real client.
+- [x] **One yes for a session** (the owner, 2026-11-17: "the seal should be
+  something for the user to really NEED to do, a true exit 42"; "per
+  project folder, per session"; "just think of it like a normal mcp").
+  - **Note:** `grant`, and `context` and `job` under it, built 2026-11-18
+    beside the per-item seals.
+  - **Needs:** `report`, `skill`, `notes` and tasks brought under the grant
+    too; then the per-item path reviewed for what can go. The `SessionEnd`
+    guard hook installed (`set_up.py`), or a grant ends only by `stop`.
+- [ ] **A skill as a folder** (the owner: "yes, build the folder skill after
+  kart lands"). socratic-fork's `SKILL.md` is a router to question files
+  beside it that nothing can ask for. Under a grant this may be simpler
+  than a sealed list of hashes: decide which with the owner.
 - [ ] **Willow's demos of sharing** (the owner: "a few demos in Willow as
   well to pull how share should work"): `demo/johnson` (one report, five
   willows), `demo/shared-runs`, `demo/known-gaps`, `demo/craft-assembly`.
