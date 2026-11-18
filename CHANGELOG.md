@@ -15,6 +15,11 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   carries out the click by the kernel's command. It is no door, asks about
   nothing else, and runs only where `ask-here` sits beside the box. An
   answer that isn't a clear yes or no is never a yes.
+- **A job says how it ended.** One that ended badly says how; one whose
+  output Kartikeya clipped says so; the runtime no longer waits on a job
+  without a limit. The pin moves to Willow's kart 0.1.5, which keeps a
+  failed job's last printed line off the record (found putting kart
+  through its paces, 2026-11-18).
 - **`job`, under that yes.** A shell job over the folder in Kartikeya's
   sandbox, by Willow's `kart try`: read-only, no network, no box, no key.
   The pin now covers `share` and `adapters/deps/kart`, and moves to Willow

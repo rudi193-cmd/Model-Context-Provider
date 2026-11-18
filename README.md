@@ -307,11 +307,18 @@ one lets no one in.
 your folder read-only at `{pile}`, a scratch folder at `{scratch}`, no
 network, no home, and an environment of PATH, LANG and HOME alone. The box
 and its key are never in it. The run is on your record by the job's hash;
-what it printed is not, and nothing is proposed.
+what it printed is not, and nothing is proposed. A job is stopped after two
+minutes. One that ended badly says how (`exited 3`, a timeout); past about
+8,000 characters Kartikeya keeps the head and the tail, and the answer says
+it was clipped.
 
 Kartikeya needs Python 3.11 or later and `bwrap`. If the Python your doors
 run on doesn't have it, name one that does, on one line, in `kart-python`
 beside your record. Without it a job is refused and says so.
+
+That Python's own packages are mounted in the sandbox with it, read-only,
+under the path they are installed at: a job can see what is installed there
+and where. Name one that holds nothing you mind a job listing.
 
 ## A skill, sealed by its words
 

@@ -2192,6 +2192,8 @@ SESSION = (
 )
 KART = "adapters/deps/kart/kart.py"
 JOB_MOST = 20_000  # characters of a job, and of what it printed, given whole
+JOB_SECONDS = 120  # how long a job may run: kart ends it there
+JOB_CLIPPED = re.compile(r"\[kart: \d+ chars clipped\]")
 
 
 def grants_known(box: Path) -> dict:
@@ -2374,11 +2376,16 @@ def job(box: Path, arg, where, session) -> dict:
     with tempfile.TemporaryDirectory() as d:
         src, out = Path(d) / "job.sh", Path(d) / "out.txt"
         src.write_text(text if text.endswith("\n") else text + "\n")
-        run = subprocess.run(
-            [kart_python(box), KART, "try", "--box", str(box), "--file", str(src),
-             "--to", str(out)],
-            cwd=WILLOW, capture_output=True, text=True, check=False,
-        )  # fmt: skip
+        try:
+            run = subprocess.run(
+                [kart_python(box), KART, "try", "--box", str(box), "--file", str(src),
+                 "--to", str(out), "--timeout", str(JOB_SECONDS)],
+                cwd=WILLOW, capture_output=True, text=True, check=False,
+                timeout=JOB_SECONDS + 60,
+            )  # fmt: skip
+        except subprocess.TimeoutExpired:  # kart's own limit should end it first
+            return {"state": "refused", "code": "job_refused",
+                    "why": f"it was still going after {JOB_SECONDS + 60} seconds and was stopped"}  # fmt: skip
         if run.returncode == 2 or not out.exists():
             return {"state": "refused", "code": "job_refused",
                     "why": (run.stderr or run.stdout).strip()[-400:]}  # fmt: skip
@@ -2391,8 +2398,17 @@ def job(box: Path, arg, where, session) -> dict:
         (page,) = withhold(box, [printed])
     except RuntimeError as why:
         return {"state": "refused", "code": "scrub_failed", "why": str(why)}
-    return {"state": "left", "page": page, "by": "grant",
-            "ended": "well" if run.returncode == 0 else "badly"}  # fmt: skip
+    got = {"state": "left", "page": page, "by": "grant",
+           "ended": "well" if run.returncode == 0 else "badly"}  # fmt: skip
+    if run.returncode != 0:
+        # kart's line under its first two is Kartikeya's word for how it
+        # failed, then (after a colon) the last thing the job printed: only
+        # the word is passed on, since the page already holds what it printed
+        said = [ln.strip() for ln in run.stdout.splitlines()[2:] if ln.strip()]
+        got["how"] = (said[0].split(":", 1)[0][:80] if said else "") or "it failed"
+    if JOB_CLIPPED.search(printed):
+        got["clipped"] = True  # Kartikeya kept the head and the tail: say so
+    return got
 
 
 def event(box: Path, sent) -> dict:

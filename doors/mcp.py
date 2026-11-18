@@ -138,7 +138,9 @@ TOOLS = [
                     "and there is no network, no home and none of their "
                     "environment. Needs a grant. You are given what it printed, "
                     "with names and numbers withheld. Ask for little: a count, a "
-                    "grep, the first lines."},
+                    "grep, the first lines: past about 8,000 characters you get "
+                    "the head and the tail, marked clipped. A job is stopped "
+                    "after two minutes; one that ended badly says how."},
 ]  # fmt: skip
 
 

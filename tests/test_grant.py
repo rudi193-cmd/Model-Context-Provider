@@ -209,10 +209,31 @@ def test_what_a_job_prints_is_withheld_and_a_flood_is_not_given(box, monkeypatch
     assert (
         bad["state"] == "left" and bad["ended"] == "badly" and "partial" in bad["page"]
     )
+    assert bad["how"] == "exited 3"  # how it failed, and not again what it printed
     monkeypatch.setattr(runtime, "JOB_MOST", 40)
     got = call(box, "job", "cat {pile}/*")
     assert (got["state"], got["code"]) == ("refused", "job_too_long")
     assert "frost" not in json.dumps(got)
+
+
+@pytest.mark.skipif(not HAS_KART, reason="needs Kartikeya, Python 3.11+")
+def test_a_job_says_when_it_was_clipped_and_when_it_ran_out_of_time(box, monkeypatch):
+    let_in(box)
+    plain = call(box, "job", "echo hi")
+    assert "how" not in plain and "clipped" not in plain
+    got = call(box, "job", "seq 1 30000 | sed 's/^/line /'")
+    assert got["state"] == "left" and got["clipped"] is True and got["ended"] == "well"
+    assert "line 1\n" in got["page"] and got["page"].rstrip().endswith("line 30000")
+    # a failed job's last line is on the page, and nowhere else it is told
+    got = call(box, "job", "cat {pile}/garden.md; exit 5")
+    assert got["how"] == "exited 5" and "frost" in got["page"]
+    monkeypatch.setattr(runtime, "JOB_SECONDS", 2)
+    got = call(box, "job", "echo started; sleep 30; echo never")
+    assert got["ended"] == "badly" and "never" not in got["page"]
+    assert "time" in got["how"].lower(), got
+    rows = [json.loads(x) for x in (box / "record.jsonl").read_text().splitlines()]
+    ran = [r for r in rows if r["kind"] == "ran"]
+    assert len(ran) == 4 and "frost" not in json.dumps(ran)
 
 
 def test_a_job_that_is_no_job_is_refused(box, monkeypatch):
