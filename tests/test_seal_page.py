@@ -391,3 +391,64 @@ def test_the_launcher_starts_the_page(box, tmp_path):
     assert env.startswith("WILLOW=") and argv[0] == sys.executable
     run = subprocess.run(argv, capture_output=True, text=True, check=False)
     assert run.returncode == 2 and "usage: seal_page.py" in run.stderr
+
+
+def switch(browser, act, family):
+    return browser.ask(
+        "POST", "/act",
+        urllib.parse.urlencode({"k": browser.secret(), "act": act,
+                                "subject": family, "at": "/tools"}),
+        Content_Type="application/x-www-form-urlencoded",
+        Origin=f"http://127.0.0.1:{browser.port}",
+    )  # fmt: skip
+
+
+def test_the_tools_page_lists_each_group_and_a_click_switches_it(box, browser):
+    browser.open()
+    got, text = browser.ask("GET", "/tools")
+    text = html.unescape(text)
+    assert got.status == 200 and "A model is offered 9 tools now." in text
+    for word in ("<h2>shelf</h2>", "<code>shelf</code> (add, list, read, remove)",
+                 "On: on unless you turn it off", "Off: off until you use it or turn it on",
+                 "On: always on", "<code>grant</code>"):  # fmt: skip
+        assert word in text, word
+    assert text.count("Turn this off") == 6 and text.count("Turn this on") == 2
+    got, _ = switch(browser, "turn_off", "jobs")
+    assert got.status == 303 and got.getheader("Location") == "/tools"
+    assert (runtime.state(box) / "tools.txt").read_text() == "-jobs\n"
+    told = runtime.call(box, "job", "ls", door="mcp", where="/w", session="s")
+    assert (told["state"], told["code"]) == ("refused", "tool_off")
+    got, text = browser.ask("GET", "/tools")
+    text = html.unescape(text)
+    assert "Turned off. A model that asks for the jobs tools is refused" in text  # once
+    assert (
+        "A model is offered 8 tools now." in text and "Off: you turned it off" in text
+    )
+    switch(browser, "turn_on", "jobs")
+    switch(browser, "turn_on", "sharing")
+    got, text = browser.ask("GET", "/tools")
+    assert "A model is offered 11 tools now." in html.unescape(text)
+    assert kinds(box).count("seal") == 0  # a switch is beside the record, and no key
+
+
+def test_the_core_and_anything_that_is_no_group_cannot_be_switched(box, browser):
+    browser.open()
+    for act, family in (("turn_off", "core"), ("turn_off", "seal"), ("turn_on", "../x"),
+                        ("turn_off", "proposal:" + "0" * 64), ("switch", "jobs")):  # fmt: skip
+        got, _ = switch(browser, act, family)
+        assert got.status == 303, (act, family)
+        _, text = browser.ask("GET", "/tools")
+        assert "Nothing was done:" in html.unescape(text), (act, family)
+    assert not (runtime.state(box) / "tools.txt").exists()
+    got, text = browser.ask("GET", "/tools")
+    assert "<script" not in text and text.count('value="core"') == 0  # no button for it
+
+
+def test_the_tools_page_is_held_to_the_same_table(box, browser):
+    got, text = browser.ask("GET", "/tools")  # no link opened yet
+    assert got.status == 403 and "shelf" not in text
+    got, _ = browser.click("turn_off", "jobs", k="wrong")
+    assert got.status == 403
+    got, _ = browser.click("turn_off", "jobs", origin="http://evil.example")
+    assert got.status == 403
+    assert not (runtime.state(box) / "tools.txt").exists()

@@ -71,8 +71,8 @@ sys.path.insert(0, str(HERE))
 import runtime  # noqa: E402
 
 SUBJECT = re.compile(r"proposal:[0-9a-f]{64}")
-ACTS = ("seal", "decline", "later", "back", "stop")
-PAGES = ("/", "/shared", "/status", "/promises")
+ACTS = ("seal", "decline", "later", "back", "stop", "turn_on", "turn_off")
+PAGES = ("/", "/shared", "/status", "/promises", "/tools")
 MOST = 8192  # bytes of a form; ours are a few hundred
 
 HEADERS = {
@@ -238,6 +238,14 @@ def decide(box: Path, act: str, subject: str) -> dict:
     this was built on; the kernel reads the key and proves the row. Not now
     and its undoing are the runtime's, beside the record. Nothing else can be
     asked for, and nothing that isn't waiting can be named."""
+    if act in ("turn_on", "turn_off"):  # a group of tools: the runtime's switch
+        if subject not in runtime.FAMILIES:
+            return {"state": "refused", "why": "that isn't a group of tools"}
+        asked = {"on" if act == "turn_on" else "off": [subject]}
+        got = runtime.call(box, "tools", asked, door="page")
+        if got.get("state") != "listed":
+            return got
+        return {"state": "switched", "family": subject, "on": act == "turn_on"}
     if act not in ACTS or not SUBJECT.fullmatch(subject):
         return {"state": "refused", "why": "that isn't something this page does"}
     if act in ("later", "back", "stop"):  # the runtime's, and no key
@@ -272,6 +280,12 @@ def note_of(got: dict) -> tuple[str, str]:
     if state == "stopped":
         return ("Stopped. It won't be given to a model again. To share it again, "
                 "ask the question in other words, and seal that."), ""  # fmt: skip
+    if state == "switched":
+        if got.get("on"):
+            return (f"Turned on. A model is offered the {got['family']} tools from "
+                    "now on; a client that is open is told the list changed."), ""  # fmt: skip
+        return (f"Turned off. A model that asks for the {got['family']} tools is "
+                "refused from now on, by any door."), ""  # fmt: skip
     say = " ".join(x for x in (got.get("say"), got.get("next")) if x)
     return "Nothing was done: " + (say or got.get("why") or "refused") + ".", "refused"
 
@@ -526,7 +540,8 @@ def shell(box: Path, token: str, at: str, parts: list[str]) -> str:
     """Any page, whole: its name, the way to the others, and a way to stop."""
     titles = {"/": "Waiting on your seal", "/shared": "What you’ve shared",
               "/status": "How things stand",
-              "/promises": "What a model can never do"}  # fmt: skip
+              "/promises": "What a model can never do",
+              "/tools": "What a model is offered"}  # fmt: skip
     nav = " · ".join(
         f"<strong>{esc(t)}</strong>" if href == at else f'<a href="{href}">{esc(t)}</a>'
         for href, t in titles.items()
@@ -615,6 +630,49 @@ def status_page(box: Path, token: str, note: tuple[str, str] = ("", "")) -> str:
     return shell(box, token, "/status", parts)
 
 
+def tools_page(box: Path, token: str, note: tuple[str, str] = ("", "")) -> str:
+    """Which groups of tools a model is offered: the runtime's `tools`, a
+    card for each group with what it is for, the tools in it, whether it is
+    on and why, and a button to switch it. The switch is the runtime's, kept
+    beside the record; no key is needed, and the core has no button."""
+    parts = []
+    if note[0]:
+        parts.append(f'<section class="card note {esc(note[1])}">{esc(note[0])}</section>')  # fmt: skip
+    got = runtime.call(box, "tools", door="page")
+    if got.get("state") == "refused":
+        say = " ".join(x for x in (got.get("say"), got.get("next")) if x)
+        parts.append(f'<section class="card note refused">{esc(say)}</section>')
+    groups = got.get("families", [])
+    offered = sum(len(g["tools"]) for g in groups if g["on"])
+    if groups:
+        parts.append(
+            f'<section class="card">A model is offered {offered} tool'
+            f"{'s' * (offered != 1)} now. Fewer is easier for it to keep track "
+            "of, and each tool’s description is sent to it at the start of "
+            "every session. A group you turn off is refused, not only left "
+            "off its list. Your own door is not affected.</section>"
+        )
+    for g in groups:
+        held = []
+        for name in g["tools"]:
+            actions = [a for a in runtime.TOOLS[name][1] if a]
+            held.append(f"<code>{esc(name)}</code>"
+                        + (f" ({esc(', '.join(actions))})" if actions else ""))  # fmt: skip
+        switch = ""
+        if g["family"] != "core":
+            switch = '<div class="acts">' + button(
+                token, "turn_off" if g["on"] else "turn_on", g["family"],
+                "Turn this off" if g["on"] else "Turn this on", at="/tools",
+            ) + "</div>"  # fmt: skip
+        parts.append(
+            f'<section class="card"><p class="kind">{"On" if g["on"] else "Off"}'
+            f": {esc(g['why'])}</p><h2>{esc(g['family'])}</h2>"
+            f"<p>{esc(g['what'][:1].upper() + g['what'][1:])}.</p>"
+            f'<p class="soft">Tools: {", ".join(held)}</p>{switch}</section>'
+        )
+    return shell(box, token, "/tools", parts)
+
+
 def promises_page(box: Path, token: str, note: tuple[str, str] = ("", "")) -> str:
     """What a model can never do, from the code itself: the runtime's
     `promises`, each part a card. It only shows; nothing on it changes anything."""
@@ -696,7 +754,7 @@ def handler(box: Path, secret: str):
             self.server.last = time.monotonic()
             note, Page.note = Page.note, ("", "")
             show = {"/": page, "/shared": shared_page, "/status": status_page,
-                    "/promises": promises_page}  # fmt: skip
+                    "/promises": promises_page, "/tools": tools_page}  # fmt: skip
             self.say(200, show[url.path](box, secret, note))
 
         def do_POST(self):

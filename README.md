@@ -301,9 +301,12 @@ still names what was done by its verb.
 Nine tools and about 1,200 tokens by default, where there were 26 and
 about 3,000.
 
-**The groups are yours to switch.** `{"tools": true}` lists each group,
-whether it is on and why; `{"tools": {"off": ["jobs"], "on": ["sharing"]}}`
-changes it, kept in `tools.txt` beside your record. Sharing comes on by
+**The groups are yours to switch.** The seal page has a page for it,
+**What a model is offered**: a card for each group, with what it is for,
+the tools in it, whether it is on and why, and a button. On your own door
+it is `{"tools": true}` to list them and
+`{"tools": {"off": ["jobs"], "on": ["sharing"]}}` to change them. Either
+way it is kept in `tools.txt` beside your record. Sharing comes on by
 itself when you make a sharing identity, and skills when you name one;
 what you say wins either way. The core can't be turned off: without it a
 session could never ask.
@@ -700,6 +703,10 @@ whether the record is all right (Willow's `box-health`, the pinned Willow,
 the sent log). A part that couldn't be looked at says so, and the rest
 still shows. On your own door it is `{"status": true}`. No model's door
 has it.
+
+A fifth page, **What a model is offered**, lists the groups of tools a
+model's client is shown, each with a button to turn it on or off. A switch
+needs no key and is kept beside your record.
 
 A fourth page, **What a model can never do**, is the runtime's `promises`,
 and has nothing to click. It lists the verbs each kind of door has, read
