@@ -4,6 +4,20 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Withholding hands back every text, in its place.** `withhold` scrubs
+  many texts in one pass, joined by a separator. Willow's pattern for a
+  private key runs to its END, or to the end of what it is given when
+  there is none, so a key cut short took the separators after it: with a
+  whole key further on, each text after it came back as the one two places
+  later (a passage under another's place on a session's page) and the
+  last ones were gone. Seen in a folder skill whose `id_ed25519` hid the
+  file after it. When fewer texts come back than went in, each is now
+  scrubbed alone; if one still doesn't come back whole, nothing leaves.
+- **A key is never listed in a skill.** A folder skill skipped only a
+  `.key` file and the box's own key, so `id_ed25519` was listed and given
+  (its words withheld by the scrub). Now a key by its kind (`.key`,
+  `.pem`, `.p12`, `.pfx`) or by a private key's words is never listed, nor
+  named as a skill of its own.
 - **Nothing to share says why it can be.** `nothing_to_scope` told the
   person "no question has found anything in your files", even straight
   after a read that found something and a second that found nothing. It

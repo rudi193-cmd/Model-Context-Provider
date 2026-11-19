@@ -976,6 +976,17 @@ SENTENCE_CHECK = "adapters/stdlib/sentence-check/sentence_check.py"
 
 
 PRIVACY = "adapters/stdlib/privacy/privacy.py"
+
+#: files that are keys by their kind, whatever they hold
+KEY_SUFFIXES = (".key", ".pem", ".p12", ".pfx")
+
+
+def is_key(p: Path, text: str = "") -> bool:
+    """A key, by its name (.key, .pem, .p12, .pfx) or by its words (a
+    private key's armour): never named as a skill, never listed in one."""
+    return p.suffix.lower() in KEY_SUFFIXES or "PRIVATE KEY-----" in text
+
+
 SPLIT = "\n\x1emcp-split\x1e\n"
 
 
@@ -988,17 +999,32 @@ def names(box: Path) -> list[str]:
     return [n.strip() for n in f.read_text().splitlines() if n.strip()]
 
 
-def withhold(box: Path, texts: list[str]) -> list[str]:
-    """Texts as they may leave: Willow's privacy scrub (numbers, emails, keys),
-    then each name the person listed, as [withheld: name]. One pass for all,
-    so a page and what it is compared with are withheld the same way."""
+def scrub(texts: list[str]) -> list[str]:
+    """Willow's privacy scrub over texts joined by SPLIT, split again."""
     run = subprocess.run(
         [sys.executable, PRIVACY, "scrub"], cwd=WILLOW, input=SPLIT.join(texts),
         capture_output=True, text=True, check=False,
     )  # fmt: skip
     if run.returncode != 0:
         raise RuntimeError("privacy scrub failed: " + run.stderr.strip()[:200])
-    out = run.stdout.removesuffix("\n").split(SPLIT)
+    return run.stdout.removesuffix("\n").split(SPLIT)
+
+
+def withhold(box: Path, texts: list[str]) -> list[str]:
+    """Texts as they may leave: Willow's privacy scrub (the numbers its card
+    names, emails, keys), then each name the person listed, as
+    [withheld: name]. One pass for all, so a page and what it is compared
+    with are withheld the same way. A pattern that runs across the split (a
+    key's BEGIN with no END runs to the end of what it is given) would hand
+    back fewer texts, and every one after it would be paired with the wrong
+    passage: then each text is scrubbed alone, and if even one of those
+    doesn't come back as one, nothing leaves."""
+    out = scrub(texts)
+    if len(out) != len(texts):
+        out = [scrub([t]) for t in texts]
+        if any(len(o) != 1 for o in out):
+            raise RuntimeError("privacy scrub failed: a text didn't come back whole")
+        out = [o[0] for o in out]
     for name in names(box):
         pat = re.compile(r"(?<!\w)" + re.escape(name) + r"(?!\w)", re.IGNORECASE)
         out = [pat.sub("[withheld: name]", s) for s in out]
@@ -1321,7 +1347,7 @@ def skill_words(box: Path, path) -> tuple[str | None, str]:
     key = cfg.get("key")
     if (
         p.is_relative_to(box.resolve())
-        or p.suffix == ".key"
+        or is_key(p)
         or (isinstance(key, str) and p == Path(key).expanduser().resolve())
     ):
         return None, "that file is the box's own, or a key"
@@ -1331,6 +1357,8 @@ def skill_words(box: Path, path) -> tuple[str | None, str]:
         return None, f"{p} isn't a text file that can be read"
     if not text.strip() or "\x00" in text:
         return None, f"{p} holds no words"
+    if is_key(p, text):
+        return None, "that file is the box's own, or a key"
     try:
         (text,) = withhold(box, [text])
     except RuntimeError as why:
@@ -1357,7 +1385,7 @@ def skill_files(box: Path, folder: Path) -> dict | None:
             or not p.is_file()
             or not p.resolve().is_relative_to(root)
             or any(part.startswith(".") for part in rel.parts)
-            or p.suffix == ".key"
+            or is_key(p)
             or p.resolve() == key
             or (len(rel.parts) == 1 and p.name.lower() == "skill.md")
         ):
@@ -1367,6 +1395,8 @@ def skill_files(box: Path, folder: Path) -> dict | None:
         except (OSError, UnicodeDecodeError):
             continue
         if not text.strip() or "\x00" in text or len(text) > SKILL_MOST:
+            continue
+        if is_key(p, text):
             continue
         found[rel.as_posix()] = text
         if len(found) > SKILL_FILES:

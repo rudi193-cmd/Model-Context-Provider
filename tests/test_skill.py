@@ -289,6 +289,26 @@ def test_a_folder_that_holds_the_box_or_too_much_is_never_named(
     assert not (runtime.state(box) / "skills.json").exists()
 
 
+def test_a_key_is_never_listed_in_a_folder_nor_named_alone(box, folder):
+    """A key by its kind (.pem, .p12, .pfx, .key) or by its words (a private
+    key's armour, as id_ed25519 holds), never listed nor given. The first of
+    these sorts ahead of every other file, and its key, with no END, used to
+    take the files after it out of the one pass."""
+    armour = "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEA\n"
+    (folder / "id_ed25519").write_text(armour)
+    (folder / "server.pem").write_text("not armoured, a key by its kind\n")
+    (folder / "store.P12").write_text("a key by its kind, any case\n")
+    named(box, folder)
+    (mine,) = runtime.call(box, "skills", door="pipe")["skills"]
+    assert mine["files"] == ["notes.txt", "questions/01-data.md"]
+    for part in ("id_ed25519", "server.pem", "store.P12"):
+        got = runtime.call(box, "skill", {"name": "tidy", "file": part}, door="mcp")
+        assert (got["state"], got["code"]) == ("refused", "no_skill"), part
+    for alone in ("id_ed25519", "server.pem", "store.P12"):
+        got = named(box, folder / alone, name="k")
+        assert (got["state"], got["code"]) == ("refused", "skill_refused"), alone
+
+
 def test_naming_the_file_alone_is_still_a_skill_of_one_file(box, folder, skill):
     named(box, skill)
     assert asked(box)["page"] == WORDS.rstrip()

@@ -1,5 +1,6 @@
 """Names, numbers and addresses kept out of a page, even a sealed one."""
 
+import pytest
 from test_leave import seal
 
 import runtime
@@ -58,3 +59,22 @@ def test_a_withheld_page_still_reaches_its_own_question_through_the_hook(box):
     seal(box, runtime.call(box, "propose", door="pipe")["seal"])
     got = runtime.call(box, "context", Q, door="hook")
     assert got["state"] == "left" and "Aoife" not in got["page"]
+
+
+def test_a_key_with_no_end_withholds_its_own_text_and_no_other(box):
+    """A private key's BEGIN with no END ran to the end of the one pass, and
+    with a whole key further on, every text after it came back as the one two
+    places later: a passage under another's place, and the last ones gone."""
+    half = "notes: -----BEGIN RSA PRIVATE KEY----- (the old one, cut here)"
+    whole = "-----BEGIN RSA PRIVATE KEY-----\nMIIabc\n-----END RSA PRIVATE KEY-----"
+    texts = ["first frost", half, "the fence", whole, "the dahlias", "the gate"]
+    got = runtime.withhold(box, texts)
+    assert got == ["first frost", "notes: [withheld: key]", "the fence",
+                   "[withheld: key]", "the dahlias", "the gate"]  # fmt: skip
+
+
+def test_a_text_that_cannot_come_back_whole_lets_nothing_leave(box, monkeypatch):
+    real = runtime.scrub
+    monkeypatch.setattr(runtime, "scrub", lambda ts: real(ts)[:-1] or [])
+    with pytest.raises(RuntimeError, match="didn't come back whole"):
+        runtime.withhold(box, ["one", "two"])
