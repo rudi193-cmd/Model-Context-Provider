@@ -4,6 +4,17 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Two seal paths gone (the owner's rulings, 2026-11-18).** On the real
+  record the per-item reading seals had been used five times, against four
+  sessions let in. *A report* no longer waits on a seal of its own: a model
+  is told there is one, and a session let in is given it as it reads now.
+  `reports.json` is no longer written, and a report still waiting from
+  before says so on the seal page. *A skill*: naming it, on the person's
+  door, is the yes. Its fingerprint is kept beside the box, a model is
+  given it while the file still reads that way, and `{"stop": "NAME"}`
+  stops it until it is named again. One sealed before stands by that seal.
+  Still sealed one at a time: a page for a question, a kept note, a task, a
+  kept answer, a package to share, and a session's own yes.
 - **Three rulings of the owner's, 2026-11-18.** A task a session took up
   is always listed and weighs nothing toward the task list's limit, so
   claimed work never crowds out what is still to do. The `plate` prompt

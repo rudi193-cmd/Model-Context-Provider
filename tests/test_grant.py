@@ -458,10 +458,8 @@ def test_a_job_that_is_no_job_is_refused(box, monkeypatch):
 def test_a_report_is_given_as_it_reads_now_and_nothing_waits(box):
     pile = box.parent / "pile"
     (pile / "list.md").write_text("- [ ] order the dahlia tubers\n")
-    told = call(box, "report", "todo")
-    assert told["state"] == "waiting" and "page" not in told  # no grant: a seal
-    run = runtime.willow("kernel.py", "decline", "--box", str(box), told["seal"])
-    assert run.returncode == 0, run.stderr
+    told = call(box, "report", "todo")  # no grant: only that there is one
+    assert told == {"state": "populated", "report": "todo"}
     let_in(box)
     got = call(box, "report", "todo")
     assert got["state"] == "left" and got["by"] == "grant"
@@ -474,24 +472,20 @@ def test_a_report_is_given_as_it_reads_now_and_nothing_waits(box):
     assert "page" not in call(box, "report", "todo")
 
 
-def test_a_named_skill_is_given_as_it_reads_now_but_never_one_declined_or_stopped(
-    box, tmp_path
-):
+def test_a_named_skill_is_given_as_it_reads_now_but_never_one_stopped(box, tmp_path):
     f = tmp_path / "tidy.md"
     f.write_text("# Tidy\n\nSort the imports.\n")
-    named = runtime.call(box, "skill_add", {"path": str(f)}, door="pipe")
-    assert call(box, "skill", "tidy") == {"state": "waiting", "skill": "tidy"}
-    let_in(box)
-    got = call(box, "skill", "tidy")  # still waiting on its own seal: given
-    assert (got["state"], got["by"]) == ("left", "grant") and "Sort the" in got["page"]
+    runtime.call(box, "skill_add", {"path": str(f)}, door="pipe")
     f.write_text("# Tidy\n\nSort the imports, then the lines.\n")
-    assert "then the lines" in call(box, "skill", "tidy")["page"]  # as it reads now
+    assert call(box, "skill", "tidy") == {"state": "changed", "skill": "tidy"}
+    let_in(box)
+    got = call(box, "skill", "tidy")  # changed since it was named: given, as it reads
+    assert (got["state"], got["by"]) == ("left", "grant")
+    assert "then the lines" in got["page"]
     assert call(box, "skill", "nope")["code"] == "no_skill"  # only one the person named
     f.write_text("# Tidy\n\nSort the imports.\n")
-    run = runtime.willow("kernel.py", "decline", "--box", str(box), named["seal"])
-    assert run.returncode == 0, run.stderr
-    assert call(box, "skill", "tidy") == {"state": "unsealed", "skill": "tidy"}
-    assert runtime.call(box, "stop", named["seal"], door="pipe")["state"] == "stopped"
+    assert "by" not in call(box, "skill", "tidy")  # as named: by the naming
+    assert runtime.call(box, "stop", "tidy", door="pipe")["state"] == "stopped"
     f.write_text("# Tidy\n\nOther words now.\n")
     assert call(box, "skill", "tidy")["code"] == "stopped"  # a stop holds
 

@@ -39,9 +39,9 @@ def test_each_thing_that_waits_is_counted_as_what_it_is(box):
     aside = runtime.call(box, "capture", "A second note.", door="mcp")["seal"]
     runtime.call(box, "later", aside, door="pipe")
     got = runtime.call(box, "status", door="pipe")
-    assert got["said"] == "3 things waiting on your seal"
+    assert got["said"] == "2 things waiting on your seal"  # a report never waits
     assert rows(got, "Waiting on your seal") == {
-        "a page to share": "1", "a report to share": "1", "a note to keep": "1",
+        "a page to share": "1", "a note to keep": "1",
         "set aside": "1, still waiting",
     }  # fmt: skip
 

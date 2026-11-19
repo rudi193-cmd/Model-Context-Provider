@@ -63,7 +63,7 @@ beside the person's record.
 | `stop`: never let a scope leave again | `context`: the sealed page for this question, if there is one |
 | `preview`: the page a scope would let leave, before they seal it | `capture`: one thing to keep, waiting on the person; `notes` gives it back once sealed |
 | `capture`, `captured`: hand in a thing to keep, and read what was kept | `shelf_add`, `shelf_list`, `shelf_read`: what it made, on its project's shelf, with no seal |
-| `shelves`, `shelf_read`: every project's shelf, and anything on one | `report`: that there is a report of the files; the report itself once sealed |
+| `shelves`, `shelf_read`: every project's shelf, and anything on one | `report`: that there is a report of the files; the report itself once its session is let in |
 | `report`: a report of their files, as it is | `notes`: the notes they sealed to keep, withheld and whole |
 | `task`, `tasks`, `task_drop`: a task of their own, every task and where it stands, and take one off every model's list | `task_add`, `tasks`, `task_claim`, `task_done`: a task waiting on their seal; once sealed, take it up and put its result on the shelf |
 | `later`, `back`: not now, and bring it back; never on the record | |
@@ -202,29 +202,23 @@ each, and a model can ask for one (the person's ruling of 2026-11-17):
 | `todo` | every line marked to do (TODO, FIXME, "need to", "remember to", an open checkbox), oldest first |
 | `coming-up` | every line holding a date in the next 14 days, soonest first, with the repeats of a birthday or a calendar's rule |
 | `on-this-day` | what you wrote on this date in earlier years |
-| `people` | everyone your files name, a line each: how often, in how many files, over what dates. Never every place they are mentioned. Its first line and the seal page say it names people; a name on your list is withheld, and any other is yours to read before you seal |
+| `people` | everyone your files name, a line each: how often, in how many files, over what dates. Never every place they are mentioned. Its first line says it names people; a name on your list is withheld |
 | `ref-check` | each link to another of your files, and each `file:line` place, that no longer holds: where it is written, and what it points at. A link that leads out of your folder is counted, never followed |
 | `pii-audit` | where personal numbers sit (a card number, a National Insurance, Social Security, NHS or Medicare number), each by kind and place. Never the whole number. Your own door shows the last digits, as Willow does, so you can tell which card it is; a model is given the kind and the place and not a digit |
 | `secrets-audit` | where a password, a key, a card number or an IBAN sits in plain text, by kind and place; each row says "value not shown", and it is not shown |
-| `minutes` | each decision, and each action still open or closed, from your meeting notes: its place, its day, who owns it. It names those people, and its first line and the seal page say so; a name on your list is withheld |
+| `minutes` | each decision, and each action still open or closed, from your meeting notes: its place, its day, who owns it. It names those people, and its first line says so; a name on your list is withheld |
 
-It goes the way a question goes:
+A model is told that there is a report, or that there is nothing to
+report: no line, no file name, no count. A session you let in (below, "One
+yes for a session") is given the report as it reads now, with names,
+numbers and addresses withheld.
 
-1. **The model asks.** It learns that there is a report, or that there is
-   nothing to report. No line, no file name, no count.
-2. **The report waits on you.** Its own words, with names, numbers and
-   addresses withheld, are proposed for your seal. The seal page shows them
-   as "A report to share".
-3. **You seal it, and it leaves** as one page: exactly the words you
-   sealed.
-4. **A report that would read differently now waits again.** Add a line to
-   do and the old seal no longer covers the report; the new one is yours to
-   seal. So does tomorrow's `on-this-day`.
-
-`stop` works on a report as on a page, with no key. On your own door,
-`{"report": "todo"}` gives you the report as it is: reading needs no grant.
-A sealed report is given for its report, never for a question, and it isn't
-a page a model can `answer`.
+No report waits on a seal of its own (the owner's ruling, 2026-11-18). It
+used to: but a report reads differently the day you add a line to do, so a
+seal of one went stale almost at once, and the yes you give a session
+already covers it. To stop a report leaving, end that session's yes. On
+your own door, `{"report": "todo"}` gives you the report as it is: reading
+needs no grant. A report isn't a page a model can `answer`.
 
 **Leaving folders out.** A folder of commits, code or exports is full of
 lines that look like things to do. List what to leave out of every report,
@@ -233,8 +227,8 @@ a folder inside one (`code/vendor`), or one file's path. It only takes lines
 out, on your door and a model's alike, and your own `report` says how many
 it left out.
 
-**Too long to read is too long to share.** A report over 20,000 characters
-is never proposed: you'd be sealing more than you would read. A model is
+**Too long is too long to share.** A report over 20,000 characters is
+never given to a model. It is
 told to tell you so, without the size, and you still read the whole of it
 on your own door.
 
@@ -259,7 +253,7 @@ beside it.
 
 | Resource | Reading it is | So |
 |---|---|---|
-| `provider://report/todo`, `…/coming-up`, `…/on-this-day`, `…/people`, `…/ref-check`, `…/pii-audit`, `…/secrets-audit`, `…/minutes` | `report` | the report once you've sealed it; until then only whether there is one, and it waits on you |
+| `provider://report/todo`, `…/coming-up`, `…/on-this-day`, `…/people`, `…/ref-check`, `…/pii-audit`, `…/secrets-audit`, `…/minutes` | `report` | the report, for a session you let in; otherwise only whether there is one |
 | `provider://page/last` | `leave` | the page you last sealed; without a seal, nothing |
 | `provider://shelf/NAME` | `shelf_read` | something a model wrote for this project |
 
@@ -327,7 +321,7 @@ which.
 
 ## One yes for a session
 
-Sealing each page, report and result is the strict way, and it is still
+Sealing each page and each answer is the strict way, and it is still
 here. Day to day there is one yes:
 
 - **A session asks once**, when it starts, to read from your files while it
@@ -343,8 +337,8 @@ here. Day to day there is one yes:
 
   | Tool | Under that yes |
   |---|---|
-  | `report` | the report as it reads now; nothing is proposed |
-  | `skill` | a skill you named, as it reads now, even if its own seal still waits or its file changed; never one you declined or stopped |
+  | `report` | the report as it reads now. This is the only way a model is given one |
+  | `skill` | a skill you named, as it reads now, even if its file changed since you named it; never one you stopped |
   | `notes` | the notes you sealed, and the ones handed in that still wait, marked as waiting; keeping one is still your seal |
   | `task_add` | a task for the session's own folder is open at once, kept beside your record as the model's own words, and marked as not sealed by you |
   | `tasks`, `task_claim`, `task_done` | those tasks too, for sessions you let in to that folder; `{"tasks": true}` lists them and `task_drop` removes one |
@@ -362,7 +356,7 @@ here. Day to day there is one yes:
   exactly as it did; if that file changes it is asked again. A no is never
   remembered, so a seal you make is seen at once, and what you stopped, or
   a session that ended, is still checked on every call. The same goes for a
-  sealed task, a kept note and a skill. What waits on your seal is asked
+  sealed task and a kept note. What waits on your seal is asked
   once while a call is answered, not two or three times.
 
 **Asked where you are.** Put an empty file named `ask-here` beside your
@@ -417,7 +411,7 @@ That Python's own packages are mounted in the sandbox with it, read-only,
 under the path they are installed at: a job can see what is installed there
 and where. Name one that holds nothing you mind a job listing.
 
-## A skill, sealed by its words
+## A skill, named by its words
 
 A skill is a file of instructions you chose for a model to follow. The
 trouble with one is that it can change after you read it. Here it can't
@@ -426,38 +420,38 @@ change under you:
 - **You name it**, on your own door: `{"skill_add": {"path": "FILE"}}`. A
   `SKILL.md` is named for its folder, any other file for itself, or give a
   `"name"`. A model never names a file.
-- **Its words wait on your seal**, as the file reads now, with names and
-  numbers withheld. The seal page shows them as "A skill to give a model",
-  to be read as you would anything you let run.
-- **A model asks for it by name** (`skill`) and is given exactly the words
-  you sealed, and nothing if it still waits.
-- **If the file changes, it is given to no one.** A skill that reads
-  differently now than what you sealed is a different thing: name it again
-  and seal what it then says. Put the file back as it was and the first
-  seal stands again.
-- **`stop` works on it**, with no key, and `{"skills": true}` lists each
-  skill, its file, and where it stands.
+- **Naming it is your yes** (the owner's ruling, 2026-11-18). Nothing waits
+  on a seal: you chose the file, on a door no model has. The fingerprint of
+  its words, as the file reads now, is kept beside your record. So read it
+  before you name it, as you would anything you let run.
+- **A model asks for it by name** (`skill`) and is given its words, with
+  names and numbers withheld, while the file reads as it did when you
+  named it.
+- **If the file changes, it is given to no one** you haven't let in. A
+  model is told only that it changed. Name it again and what it now says
+  is given; the last naming is the one that counts.
+- **`{"stop": "NAME"}` stops it**, with no key, until you name it again,
+  and `{"skills": true}` lists each skill, its file, and where it stands.
 - **A skill can be a folder.** Name the folder that holds a `SKILL.md`:
-  `{"skill_add": {"path": "FOLDER"}}`. What you seal is the `SKILL.md`
+  `{"skill_add": {"path": "FOLDER"}}`. What you name is the `SKILL.md`
   followed by a list of every other text file in the folder, each with the
   fingerprint of its words. A model asks for one by its name on that list
   (`skill`, with `file`) and is given it only while its words are the ones
   listed. Change, add or remove a file and the folder is no longer what you
-  sealed. A link, a hidden file, a key, a file that isn't text, and
+  named. A link, a hidden file, a key, a file that isn't text, and
   anything outside the folder are never listed; a folder with more than
   200 files, or one that holds your record, is refused. Naming the
   `SKILL.md` itself is still a skill of that one file.
 - **Under a session's yes** (above) a skill you named is given as it reads
   now, and so are a folder's files. Naming it is still yours alone.
 
-Nothing in your record is trusted for this: the words a model is given are
-the ones the kernel holds under your seal. A skill over 40,000 characters
-is never proposed: that is more than a person reads before sealing
-instructions.
+A skill over 40,000 characters is never named: that is more than a person
+reads before giving a model instructions. A skill you sealed before naming
+was the yes still stands by that seal, until you name it again.
 
 This is the last step of what Willow's `skill-picks`, `still-kept` and
 `my-installs` ideas are for (finding a skill, judging it, and seeing what
-changed): what you chose is pinned by the seal itself.
+changed): what you chose is pinned by its fingerprint.
 
 ## Sharing with another person
 

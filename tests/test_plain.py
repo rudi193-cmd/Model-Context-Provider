@@ -201,7 +201,9 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
     if code == "report_too_long":
         (box.parent / "pile" / "chores.md").write_text("TODO: order the tubers.\n")
         monkeypatch.setattr(runtime, "REPORT_MOST", 10)
-        return runtime.call(box, "report", "todo", door="mcp")
+        let = {"door": "mcp", "where": "/w", "session": "s"}  # given only let in
+        seal(box, runtime.call(box, "grant", **let)["seal"])
+        return runtime.call(box, "report", "todo", **let)
     if code == "shelf_refused":
         return runtime.call(box, "shelf_add", {"name": "../x", "text": "t"},
                             door="mcp", where=str(usb))  # fmt: skip

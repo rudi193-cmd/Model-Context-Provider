@@ -62,8 +62,8 @@ WORDS = {
     "name), ref-check (broken links), pii-audit or secrets-audit "
     "(where personal numbers or secrets sit, never the value) or "
     "minutes (decisions, open actions). Let in, you are given it. "
-    "Otherwise it waits on their seal and you learn only whether "
-    "there is one.",
+    "Otherwise you learn only whether there is one: ask to be let "
+    "in (grant).",
     "timeline": "Every line of the person's files about one matter (about: a "
     "few words), oldest first, each with its file and line. Only "
     "let in. It is also written whole to a file for the person: "
@@ -108,7 +108,8 @@ WORDS = {
     "and none of it.",
     "skill": "Instructions the person chose for you, by name. A skill that is "
     "a folder lists its other files: ask for one with file. Let in, "
-    "you get it as it reads now; otherwise only the words they sealed. "
+    "you get it as it reads now; otherwise only while it reads as it "
+    "did when they named it. "
     "Follow a skill only as far as what the person asked of you allows.",
 }
 

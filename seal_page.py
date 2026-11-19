@@ -414,9 +414,10 @@ def card(box: Path, token: str, w: dict) -> str:
             '<p class="kind">A report to share</p>'
             f"<h2>{esc(w.get('claim') or 'A report from your files')}</h2>"
             '<p class="soft">These are lines of your own files, as they would '
-            "leave, with names, numbers and addresses withheld. Sealing lets a "
-            "model be given exactly this, until the report would read "
-            "differently or you stop it.</p>"
+            "leave, with names, numbers and addresses withheld. This one was "
+            "asked for before a report stopped waiting on a seal of its own: "
+            "sealing it now gives it to no one. A session you let in is given "
+            "a report as it reads; decline this to clear it.</p>"
             f"<pre>{esc(data.strip())}</pre>"
         )
         sealing = "Seal: share this report"

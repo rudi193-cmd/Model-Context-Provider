@@ -180,7 +180,7 @@ def test_what_is_used_comes_on_and_what_the_person_says_wins(box, tmp_path):
     pipe(box, "skill_add", {"path": str(skill)})
     assert on()["sharing"] == (True, "on because you use it")
     assert on()["skills"] == (True, "on because you use it")
-    assert model(box, "skill", "tidy") == {"state": "waiting", "skill": "tidy"}
+    assert model(box, "skill", "tidy")["state"] == "left"  # naming it was the yes
     (listed,) = wire(box, ask(1, "tools/list"))
     assert [t["name"] for t in listed["result"]["tools"]] == [
         *EVERYDAY,

@@ -64,14 +64,16 @@ def test_listing_says_nothing_of_the_persons_files(box, tmp_path):
 
 def test_reading_a_report_is_the_report_verb(box, tmp_path):
     (box.parent / "pile" / "chores.md").write_text("TODO: order the dahlia tubers.\n")
-    got = runtime.call(box, "resource", "provider://report/todo", door="mcp")
-    assert got["state"] == "waiting" and "dahlia" not in json.dumps(got)
-    seal(box, got["seal"])
-    got = runtime.call(box, "resource", "provider://report/todo", door="mcp")
+    let = {"door": "mcp", "where": str(tmp_path), "session": "s"}
+    got = runtime.call(box, "resource", "provider://report/todo", **let)
+    assert got["state"] == "populated" and "dahlia" not in json.dumps(got)
+    seal(box, runtime.call(box, "grant", **let)["seal"])
+    got = runtime.call(box, "resource", "provider://report/todo", **let)
     assert got["state"] == "left" and "dahlia" in got["page"]
     # written down once each time, as the report it was
     rows = [json.loads(ln) for ln in (runtime.state(box) / "sent.jsonl").read_text().splitlines()]  # fmt: skip
-    assert [(r["verb"], r["state"]) for r in rows] == [("report", "waiting"), ("report", "left")]  # fmt: skip
+    assert [(r["verb"], r["state"]) for r in rows if r["verb"] == "report"] == [
+        ("report", "populated"), ("report", "left")]  # fmt: skip
 
 
 def test_reading_the_last_page_is_leave_and_needs_a_seal(box):
@@ -212,4 +214,4 @@ def test_a_resource_told_only_a_state_is_read_as_that_state(box, tmp_path):
     (content,) = read["result"]["contents"]
     told = json.loads(content["text"])
     assert content["mimeType"] == "application/json"
-    assert told["state"] == "waiting" and "dahlia" not in content["text"]
+    assert told["state"] == "populated" and "dahlia" not in content["text"]

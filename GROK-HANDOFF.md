@@ -359,10 +359,11 @@ so none is lost. A box is ticked when it is built.
   Each is a line in `runtime.REPORTS` and a pin.
 - [x] **More importers.** Built: `joplin`, `evernote` and `google-keep`,
   each by the command line `notes` takes (a line in `BRING_IN` and a pin),
-  each run by hand on a small made-up export before it was added. Others
-  of Willow's readers also take that command line (`mastodon`, `goodreads`,
-  `karakeep`, `opml`, `takeout`, `mail` and more) and were not built here;
-  each is the same two lines, once run by hand.
+  each run by hand on a small made-up export before it was added. `mail`
+  and `sms` followed the same day. Others of Willow's readers also take
+  that command line (`mastodon`, `goodreads`, `karakeep`, `opml`,
+  `takeout` and more) and were not built here; each is the same two
+  lines, once run by hand.
 - [x] **The task queue's edges.** Listing tasks has no limit on its whole
   size; each `tasks` or `notes` call asks the kernel once a sealed thing,
   a row on the record each time.
@@ -454,18 +455,44 @@ so none is lost. A box is ticked when it is built.
 
 ## Open now
 
-What is left, gathered from the lines above, in the order the owner last
-gave:
+Two lists, kept apart on the owner's word (2026-11-18): what is owed, and
+what was found along the way and not asked for. Something found while
+working goes on the second list unless the owner says otherwise.
 
-1. `share`, `timeline` and `feed` tried over real records.
-2. The per-item seal paths reviewed for what can go, now that a session's
-   yes covers reading.
-3. The paces list above.
-4. Smaller, any time: `ref-check`, `pii-audit`, `secrets-audit` and
-   `minutes` as reports; `joplin` as an importer; a limit on the whole
-   size of `tasks`; quoted speech in the todo report (needs the owner's
-   yes); `milestones`, `projects`, `handover`, `pile-store` not looked at.
-5. The owner's own: name socratic-fork as a folder; an `ask-here` file to
-   turn the dialog on; a `deny.txt` for `hook-shell`; a copy of
-   `share.id` kept somewhere safe; the Willow commits pushed when the time
-   comes.
+### Owed
+
+1. `share`, `timeline` and `feed` tried over real records, and the other
+   things under "Not yet seen in a real client" above. These need the
+   owner at the keys.
+
+Done 2026-11-18: the per-item seal paths were reviewed. A report's own
+seal went, and naming a skill became the yes; a page for a question, a
+kept note, a task, a kept answer and a package to share stay sealed one at
+a time. Not built with it: a button on the seal page to stop a skill
+(`{"stop": "NAME"}` on the pipe does it).
+
+### Could do, not asked for
+
+- Fewer rows on the record still: a read-only way to ask the kernel what
+  is sealed and what waits (a Willow add-on), and a switch for which hooks
+  are on, as the tool groups have. Measure what is left first.
+- More importers that fit by their card, none run by hand yet: `mastodon`,
+  `goodreads`, `karakeep`, `opml`, `takeout`, `bookmarks`, `zotero`.
+- Not looked at: `milestones`, `projects`, `handover`. `pile-store` was
+  measured and left out (no gain on the real folder).
+- Willow's `rss-out` can write inside the record's folder; the runtime
+  refuses that, the add-on itself does not.
+
+### The owner's to decide (changes to Willow)
+
+- An early exit in the kernel's date reader: `on-this-day`, `coming-up`
+  and `people` still take 16 to 22 seconds on the real folder there.
+- Quoted speech in the `todo` report.
+- The privacy filter reading a run of four-digit numbers as a card.
+- What Kartikeya's scan of a job missed (written up above).
+
+### The owner's own
+
+Name socratic-fork as a folder; an `ask-here` file to turn the dialog on;
+a `deny.txt` for `hook-shell`; a copy of `share.id` kept somewhere safe;
+the Willow commits pushed when the time comes.
