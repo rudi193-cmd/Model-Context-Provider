@@ -122,8 +122,13 @@ def offered(box: Path) -> list[dict]:
 
 
 def answer(box: Path, msg: dict, ask=None) -> dict | None:
-    if not isinstance(msg, dict) or "id" not in msg:
-        return None
+    if not isinstance(msg, dict):
+        # a batch (MCP has none since 2025-06-18), or JSON that is no request
+        # at all: said, so a client isn't left waiting on an answer
+        return {"jsonrpc": "2.0", "id": None,
+                "error": {"code": -32600, "message": "invalid request: one JSON object a line"}}  # fmt: skip
+    if "id" not in msg:
+        return None  # a notification: nothing is owed
     mid, method, params = msg["id"], msg.get("method"), msg.get("params") or {}
 
     def ok(result: dict) -> dict:

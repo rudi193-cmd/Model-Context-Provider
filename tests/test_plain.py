@@ -128,6 +128,12 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         return runtime.call(box, "restore", str(usb / made), door="pipe")
     if code == "capture_refused":
         return runtime.call(box, "capture", "  ", door="mcp")
+    if code == "note_too_long":
+        return runtime.call(box, "capture", "x" * (runtime.NOTE_MOST + 1), door="mcp")
+    if code == "notes_waiting":
+        monkeypatch.setattr(runtime, "NOTES_WAITING_MOST", 1)
+        runtime.call(box, "capture", "A note to keep.", door="mcp")
+        return runtime.call(box, "capture", "Another one.", door="mcp")
     if code == "no_resource":
         return runtime.call(box, "resource", "provider://key/the-key", door="mcp")
     if code == "no_prompt":
@@ -208,6 +214,13 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         return runtime.call(box, "report", "todo", **let)
     if code == "shelf_refused":
         return runtime.call(box, "shelf_add", {"name": "../x", "text": "t"},
+                            door="mcp", where=str(usb))  # fmt: skip
+    if code == "shelf_full":
+        monkeypatch.setattr(runtime, "SHELF_ITEMS_MOST", 1)
+        runtime.call(
+            box, "shelf_add", {"name": "a.md", "text": "a"}, door="mcp", where=str(usb)
+        )
+        return runtime.call(box, "shelf_add", {"name": "b.md", "text": "b"},
                             door="mcp", where=str(usb))  # fmt: skip
     if code == "not_on_shelf":
         return runtime.call(box, "shelf_read", "nope.md", door="mcp", where=str(usb))

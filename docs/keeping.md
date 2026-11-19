@@ -12,6 +12,11 @@ the kernel writes it under `written/captured/` in your record, and
 A model can hand a note in; it can't seal it. Once you have sealed it, a model
 can read it back with `notes`, as the next section says.
 
+A note is at most 20,000 characters, about what you'd read before keeping
+it; a long piece of work goes on the shelf instead. At most 50 notes wait
+on you at once: past that, a new one is refused until you have sealed or
+declined some, so what waits is never more than you can get through.
+
 ## A task queue, and the notes you kept
 
 Two things a model is given back, both only once you have sealed them (your
@@ -82,6 +87,10 @@ shelf:
   `backup` and come back with `restore`.
 - **Never written over.** A name already there is kept beside it as
   `NAME.2`.
+- **Not without end.** A thing on a shelf is at most a million characters,
+  and a project's shelf holds 200 things or 50 MB, whichever comes first.
+  A full shelf refuses what comes next, plainly, until something is taken
+  off: by you (`remove` or `archive`, below) or by a session you let in.
 - **Yours to read.** `{"shelves": true}` on your door lists every
   project's shelf; `{"shelf_read": {"project": "FOLDER", "name": "NAME"}}` reads
   one thing.

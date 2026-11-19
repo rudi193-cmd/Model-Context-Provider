@@ -4,6 +4,16 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **What a model hands in has an end.** A model never let in could write
+  without limit beside the person's record: a note of any size, any number
+  of them (each kept in the record's proposals, each waiting on the seal
+  page), and a shelf of any number of things a megabyte each. 40 MB went in
+  seconds. Now a note is at most 20,000 characters (`note_too_long`), at
+  most 50 wait at once (`notes_waiting`), and a project's shelf holds 200
+  things or 50 MB (`shelf_full`); each refusal is plain, with its next step.
+- **A batch is answered.** A JSON-RPC batch, or a line that is JSON but no
+  object, had no reply, so a client waited on it for ever. It is now told
+  `invalid request` (MCP has had no batches since 2025-06-18).
 - **A code that opens something is withheld.** The pin moves to Willow's
   `privacy` 0.1.1 (willow-memory/Willow#380): a gate, door or alarm code, a
   passcode, a PIN or a combination, 3 to 10 digits after what it opens,

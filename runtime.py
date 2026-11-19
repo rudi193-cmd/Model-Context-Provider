@@ -825,6 +825,12 @@ PLAIN = {
                         "Say it in other words: an empty note isn't kept, and the same note is only handed in once."),
     "shelf_refused": ("That couldn't be put on the shelf.",
                       "Give it a plain file name (letters, digits, dots and dashes, at most 80) and some text, under a million characters."),
+    "note_too_long": ("That note is longer than you'd read before keeping it, so it wasn't handed in.",
+                      "Hand in a shorter note: 20,000 characters at most. A long piece of work goes on the project's shelf."),
+    "notes_waiting": ("Fifty notes already wait on you, so no more are handed in until you've looked at those.",
+                      "Look at what waits on you (waiting), and seal or decline the notes there."),
+    "shelf_full": ("This project's shelf is full, so nothing more was put on it.",
+                   "Take things off it: stored shelf lists them, and remove or archive takes them away. A shelf holds 200 things or 50 MB."),
     "not_on_shelf": ("There's nothing by that name on this project's shelf.",
                      "See what is there (shelf_list): each shows the name to ask for."),
     "no_report": ("That isn't a report this makes.",
@@ -915,6 +921,8 @@ FOR_MODEL = {
                        "same note is only handed in once.",
     "shelf_refused": "Give it a plain file name (letters, digits, dots and dashes, "
                      "at most 80) and some text, under a million characters.",
+    "note_too_long": "Hand in a shorter note: 20,000 characters at most. A long "
+                     "piece of work goes on the project's shelf (the shelf tool).",
     "not_on_shelf": "List the shelf (the shelf tool, action list) and use a name "
                     "from there.",
     "no_report": "Use one of these names exactly, in small letters: todo, coming-up, "
@@ -1802,6 +1810,13 @@ def holds_open(box: Path) -> str:
             "assistant never does.")  # fmt: skip
 
 
+#: a note is read by the person before they keep it: no longer than that
+NOTE_MOST = 20_000
+#: notes handed in that may wait on the seal at once; then none, until the
+#: person has looked at those, so a seal page is never more than they get through
+NOTES_WAITING_MOST = 50
+
+
 def capture(box: Path, note, kind: str = "note") -> dict:
     """One thing to keep, handed in for the person's seal: a note, a
     finding, what a host sent. It is proposed through the kernel under a
@@ -1814,6 +1829,14 @@ def capture(box: Path, note, kind: str = "note") -> dict:
     if not text:
         return {"state": "refused", "code": "capture_refused",
                 "why": "there was nothing to keep"}  # fmt: skip
+    if len(text) > NOTE_MOST:
+        return {"state": "refused", "code": "note_too_long",
+                "why": f"more than {NOTE_MOST} characters"}  # fmt: skip
+    owed = [w for w in waiting(box).get("waiting", [])
+            if str(w.get("path", "")).startswith("captured/")]  # fmt: skip
+    if len(owed) >= NOTES_WAITING_MOST:
+        return {"state": "refused", "code": "notes_waiting",
+                "why": f"{len(owed)} handed in already wait on the seal"}  # fmt: skip
     kind = re.sub(r"[^a-z0-9]+", "-", str(kind).lower()).strip("-") or "note"
     digest = hashlib.sha256(text.encode()).hexdigest()[:12]
     asked = bite(box, f"captured {kind} {digest}")
@@ -2094,6 +2117,9 @@ def capturing(box: Path) -> set[str]:
 #: a name on a shelf: one plain file name, never a path
 SHELF_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
 SHELF_MOST = 1_000_000
+#: a project's shelf, whole: so many things, or so many bytes, then no more
+SHELF_ITEMS_MOST = 200
+SHELF_BYTES_MOST = 50_000_000
 
 
 def shelf_at(box: Path, where) -> tuple[Path, Path] | None:
@@ -2167,6 +2193,11 @@ def shelve(box: Path, where, arg, door: str = "") -> dict:
             return {"state": "shelved", "name": kept, "same": True}
         n += 1
         kept = f"{Path(name).stem}.{n}{Path(name).suffix}"
+    there = [q for q in folder.iterdir() if q.is_file()]
+    size = sum(q.stat().st_size for q in there) + len(text.encode())
+    if len(there) >= SHELF_ITEMS_MOST or size > SHELF_BYTES_MOST:
+        return {"state": "refused", "code": "shelf_full",
+                "why": f"{len(there)} things, {size} bytes with this one"}  # fmt: skip
     with open(folder / kept, "x") as f:
         f.write(text)
     doc["items"][kept] = {
