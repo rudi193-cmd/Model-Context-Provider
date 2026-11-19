@@ -1,11 +1,13 @@
-# The Grok handoff, to cross off
+# Open: what was asked, what was built, what is left
 
-The handoff Grok wrote on 2026-11-17, copied out so each line can be ticked
-and noted. Grok's words are kept as they were. A box is ticked when the
-thing is built here. A line starting **Note** was added afterwards: what
-was found when the line was held to the code, and what it still needs.
-Last held to the code on 2026-11-18. What is still open is gathered at the
-end, under "Open now".
+This began as the handoff Grok wrote on 2026-11-17, copied out so each line
+could be ticked and noted, and Grok's words are kept as they were. It has
+since grown into the project's working list: what the owner threw in
+along the way, what was found when each line was held to the code, and
+the owner's rulings. A box is ticked when the thing is built here. A line
+starting **Note** was added afterwards: what was found, and what it still
+needs. Last held to the code on 2026-11-18. What is still open is
+gathered at the end, under "Open now".
 
 ## Handoff: Model-Context-Provider (MCP → Provider)
 
@@ -479,6 +481,11 @@ a time. Not built with it: a button on the seal page to stop a skill
 (`{"stop": "NAME"}` on the pipe does it).
 
 ### Could do, not asked for
+
+- A strict answer must cite every passage on its page, which can force a
+  clause that has nothing to do with the question (seen 2026-11-18). To
+  let a model answer from some of the passages loosens a check: the
+  owner's to rule on. The description now says what the check holds.
 
 - Fewer rows on the record still: a read-only way to ask the kernel what
   is sealed and what waits (a Willow add-on), and a switch for which hooks

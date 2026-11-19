@@ -127,3 +127,24 @@ def test_setup_says_so_when_willow_is_not_the_pinned_one(box, tmp_path, monkeypa
     assert "your record" not in [r[0] for r in rows]
     monkeypatch.undo()
     assert ("Willow is the pinned one", True) in [r[:2] for r in setup.check(box)]
+
+
+def test_write_command_saves_the_persons_door_and_never_writes_over_another(
+    box, tmp_path, monkeypatch
+):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    code, out = run("--box", box, "--write", "command")
+    assert code == 0, out
+    saved = home / ".local" / "bin" / "provider"
+    text = saved.read_text()
+    assert text.startswith("#!/bin/sh\n") and saved.stat().st_mode & 0o111
+    assert f"--box {box.resolve()}" in text and "doors/pipe.py" in text
+    assert text.rstrip().endswith('"$@"')
+    assert "isn't on your PATH yet" in out
+    assert run("--box", box, "--write", "command")[0] == 0  # the same again is fine
+    saved.write_text("#!/bin/sh\necho something else\n")
+    code, out = run("--box", box, "--write", "command")
+    assert code == 2 and "refused" in out
+    assert saved.read_text() == "#!/bin/sh\necho something else\n"

@@ -426,3 +426,35 @@ def test_a_job_that_prints_words_proposes_nothing_and_its_words_never_go(
     seal(box, words.group(1))
     got = pipe(box, "share_send", {"answers": words.group(1), "for": "Walt"})
     assert (got["state"], got["code"]) == ("refused", "share_refused")
+
+
+def test_the_sentence_sealed_last_is_sent_by_that_word_and_each_is_listed(box, mine):
+    """No long id to copy: `last` is the newest sentence the kernel wrote
+    down, and `shares` lists each by its first words."""
+    _, subject = mine
+    (one,) = pipe(box, "shares")["sentences"]
+    assert one["seal"] == subject and one["says"].startswith(SAID[:20])
+    got = pipe(box, "share_send", {"answers": "last", "for": "Walt"})
+    assert (got["state"], got["sentences"]) == ("packed", 1), got
+    # one still waiting, or declined, is never the last: nothing wrote it down
+    sid = handed(box)
+    waits = runtime.call(
+        box, "answer", f"The dahlias come up then [{sid}].", door="mcp"
+    )
+    assert waits["state"] == "waiting" and waits["seal"] != subject, waits
+    assert [s["seal"] for s in pipe(box, "shares")["sentences"]] == [subject]
+    seal(box, waits["seal"])  # sealed, it is the last
+    assert pipe(box, "shares")["sentences"][0]["seal"] == waits["seal"]
+
+
+def test_last_with_no_sentence_sealed_is_refused_in_plain_words(box, walt):
+    pipe(box, "share_id")
+    pipe(box, "share_person", {"name": "Walt", "key": walt[1]})
+    got = pipe(box, "share_send", {"answers": "last", "for": "Walt"})
+    assert got["state"] == "refused" and "sealed no sentence" in got["why"]
+    assert pipe(box, "shares")["sentences"] == []
+    # and a model's door has no such word: it names what it means
+    assert (
+        model(box, "share_propose", {"answers": "last", "for": "Walt"})["state"]
+        == "refused"
+    )

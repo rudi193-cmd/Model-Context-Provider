@@ -154,3 +154,30 @@ def test_mcp_cannot_leave_unsealed_any_more_than_the_pipe(box):
         tool(3, "page", action="leave"),
     )
     assert [g["result"]["isError"] for g in got] == [False, False, True]
+
+
+def said(box, *words):
+    return subprocess.run(
+        [sys.executable, str(ROOT / "doors" / "pipe.py"), "--box", str(box), *words],
+        capture_output=True, text=True, check=False,
+    )  # fmt: skip
+
+
+def test_the_pipe_takes_one_request_by_words_and_answers_for_a_person(box):
+    run = said(box, "waiting")  # no word after the verb asks it plainly
+    assert run.returncode == 0 and json.loads(run.stdout)["verb"] == "waiting"
+    assert "\n" in run.stdout.strip()  # set out to be read, not one line
+    run = said(box, "read", "when", "does", "the", "first", "frost", "come")
+    assert json.loads(run.stdout)["served"]  # the words are its argument
+    run = said(box, "share_person", "name=Walt", "key=" + "ab" * 32)
+    assert json.loads(run.stdout)["verb"] == "share_person"  # name=value made a dict
+    assert json.loads(said(box, '{"waiting": true}').stdout)["verb"] == "waiting"
+    assert (
+        json.loads(said(box, "stored", '{"kind": "made"}').stdout)["verb"] == "stored"
+    )
+    # a refusal is its plain words and a next step, and says so by its exit
+    run = said(box, "seal", "proposal:x")
+    assert run.returncode == 2 and not run.stdout.lstrip().startswith("{")
+    assert run.stdout.strip() and "Traceback" not in run.stderr
+    # it is still the pipe: the person's door, and no verb it hasn't got
+    assert said(box, "skill_add").returncode == 2

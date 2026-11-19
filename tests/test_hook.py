@@ -66,3 +66,27 @@ def test_two_scopes_sealed_each_question_gets_its_own_page(box):
     assert "first frost comes in late October" in frost and "MOT" not in frost
     mot = prompt(box, "when is the car's MOT due").stdout
     assert "MOT" in mot and "frost" not in mot
+
+
+def test_a_session_that_asked_to_be_let_in_is_pointed_at_the_context_tool(box):
+    """Told at every prompt that it is given nothing, a session let in would
+    be told something untrue. Whether it asked is read beside the box alone:
+    the hook's line gives nothing, and writes no row to choose its words."""
+    sent = {"hook_event_name": "UserPromptSubmit", "prompt": FROST,
+            "cwd": "/work/a", "session_id": "s1"}  # fmt: skip
+    assert "nothing is sealed" in hook(box, json.dumps(sent)).stdout
+    asked = runtime.call(box, "grant", door="mcp", where="/work/a", session="s1")
+    rows = len((box / "record.jsonl").read_text().splitlines())
+    said = hook(box, json.dumps(sent)).stdout
+    assert "The context tool gives what this session may have" in said
+    assert "nothing is sealed" not in said and "October" not in said
+    kinds = [json.loads(ln)["kind"]
+             for ln in (box / "record.jsonl").read_text().splitlines()[rows:]]  # fmt: skip
+    assert (
+        kinds.count("bite") <= 1
+    )  # the read for the question, and no asking of the yes
+    # another session, another folder, or one whose yes was stopped: as before
+    for other in ({"session_id": "s2"}, {"cwd": "/work/b"}):
+        assert "nothing is sealed" in hook(box, json.dumps({**sent, **other})).stdout
+    runtime.call(box, "stop", asked["seal"], door="pipe")
+    assert "nothing is sealed" in hook(box, json.dumps(sent)).stdout

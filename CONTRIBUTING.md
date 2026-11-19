@@ -46,4 +46,6 @@ workflow on GitHub runs the same, as a second opinion, and `check.py hook
 the text before formatting can match nothing, silently: check that each one
 matched.
 
-Add a line to [CHANGELOG.md](CHANGELOG.md) under Unreleased.
+Add a line to [CHANGELOG.md](CHANGELOG.md) under Unreleased. A file added,
+moved or removed is added, moved or removed in [FILES.md](FILES.md) too,
+with a few words saying what it is; `tests/test_files.py` fails otherwise.

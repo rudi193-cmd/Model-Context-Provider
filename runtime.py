@@ -2620,6 +2620,30 @@ def standing(box: Path, where, session) -> str:
     return gid if yes else ""
 
 
+def grant_asked(box: Path, where, session) -> bool:
+    """Whether this session asked to be let in here and that asking hasn't
+    ended or been stopped, by what is kept beside the box alone: the kernel
+    isn't asked, so nothing is written on the record. It is good only for
+    choosing which line a hook says, never for giving anything."""
+    known = grants_known(box)
+    gid, _, _ = grant_of(where or "", session, known)
+    entry = known.get(gid) if gid else None
+    return bool(
+        entry and not entry.get("ended") and entry.get("seal") not in stopped(box)
+    )
+
+
+def context_hooked(box: Path, question: str, where, session) -> dict:
+    """What a prompt hook is given: context(), and when the files hold the
+    question for a session that asked to be let in, that it did. The door
+    then says to ask with the context tool, which gives what that session
+    may have, rather than that nothing is given. No passage either way."""
+    got = context(box, question)
+    if got["state"] == "populated" and grant_asked(box, where, session):
+        return {**got, "asked": True}
+    return got
+
+
 def granted(box: Path, where, session) -> bool:
     """Whether the person's yes stands for this session in this folder."""
     return bool(standing(box, where, session))
@@ -2958,6 +2982,26 @@ def share_sentence(box: Path, subject) -> str | None:
     return str(prop.get("data", "")).strip()
 
 
+def share_sentences(box: Path) -> list[dict]:
+    """The model's sentences the kernel wrote down under written/, newest
+    first: each by the subject it was proposed under, with its words. A file
+    there only suggests a sentence is sealed; whether it is stays Willow's
+    to say when it packs one. For the person's own door: their words, whole."""
+    found = []
+    for f in (box / "proposals").glob("*.json"):
+        subject = f"proposal:{f.stem}"
+        text = share_sentence(box, subject)
+        if text is None:
+            continue
+        try:
+            kept = box / "written" / str(json.loads(f.read_text()).get("path", ""))
+            at = kept.stat().st_mtime
+        except (OSError, ValueError):
+            continue
+        found.append((at, subject, text))
+    return [{"seal": s, "says": t} for _, s, t in sorted(found, reverse=True)]
+
+
 SHARE_NUMBERS = re.compile(r"-?[0-9]+")
 
 
@@ -3036,7 +3080,13 @@ def share_send(box: Path, arg) -> dict:
     (or a key), with a note. It needs no further seal: it is their command,
     on their door, over what they already sealed. How the file travels is
     theirs. On this door a job they sealed goes too, and what a job printed
-    when it is numbers alone (share_may_go)."""
+    when it is numbers alone (share_may_go). "answers": "last" is the
+    sentence they sealed last, so no long id need be copied."""
+    if isinstance(arg, dict) and arg.get("answers") == "last":
+        mine = share_sentences(box)
+        if not mine:
+            return share_no("you have sealed no sentence yet")
+        arg = {**arg, "answers": mine[0]["seal"]}
     subjects, note, refused = share_asked(box, arg, share_may_go)
     if refused:
         return refused
@@ -3419,8 +3469,10 @@ def share_witness(box: Path, arg) -> dict:
 
 
 def shares_listed(box: Path) -> dict:
-    """For the person: their key, whom they named, what was sent and
-    received (Willow's own log of the record), and what a model proposed."""
+    """For the person: their key, whom they named, the sentences they
+    could send (the newest twenty, each by its first words), what was sent
+    and received (Willow's own log of the record), and what a model
+    proposed."""
     k = state(box) / "share.key"
     owed, off = waiting_seals(box), stopped(box)
     proposed = [{"for": e["to"], "seal": e["seal"], "sentences": len(e["answers"]),
@@ -3431,6 +3483,8 @@ def shares_listed(box: Path) -> dict:
                 for e in shares_known(box).values()]  # fmt: skip
     return {"state": "listed", "key": k.read_text().strip() if k.exists() else "",
             "people": share_people(box), "proposed": proposed,
+            "sentences": [{"seal": s["seal"], "says": s["says"][:100]}
+                          for s in share_sentences(box)[:20]],
             "log": willow(SHARE, "log", "--box", str(box)).stdout.splitlines()}  # fmt: skip
 
 
@@ -4053,7 +4107,9 @@ VERBS = {
         # a prompt hook asks at every prompt, wanted or not: it is given a
         # page the person sealed for those words, and never a grant's
         # passages, which a model asks for when it wants them
-        "context": lambda box, arg, **kw: context(box, str(arg)),
+        "context": lambda box, arg, **kw: context_hooked(
+            box, str(arg), kw.get("where"), kw.get("session")
+        ),
         "event": lambda box, arg, **kw: event(box, arg),
     },
 }

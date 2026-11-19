@@ -12,11 +12,13 @@ record, and only when you name a model.
     python set_up.py --box BOX --model URL NAME
     python set_up.py --box BOX --write cursor
     python set_up.py --box BOX --write all
+    python set_up.py --box BOX --write command    your own door, as `provider`
 """
 
 from __future__ import annotations
 
 import json
+import os
 import shlex
 import sys
 from pathlib import Path
@@ -122,6 +124,8 @@ def paste(box: Path) -> str:
         "",
         "Your door has more: python doors/pipe.py --box " + shlex.quote(str(box)),
         '  with {"waiting": true}, {"preview": true}, {"shared": true}, {"backup": "/media/usb"} a line.',
+        "Or save it as a command, and say: provider waiting",
+        "  python set_up.py --box " + shlex.quote(str(box)) + " --write command",
     ])  # fmt: skip
 
 
@@ -167,8 +171,44 @@ def write_claude_hooks(box: Path) -> list[str]:
     ]
 
 
+COMMAND = "provider"
+
+
+def write_command(box: Path) -> list[str]:
+    """Save the person's own door as a command, `provider`, with their
+    record and this Python filled in: ~/.local/bin/provider. One that is
+    there and differs is never written over."""
+    pipe = Path(__file__).resolve().parent / "doors" / "pipe.py"
+    willow = os.environ.get("WILLOW")
+    text = "#!/bin/sh\n# Model Context Provider: your own door, by words.\n" + (
+        f"export WILLOW={shlex.quote(willow)}\n" if willow else ""
+    ) + (
+        f"exec {shlex.quote(sys.executable)} {shlex.quote(str(pipe))} "
+        f'--box {shlex.quote(str(box.resolve()))} "$@"\n'
+    )  # fmt: skip
+    path = Path.home() / ".local" / "bin" / COMMAND
+    if path.exists() and path.read_text() != text:
+        return [f"refused: {path} is there already and differs; move it, then run this again"]  # fmt: skip
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+    path.chmod(0o755)
+    on_path = str(path.parent) in os.environ.get("PATH", "").split(os.pathsep)
+    return [
+        f"wrote {path}",
+        f"Try it: {COMMAND} waiting",
+        *(
+            []
+            if on_path
+            else [f"{path.parent} isn't on your PATH yet: add it, or run {path}"]
+        ),  # fmt: skip
+    ]
+
+
 def write(box: Path, which: str) -> list[str]:
-    """Finish setup for one host, or all MCP hosts plus Claude's hooks."""
+    """Finish setup for one host, or all MCP hosts plus Claude's hooks; or
+    save the person's own door as a command."""
+    if which == "command":
+        return write_command(box)
     if which == "claude-code":
         return write_claude_hooks(box)
     if which == "all":

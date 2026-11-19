@@ -138,7 +138,8 @@ def test_a_session_start_asks_and_says_so_and_a_prompt_hook_is_not_let_in(box):
     got = runtime.call(box, "event", start, door="guard")
     assert "has let this session read" in got["says"]
     # the prompt hook asks at every prompt: it is never handed a grant's passages
-    assert call(box, "context", FROST, door="hook") == {"state": "populated"}
+    # only that the files hold it, and that this session asked to be let in
+    assert call(box, "context", FROST, door="hook") == {"state": "populated", "asked": True}  # fmt: skip
     assert call(box, "context", FROST)["state"] == "left"  # the model's own asking is
 
 

@@ -4,6 +4,21 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Easier to use, from one day's friction.** The person's door takes one
+  request by words (`pipe.py --box DIR waiting`, `name=value` for an
+  argument) and answers so a person can read it; `set_up.py --write
+  command` saves it as `provider` with the record filled in. `share_send`
+  takes `"answers": "last"`, and `shares` lists the sentences that could
+  go by their first words. The prompt hook no longer tells a session that
+  asked to be let in that it is given nothing: it points at the `context`
+  tool, decided beside the box with no row written. The `page` tool's
+  description says what its check holds a sentence to.
+- **A short front page, and a list of every file.** The README keeps the
+  two lines, how a question goes and set-up; its other sections moved,
+  word for word, into `docs/`, with the open list (`docs/OPEN.md`, once
+  `GROK-HANDOFF.md`) and the design notes. `FILES.md` names every file
+  and what it is, and `tests/test_files.py` fails when it and the folder
+  disagree, as Willow's own does.
 - **Two seal paths gone (the owner's rulings, 2026-11-18).** On the real
   record the per-item reading seals had been used five times, against four
   sessions let in. *A report* no longer waits on a seal of its own: a model
