@@ -4,6 +4,14 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A refusal names what you type.** Its next step named a verb on your
+  door in brackets, as `(waiting)` or `(stored)`, which a model passed on
+  as "Tell the person: look at what waits on you (waiting)". Each now names
+  the command, `provider waiting`, and the seal page where it does the
+  same. Three that spoke of you as "the person" on your own door (a tool
+  turned off, no identity to share with, nobody by that name) now speak to
+  you, with the words to type: `provider tools on=GROUP`, `provider
+  share_id`, `provider share_person name=NAME key=KEY`.
 - **A model's client is told more before it calls anything.** The door's
   `initialize` said nothing of how its tools go together, and named itself
   version `0`. Now it gives `instructions` (the two ways in, that sealing
