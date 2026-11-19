@@ -37,9 +37,12 @@ assistant is asked when it comes.
    on the person.
 3. **The person seals it,** with their key. Nothing else can.
 4. **The page leaves.** The model gets one page: the sealed passages, under
-   ids it can't guess. Names the person listed, and numbers, emails and keys,
-   are withheld. The page leaves only whole; if a sealed passage has changed
-   since, nothing leaves.
+   ids it can't guess. Names the person listed, emails, keys and passwords,
+   and the numbers [Willow's `privacy`](https://github.com/willow-memory/Willow/blob/main/adapters/stdlib/privacy/README.md)
+   knows by their kind (phones, cards, bank and ID numbers, a code that
+   opens something) are withheld. A number it can't tell apart from any
+   other is not, so read a page before you seal it. The page leaves only
+   whole; if a sealed passage has changed since, nothing leaves.
 5. **The model answers** in one sentence, citing the page's ids. Willow's
    sentence-check holds it there: every cite was on the page, every passage
    is cited, and the sentence adds nothing the page lacks. A struck sentence
