@@ -42,6 +42,7 @@
     "share",
     "sms",
     "stale-answers",
+    "test-shards",
     "timeline",
     "todo",
     "what-changed"
@@ -133,6 +134,8 @@
     "adapters/stdlib/sms/sms.py": "a24736898e35eb7cd70100dd899a93cf3edf8a13ce39317bbdfd1744c21215d8",
     "adapters/stdlib/stale-answers/README.md": "637f866eb51b2e032d89c28193365def5f80750202a26b6504d175c5985a687c",
     "adapters/stdlib/stale-answers/stale_answers.py": "54616e180d41e4e812b01cf5db98556e2f53298a47c73a71ff3421ee250be5d1",
+    "adapters/stdlib/test-shards/README.md": "2343c736baa39630036fe0cd496252f063fad5d9c7f371136a31b7e291906a12",
+    "adapters/stdlib/test-shards/shards.py": "843505fd16d149e9b93d9f5418bb378f68afd30b05bfb19e381342112c2907a2",
     "adapters/stdlib/timeline/README.md": "2fb5c08cd7968f844ddacfe0efbbf70d6951c1c0b8837c3d4a98b43b101dcc28",
     "adapters/stdlib/timeline/timeline.py": "95c31ec2f45861e12cdef67166033aeb42611bc98273a37af899847ab1d6e39a",
     "adapters/stdlib/todo/README.md": "fe351ee0b315bbc23af4e154b4112cf0980019c1306ac92ee48dcea4c99a1927",

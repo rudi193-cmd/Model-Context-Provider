@@ -482,17 +482,19 @@ a time. Not built with it: a button on the seal page to stop a skill
 
 ### Could do, not asked for
 
+- The check, faster still: Willow's `test-impact` (only the tests a change
+  can reach, first) and `ci-memo` are written around Willow's own layout
+  and were not used; `slow-tests` reads the timing file the check now
+  keeps. The largest test file (`tests/test_grant.py`) bounds a part:
+  cutting by test, not by file, would even the parts further.
+
 - **From a push on a model's tools over the real record (2026-11-18).**
   What held: the sandbox (a write into the folder and a fetch both
   failed), a path off the shelf, a job's long print cut at a whole line,
   a task already done, a missing argument named. Where they could be
   better:
-  - An empty question to `context` is refused as `record_broken` ("Your
-    record wouldn't open", run verify). The record is fine: it should be
-    refused as an empty question.
-  - `answer` with no page to answer about (after `context` under a grant)
-    is refused as `check_failed`, with "Check that WILLOW points at your
-    Willow folder". It should say there is no sealed page to answer.
+  - (Fixed the same day: an empty question read as a record that
+    wouldn't open, and `answer` with no sealed page blamed `WILLOW`.)
   - A refusal's next step always begins "Tell the person:", also when the
     fix is the model's own (a report's name misspelt, an argument left
     out, a date not year-month-day).

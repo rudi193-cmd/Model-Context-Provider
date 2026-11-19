@@ -519,7 +519,12 @@ def bite(box: Path, question: str) -> subprocess.CompletedProcess:
 
 def read(box: Path, question: str) -> dict:
     """Ask the box. Reading never needs a grant: this is the kernel's bite,
-    as the kernel answers it."""
+    as the kernel answers it. A question with no words is refused here, in
+    its own words: the kernel refuses it too, and that must not read as a
+    record that won't open."""
+    if not str(question or "").strip():
+        return {"state": "refused", "code": "no_question",
+                "why": "a question needs words"}  # fmt: skip
     run = bite(box, question)
     if run.returncode == 2:
         return {"state": "refused", "code": "record_broken", "why": run.stderr.strip()}
@@ -762,6 +767,8 @@ PLAIN = {
                      "Check that WILLOW points at your Willow folder."),
     "inside": ("That place is inside your record or your folder.",
                "Choose a place outside both."),
+    "no_question": ("That question had no words, so nothing was asked.",
+                    "Ask again with a few words about what you want to find."),
     "no_page": ("There's no page to answer yet.",
                 "Get the sealed page first (leave), then answer it."),
     "not_scope": ("The page being answered isn't one that was sealed.",
@@ -1002,6 +1009,8 @@ def context(box: Path, question: str) -> dict:
                 (state(box) / "last-page.md").write_text(page["page"])
                 return page
         return {"state": "populated"}
+    if got["state"] == "refused":  # why it was refused, never a passage
+        return got
     return {"state": got["state"]}
 
 
@@ -1496,6 +1505,12 @@ def answer(box: Path, sentence: str) -> dict:
             "why": "nothing has left to you to answer",
         }
     boxes = boxes_of(page.read_text())
+    if not boxes:  # what a session let in was given last is not a sealed page
+        return {
+            "state": "refused",
+            "code": "no_page",
+            "why": "what was last given to you is not a page the person sealed",
+        }
     with tempfile.TemporaryDirectory() as d:
         f = Path(d) / "boxes.json"
         f.write_text(json.dumps(boxes))
@@ -4071,7 +4086,11 @@ VERBS = {
         ),
         # read is open, but its passages would leave to the model: it gets the
         # state alone, never a passage, a place or a count
-        "read": lambda box, arg, **kw: {"state": read(box, str(arg))["state"]},
+        "read": lambda box, arg, **kw: (
+            got
+            if (got := read(box, str(arg)))["state"] == "refused"
+            else {"state": got["state"]}
+        ),  # fmt: skip
         "propose": lambda box, arg, **kw: propose(box),
         "leave": lambda box, arg, **kw: leave_to_model(box),
         "answer": lambda box, arg, **kw: answer(box, str(arg)),

@@ -161,3 +161,105 @@ def test_writing_the_hook_never_goes_over_one_that_isnt_ours(repo):
     assert check.write_hook([sys.executable], said.append) == 0
     assert check.write_hook(["another"], said.append) == 0  # ours: brought up to date
     assert "--python another" in at.read_text()
+
+
+# ── the tests in parts, and a pass remembered by what they can read ─────────
+@pytest.fixture
+def small(tmp_path, monkeypatch):
+    """A folder with two passing tests and a doc, and somewhere to remember."""
+    root, book = tmp_path / "small", tmp_path / "book"
+    (root / "tests").mkdir(parents=True)
+    book.mkdir()
+    (root / "tests" / "test_files.py").write_text("def test_docs():\n    assert True\n")
+    (root / "tests" / "test_code.py").write_text("def test_code():\n    assert True\n")
+    (root / "thing.py").write_text("X = 1\n")
+    (root / "README.md").write_text("# words\n")
+    monkeypatch.setattr(check, "kept", lambda: book)
+    return root
+
+
+def ran(root, **more):
+    said = []
+    ok = check.run_tests(root, [sys.executable], said.append, more.pop("jobs", 2),
+                         more.pop("everything", False))  # fmt: skip
+    return ok, "\n".join(said)
+
+
+def test_the_command_line_takes_all_and_jobs():
+    assert check.options(["--all", "--python", "p", "--jobs", "3"]) == (["--python", "p"], 3, True)  # fmt: skip
+    assert check.options([]) == ([], 0, False)
+    for bad in (["--jobs"], ["--jobs", "0"], ["--jobs", "many"]):
+        assert check.options(bad) is None
+
+
+def test_a_doc_counts_by_its_name_and_everything_else_by_its_bytes(small):
+    first = check.inputs_key(small, ["py"])
+    (small / "README.md").write_text("# other words\n")
+    assert check.inputs_key(small, ["py"]) == first  # a doc's words: not read
+    (small / "__pycache__").mkdir()
+    (small / "__pycache__" / "x.pyc").write_text("cache")
+    assert check.inputs_key(small, ["py"]) == first  # nor a cache
+    (small / "NEW.md").write_text("")
+    named = check.inputs_key(small, ["py"])
+    assert named != first  # a doc added: the file list reads its name
+    (small / "thing.py").write_text("X = 2\n")
+    assert check.inputs_key(small, ["py"]) != named
+    assert check.inputs_key(small, ["other"]) != check.inputs_key(small, ["py"])
+
+
+def test_tests_that_passed_are_not_run_again_until_something_they_read_changes(small):
+    ok, said = ran(small)
+    assert ok, said
+    assert "tests, under" in said and "nothing they read" not in said
+    ok, said = ran(small)
+    assert ok and "nothing they read has changed" in said
+    (small / "README.md").write_text("# a docs change\n")
+    assert "nothing they read has changed" in ran(small)[1]
+    assert "nothing they read" not in ran(small, everything=True)[1]  # --all
+    (small / "thing.py").write_text("X = 2\n")
+    ok, said = ran(small)
+    assert ok and "nothing they read" not in said  # code changed: every test again
+
+
+def test_a_failing_run_is_never_remembered_and_the_docs_test_still_holds(small):
+    (small / "tests" / "test_code.py").write_text(
+        "def test_code():\n    assert False\n"
+    )
+    for _ in range(2):  # failed, and failed again: not remembered as passed
+        ok, said = ran(small)
+        assert not ok and "NO   tests, under" in said
+    (small / "tests" / "test_code.py").write_text("def test_code():\n    assert True\n")
+    assert ran(small)[0]
+    # nothing read has changed, but the docs test is still asked, and can fail
+    (small / "tests" / "test_files.py").write_text(
+        "def test_docs():\n    assert True\n"
+    )
+    assert "nothing they read has changed" in ran(small)[1]
+
+
+def test_parts_run_at_once_and_their_times_are_kept_for_the_next_cut(
+    small, monkeypatch
+):
+    monkeypatch.setattr(
+        check, "parts_of",
+        lambda py, root, jobs, env: [["tests/test_files.py"], ["tests/test_code.py"]],
+    )  # fmt: skip
+    ok, said = ran(small)
+    assert ok and "(2 parts)" in said and "2 at once" in said
+    (kept,) = (check.kept() / "model-context-provider-times").glob("*.xml")
+    assert kept.read_text().count("<testcase") == 2
+    # a part that fails fails the check, and says its own last lines
+    (small / "tests" / "test_code.py").write_text(
+        "def test_code():\n    assert 1 == 2\n"
+    )
+    ok, said = ran(small)
+    assert not ok and "assert 1 == 2" in said
+
+
+def test_willows_test_shards_cuts_every_file_into_exactly_one_part(small):
+    """The cut is Willow's own; here it is only held to giving each test
+    file once. With no Willow add-on to ask, the tests are one run."""
+    env = check.clean_env(check.willow_root())
+    parts = check.parts_of(sys.executable, small, 2, env)
+    assert sorted(f for p in parts for f in p) == ["tests/test_code.py", "tests/test_files.py"]  # fmt: skip
+    assert check.parts_of(sys.executable, small, 1, env) is None

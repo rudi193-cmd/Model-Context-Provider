@@ -53,7 +53,7 @@ beside the person's record.
 
 You need Python 3.9 or newer and a Willow checkout at the commit
 [willow.pin.json](willow.pin.json) names. The pin holds every file of Willow
-this runs (the kernel and twenty-seven add-ons) by its SHA-256, and nothing runs
+this runs (the kernel and each add-on it uses) by its SHA-256, and nothing runs
 on a Willow whose files differ: `python3 willow_pin.py check` says which.
 Nothing else in Willow matters to it. Make your record in Willow's UI: pick
 your folders, type your own words into the words step, seal it, and press
@@ -133,6 +133,17 @@ Python to run the tests under (`--python PY`, as often as wanted; Willow's
 kernel promises 3.9). `--commit REV` checks that commit as it was
 committed, unpacked somewhere else, so a change not yet committed can't
 pass for it.
+
+It is made to be quick enough to run every time:
+
+- **The tests run in parts, one a core.** Willow's `test-shards` cuts the
+  test files by how long each took last time, so the parts end about
+  together. `--jobs N` runs another number at once; `--jobs 1` is one run.
+- **A pass is remembered by what the tests can read**: every file here but
+  the words of the docs. While none of that has changed, the tests aren't
+  run again; only the one that holds [FILES.md](FILES.md) to the folder
+  is. So a change to the docs alone is checked in seconds. `--all` runs
+  every test regardless. The pin and the lint are asked every time.
 
 To hold `main` to it on this machine, with no server asked:
 

@@ -4,6 +4,17 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A check quick enough to run every time.** The tests took six minutes
+  under each Python: six hundred of them, each starting a few programs,
+  one after another on one core. `check.py` now runs them in parts, one a
+  core, cut by Willow's `test-shards` (in the pin) from each file's past
+  time; and a pass is remembered by everything the tests can read, so a
+  change to the docs alone runs only the test that holds `FILES.md`.
+  `--all` runs everything; `--jobs N` sets how many at once.
+- **Two refusals that gave the wrong cause.** A question with no words was
+  refused as a record that wouldn't open; it is now refused as a question
+  with no words, before the kernel is asked. `answer` after a read under a
+  grant blamed `WILLOW`; it now says there is no sealed page to answer.
 - **The ignore file says what it relied on others for.** `.venv/` and
   `.ruff_cache/` (each ignored only by its own tool), an assistant's
   settings for this machine (ignored only by the owner's own global

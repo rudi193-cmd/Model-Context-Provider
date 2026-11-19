@@ -44,6 +44,8 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         return runtime.call(box, "leave", door="mcp")
     if code == "inside":
         return runtime.call(box, "leave", str(box / "out.md"), door="pipe")
+    if code == "no_question":
+        return runtime.call(box, "context", "  ", door="mcp")
     if code == "no_page":
         return runtime.call(box, "answer", "Frost [x].", door="mcp")
     if code == "not_scope":

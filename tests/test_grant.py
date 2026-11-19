@@ -541,3 +541,14 @@ def test_a_task_for_another_folder_or_with_no_grant_still_waits_on_the_seal(box)
     seal(box, runtime.tasks_known(box)[other["task"]]["seal"])
     (row,) = call(box, "tasks", where="/work/b", session="s9")["tasks"]
     assert "sealed" not in row and row["text"] == "paint the shed"
+
+
+def test_an_answer_after_a_read_under_a_grant_says_there_is_no_sealed_page(box):
+    """What a session let in is given is not a page the person sealed, so
+    there is nothing for a sentence to be held to: said so, not blamed on
+    the check."""
+    let_in(box)
+    assert call(box, "context", FROST)["by"] == "grant"
+    got = call(box, "answer", "The first frost comes in late October [abc].")
+    assert (got["state"], got["code"]) == ("refused", "no_page"), got
+    assert "WILLOW" not in got["next"]
