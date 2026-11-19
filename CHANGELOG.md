@@ -4,6 +4,16 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A sentence cites the passages it comes from, and what it left out is
+  shown.** On the owner's ruling (2026-11-19), a strict answer cites at
+  least one passage on its page and need not cite them all: citing every
+  one forced clauses that had nothing to do with the question. The
+  passages it cites are sentence-check's boxes, every check held over
+  them; the rest are its earlier boxes, whose words count only when cited,
+  so a word from a passage it leaves out still strikes it. A sentence that
+  cites nothing on its page is refused (`no_cite`). Kept with its checks,
+  by id and file and never words, is what it left out, and the seal page
+  shows it beside the sentence ("Left out: 1 of the 2 on the page").
 - **A refusal names what you type.** Its next step named a verb on your
   door in brackets, as `(waiting)` or `(stored)`, which a model passed on
   as "Tell the person: look at what waits on you (waiting)". Each now names

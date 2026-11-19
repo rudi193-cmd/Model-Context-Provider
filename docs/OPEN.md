@@ -512,10 +512,15 @@ a time. Not built with it: a button on the seal page to stop a skill
     send the list-changed notice when its own words change is not looked
     into.
 
-- A strict answer must cite every passage on its page, which can force a
-  clause that has nothing to do with the question (seen 2026-11-18). To
-  let a model answer from some of the passages loosens a check: the
-  owner's to rule on. The description now says what the check holds.
+- ~~A strict answer must cite every passage on its page~~, which could
+  force a clause that has nothing to do with the question (seen
+  2026-11-18).
+  - **Ruled 2026-11-19, by the owner:** a sentence cites at least one
+    passage on its page, and need not cite them all. Every other check
+    stands over the passages it cites (each cite on the page, nothing they
+    lack); the others are sentence-check's earlier boxes, whose words
+    count only when cited. With it, as asked: the seal page lists beside
+    the sentence each passage it left out, by file and id, never words.
 
 - Fewer rows on the record still: a read-only way to ask the kernel what
   is sealed and what waits (a Willow add-on), and a switch for which hooks

@@ -23,7 +23,14 @@ def test_checks_are_kept_when_a_sentence_stands_without_its_words(box):
     got = stood(box)
     row = kept(box)[got["seal"]]
     names = {c["name"]: c["said"] for c in row["checks"]}
-    assert names["every cite was served"] == "held" and len(row["checks"]) == 4
+    # every box cited holds by construction now (only cited passages are its
+    # boxes): what was left out is its own list, by id and file
+    assert names["every cite was served"] == "held" and len(row["checks"]) == 3
+    assert (
+        "every box cited" not in names
+        and row["left_out"] == []
+        and row["passages"] == 1
+    )
     assert len(row["page"]) == 64
     assert "October" not in (runtime.state(box) / "checks.json").read_text()
 
@@ -51,7 +58,8 @@ def test_the_card_lists_each_check_escaped(box):
     got = stood(box)
     html = card_of(box)
     assert "What code checked before this reached you" in html
-    assert html.count("(held)") == 3 and "nothing to check there" in html
+    assert html.count("(held)") == 2 and "nothing to check there" in html
+    assert "It cites every passage on the page you sealed." in html
     f = runtime.state(box) / "checks.json"
     data = kept(box)
     data[got["seal"]]["checks"].append({"name": "<script>a</script>",

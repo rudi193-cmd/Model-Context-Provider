@@ -59,7 +59,9 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         sealed(box)
         runtime.call(box, "leave", door="mcp")
         monkeypatch.setattr(runtime, "SENTENCE_CHECK", "no/such/check.py")
-        return runtime.call(box, "answer", "x", door="mcp")
+        (sid,) = [b["id"] for b in runtime.boxes_of(
+            (runtime.state(box) / "last-page.md").read_text())]  # fmt: skip
+        return runtime.call(box, "answer", f"x [{sid}]", door="mcp")
     if code == "answer_refused":
         sealed(box)
         page = runtime.call(box, "leave", door="mcp")["page"]
@@ -128,6 +130,12 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         return runtime.call(box, "restore", str(usb / made), door="pipe")
     if code == "capture_refused":
         return runtime.call(box, "capture", "  ", door="mcp")
+    if code == "no_cite":
+        sealed(box)
+        runtime.call(box, "leave", door="mcp")
+        return runtime.call(
+            box, "answer", "The first frost comes in late October.", door="mcp"
+        )
     if code == "note_too_long":
         return runtime.call(box, "capture", "x" * (runtime.NOTE_MOST + 1), door="mcp")
     if code == "notes_waiting":

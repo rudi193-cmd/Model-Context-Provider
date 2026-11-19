@@ -778,6 +778,8 @@ PLAIN = {
                      "Check that WILLOW points at your Willow folder."),
     "answer_refused": ("Your record wouldn't take the answer.",
                        "Try the answer again; nothing was written."),
+    "no_cite": ("The sentence cited nothing on the page, so it wasn't handed in.",
+                "Ask for it again: a sentence cites at least one passage on its page."),
     "no_model": ("There's no model to ask.",
                  ('Name one on this machine in model.json beside your record: '
                   '{{"url": "http://127.0.0.1:11434/v1", "model": "NAME"}}.')),
@@ -914,6 +916,8 @@ FOR_MODEL = {
                "that. What you are given under a grant is not a sealed page.",
     "not_scope": "Get the page again (the page tool, action leave) and answer that.",
     "answer_refused": "Try the answer again; nothing was written.",
+    "no_cite": "Cite the passage the sentence comes from, by its id in brackets "
+               "like [a1b2c3d4e5f6]: at least one on the page you were given.",
     "nothing_to_scope": "Read again (the page tool, action read, with a question "
                         "their files hold), then propose straight after.",
     "no_verb": "This door has these tools: {verbs}.",
@@ -1594,12 +1598,36 @@ def boxes_of(page: str) -> list[dict]:
     return [{"id": b["id"], "text": "\n".join(b["lines"])} for b in boxes]
 
 
+#: a cite, as Willow's sentence-check reads one: a word in square brackets
+CITE = re.compile(r"\[(\w+)\]")
+
+
+def files_of(page: str) -> dict[str, str]:
+    """Each passage on a served page, by its id, and the file it is from:
+    where it is, never what it says."""
+    out, file = {}, ""
+    for line in page.splitlines():
+        if line.startswith("## "):
+            file = line[3:].strip()
+        elif line.startswith("- `") and line.endswith("human-sealed"):
+            out[line.split("`")[1]] = file
+    return out
+
+
 def answer(box: Path, sentence: str) -> dict:
     """The model's way back: one sentence about the page it was given. Code
-    holds it to that page (Willow's sentence-check: every cite served, every
-    box cited, nothing the boxes lack); a sentence that stands is proposed
+    holds it to that page (Willow's sentence-check: every cite served,
+    nothing the passages it cites lack); a sentence that stands is proposed
     through the kernel and waits for the person's seal. The model never
-    writes, and a struck sentence goes nowhere."""
+    writes, and a struck sentence goes nowhere.
+
+    It cites at least one passage on the page, and need not cite them all
+    (the owner's ruling, 2026-11-19): the ones it cites are sentence-check's
+    boxes, every check held over them, and the rest are its earlier boxes,
+    whose words count only if cited. What it left out is kept beside the
+    record, by id and file and never by words, and the seal page shows it
+    beside the sentence, so a sentence that misleads by what it leaves out
+    is seen before it is kept."""
     page = state(box) / "last-page.md"
     if not page.exists():
         return {
@@ -1614,16 +1642,29 @@ def answer(box: Path, sentence: str) -> dict:
             "code": "no_page",
             "why": "what was last given to you is not a page the person sealed",
         }
+    cited = set(CITE.findall(sentence))
+    used = [b for b in boxes if b["id"] in cited]
+    if not used:
+        return {"state": "refused", "code": "no_cite",
+                "why": "the sentence cites no passage on the page"}  # fmt: skip
+    left = [b for b in boxes if b["id"] not in cited]
     with tempfile.TemporaryDirectory() as d:
-        f = Path(d) / "boxes.json"
-        f.write_text(json.dumps(boxes))
-        run = willow(
-            SENTENCE_CHECK, "--sentence", sentence, "--boxes", str(f), "--json"
-        )
+        f, rest = Path(d) / "boxes.json", Path(d) / "earlier.json"
+        f.write_text(json.dumps(used))
+        argv = ["--sentence", sentence, "--boxes", str(f), "--json"]
+        if left:
+            rest.write_text(json.dumps(left))
+            argv += ["--earlier", str(rest)]
+        run = willow(SENTENCE_CHECK, *argv)
     if run.returncode not in (0, 42):
         return {"state": "refused", "code": "check_failed", "why": run.stderr.strip()}
     report = json.loads(run.stdout)
     checks = {r["where"]: r["what"] for g in report["groups"] for r in g["rows"]}
+    # held by construction over the passages it cites: what it says of the
+    # page is the list of what was left out, not this
+    checks.pop("every box cited", None)
+    where = files_of(page.read_text())
+    left_out = [{"id": b["id"], "file": where.get(b["id"], "")} for b in left]
     if run.returncode == 42:
         return {"state": "struck", "checks": checks}
     # the page is a whole scope the person sealed (sealed_page let it leave
@@ -1659,9 +1700,11 @@ def answer(box: Path, sentence: str) -> dict:
     if subject:  # the guarantee the person is shown: kept, a hash of the page, no words
         kept = checks_kept(box)
         kept[subject] = {"page": page_hash,
-                         "checks": [{"name": k, "said": v} for k, v in checks.items()]}  # fmt: skip
+                         "checks": [{"name": k, "said": v} for k, v in checks.items()],
+                         "left_out": left_out, "passages": len(boxes)}  # fmt: skip
         (state(box) / "checks.json").write_text(json.dumps(kept, indent=1))
-    return {"state": "waiting", "seal": subject, "checks": checks, "path": prop["path"]}
+    return {"state": "waiting", "seal": subject, "checks": checks, "path": prop["path"],
+            "left_out": [b["id"] for b in left]}  # fmt: skip
 
 
 SESSION_SEAL = "adapters/stdlib/session-seal/session_seal.py"

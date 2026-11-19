@@ -44,10 +44,12 @@ assistant is asked when it comes.
    other is not, so read a page before you seal it. The page leaves only
    whole; if a sealed passage has changed since, nothing leaves.
 5. **The model answers** in one sentence, citing the page's ids. Willow's
-   sentence-check holds it there: every cite was on the page, every passage
-   is cited, and the sentence adds nothing the page lacks. A struck sentence
-   goes nowhere.
-6. **The answer waits** for the person's seal, like everything else.
+   sentence-check holds it there: it cites at least one passage, every cite
+   was on the page, and it adds nothing the passages it cites lack. A
+   struck sentence goes nowhere.
+6. **The answer waits** for the person's seal, like everything else. The
+   seal page shows beside it each passage of the page it left out, so a
+   sentence that misleads by what it leaves out is seen before it is kept.
 
 Every step that reached the model is written down, by hash, on a chained log
 beside the person's record.

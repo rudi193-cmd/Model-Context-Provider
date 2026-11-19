@@ -326,6 +326,34 @@ def checked(kept) -> str:
         head + "<ul>" + "".join(f"<li>{esc(x)}</li>" for x in lines) + "</ul>"
         '<p class="soft">This checks words and numbers against the page. It '
         "doesn’t check that the sentence is true, or what it means.</p>"
+        + left_out(kept)
+    )
+
+
+def left_out(kept: dict) -> str:
+    """What was on the sealed page and isn't in the sentence. A sentence may
+    cite only some of its page (the owner's ruling, 2026-11-19), so what it
+    leaves out is shown beside it: by file and the passage's id, never its
+    words, since the record of the checks keeps none. A sentence kept before
+    that ruling has no list, and cited its whole page."""
+    left = kept.get("left_out")
+    if not isinstance(left, list):
+        return ""
+    if not left:
+        return "<p>It cites every passage on the page you sealed.</p>"
+    rows = "".join(
+        f"<li>{esc(str(b.get('file') or 'a passage'))} "
+        f'<span class="soft">({esc(str(b.get("id", "")))})</span></li>'
+        for b in left
+        if isinstance(b, dict)
+    )
+    of = kept.get("passages")
+    total = f" of the {of} on the page" if isinstance(of, int) else ""
+    return (
+        f"<p><b>Left out: {len(left)}{total}</b></p><ul>{rows}</ul>"
+        '<p class="soft">The sentence says nothing of these. A sentence can '
+        "mislead by what it leaves out, so read them in your files before "
+        "you keep it.</p>"
     )
 
 

@@ -113,8 +113,9 @@ WORDS = {
     "seal what the last read found, as one page. leave: the page they "
     "sealed. answer (sentence): one sentence about that page. It is "
     "checked strictly: use only words the passages themselves hold (no "
-    "'you said', no summing-up word of your own), and cite every "
-    "passage on the page by its id in brackets like [a1b2c3d4e5f6]. "
+    "'you said', no summing-up word of your own), and cite each passage "
+    "it comes from by its id in brackets like [a1b2c3d4e5f6]: at least "
+    "one, and only those its words come from. "
     "It then waits on their seal. draft (question): "
     "have your client's model write that sentence. You cannot seal.",
     "report": "A report of the person's files, by name: todo (what they wrote "

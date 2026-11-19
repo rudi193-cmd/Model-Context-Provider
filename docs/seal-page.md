@@ -14,9 +14,11 @@ your seal, each as what it is:
   line (the runtime's `preview`);
 - **a model's sentence**: its words, where it would be kept, and under it
   each check code ran on it ("What code checked before this reached you"),
-  kept beside the box with the hash of the page it was held to. A sentence
-  from before this was kept says its checks aren't on record, not that it
-  passed;
+  kept beside the box with the hash of the page it was held to, and then
+  each passage of that page the sentence left out, by its file and id. A
+  sentence need cite only some of its page, so read what it left out before
+  you keep it. A sentence from before this was kept says its checks aren't
+  on record, not that it passed;
 - **a task to do**: its words, who proposed it and for which project, with
   **Seal: yes, do this**, which grants it nothing else.
 
