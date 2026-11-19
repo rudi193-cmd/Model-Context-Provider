@@ -495,11 +495,9 @@ a time. Not built with it: a button on the seal page to stop a skill
   better:
   - (Fixed the same day: an empty question read as a record that
     wouldn't open, and `answer` with no sealed page blamed `WILLOW`.)
-  - A refusal's next step always begins "Tell the person:", also when the
-    fix is the model's own (a report's name misspelt, an argument left
-    out, a date not year-month-day).
-  - `timeline` refused for a bad `since` gives the next step for a bad
-    `about`.
+  - (Fixed the same day: a refusal a model can put right itself now says
+    so to it, with no "Tell the person"; `timeline`'s says what each
+    argument is.)
   - `timeline` with `since` says `empty` when no line falls in those days,
     yet writes the whole timeline to a file (150 KB here) and names it.
     Each asking leaves a file in `made/`.

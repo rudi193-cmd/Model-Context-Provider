@@ -4,6 +4,13 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A model is told what is its own to fix.** A refusal's next step began
+  "Tell the person:" at a model's door whatever it was. For the ones a
+  model can put right itself (a report's name, a question with no words,
+  a missing argument, a date not written year-month-day, a task or shelf
+  name that isn't there, a grant not yet asked for) it is now said to the
+  model, in words written for it. What only the person can fix is still
+  passed on to them.
 - **A check quick enough to run every time.** The tests took six minutes
   under each Python: six hundred of them, each starting a few programs,
   one after another on one core. `check.py` now runs them in parts, one a

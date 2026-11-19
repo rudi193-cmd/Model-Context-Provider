@@ -897,12 +897,61 @@ PLAIN = {
 }  # fmt: skip
 
 
+#: refusals a model can put right itself, each with the next step written
+#: for it: said as it is, with no "Tell the person". Every other refusal is
+#: the person's to fix (a seal, a setting, a file of theirs), so a model is
+#: told to tell them. A model reads `why` beside this for which argument.
+FOR_MODEL = {
+    "no_question": "Ask again with a few words about what you want to find.",
+    "no_page": "Get the sealed page first (the page tool, action leave), then answer "
+               "that. What you are given under a grant is not a sealed page.",
+    "not_scope": "Get the page again (the page tool, action leave) and answer that.",
+    "answer_refused": "Try the answer again; nothing was written.",
+    "nothing_to_scope": "Read first (the page tool, action read, with a question), "
+                        "then propose.",
+    "no_verb": "This door has these tools: {verbs}.",
+    "capture_refused": "Say it in other words: an empty note isn't kept, and the "
+                       "same note is only handed in once.",
+    "shelf_refused": "Give it a plain file name (letters, digits, dots and dashes, "
+                     "at most 80) and some text, under a million characters.",
+    "not_on_shelf": "List the shelf (the shelf tool, action list) and use a name "
+                    "from there.",
+    "no_report": "Use one of these names exactly, in small letters: todo, coming-up, "
+                 "on-this-day, people, ref-check, pii-audit, secrets-audit, minutes.",
+    "task_refused": "Say it in other words: an empty or very long task isn't kept, "
+                    "and the same task is only handed in once.",
+    "no_such_task": "List the tasks (the task tool, action list) and use an id from "
+                    "there. One the person hasn't sealed waits on them.",
+    "task_taken": "Leave it alone: another session has it, or it is done.",
+    "task_not_held": "Claim it first (the task tool, action claim), then mark it "
+                     "done with what you found.",
+    "tool_refused": "Call it again with the action or the argument the reason names.",
+    "timeline_refused": "The reason says which: about is a few words that name the "
+                        "matter; since and until are dates written year-month-day; "
+                        "after is the number you were given.",
+    "feed_refused": "since is a date written year-month-day.",
+    "share_refused": "The reason says what to fix: answers are the proposal:... ids "
+                     "of sentences the person sealed, and for is a name they gave "
+                     "someone.",
+    "no_such_job": "Use the id the job tool, action later, gave you in this session. "
+                   "A job queued in an earlier session is gone.",
+    "job_too_long": "Ask for less: a count, or the first lines (head).",
+    "no_grant": "Ask with the grant tool, once. Then tell the person it waits on "
+                "their yes, on their seal page.",
+}  # fmt: skip
+
+
 def plain(got: dict, box: Path, faces: str, verbs) -> dict:
     """A refusal with its plain words added: say, and next. A model's door gets
-    the next step as something to tell the person."""
+    the next step as its own to take when it can put the thing right itself
+    (FOR_MODEL), and otherwise as something to tell the person."""
     if got.get("state") != "refused" or "say" in got:
         return got
     say, nxt = PLAIN.get(got.get("code", ""), (got.get("why", "Refused."), ""))
+    if faces == "model" and got.get("code") in FOR_MODEL:
+        offered = sorted(t["name"] for t in tools_offered(box)["tools"])
+        return {**got, "say": say,
+                "next": FOR_MODEL[got["code"]].format(verbs=", ".join(offered))}  # fmt: skip
     if faces == "model":  # a model is offered tools, not verbs: name those
         offered = sorted(t["name"] for t in tools_offered(box)["tools"])
         nxt = tool_words(nxt.format(box=box, verbs=", ".join(offered)))
