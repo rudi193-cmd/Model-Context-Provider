@@ -33,7 +33,9 @@ what a package proves and what it can't.
   model is told the package's id and where the file is, and sending it is
   still yours. Declined or stopped, nothing is packed.
 - **What arrives.** `{"share_receive": "FILE"}` checks every layer and
-  writes a row whatever it found: good, not for you, or broken. Receiving
+  writes a row whatever it found: good, not for you, or broken. A key
+  you named is said by that name, with the start of the key beside it.
+  Receiving
   is never sealing. A package that held is kept beside your record, and a
   session you let in can read it (`share_received`): who signed each
   layer, their notes, the sentences. It is checked again each time, so a

@@ -3175,6 +3175,19 @@ def share_propose(box: Path, arg) -> dict:
     return {"state": "waiting", "seal": subject, "whom": whom}
 
 
+def share_named(box: Path, text: str) -> str:
+    """Willow's own words about a package, with each key the person named
+    said by that name: `Walt (a1b2c3d4e5f6…)` for `a1b2c3d4e5f6…`. The start
+    of the key stays beside the name, since the key is what was checked.
+    For the person's own door: a name they gave is theirs to read."""
+    names = {k[:12]: n for n, k in share_people(box).items()}
+    return re.sub(
+        r"\b([0-9a-f]{12})…",
+        lambda m: f"{names[m.group(1)]} ({m.group(0)})" if m.group(1) in names else m.group(0),
+        text,
+    )  # fmt: skip
+
+
 def share_receive(box: Path, arg) -> dict:
     """Take in a package someone sent: Willow's share checks every layer
     and writes a `received` row whatever it found. One that held and is for
@@ -3194,14 +3207,8 @@ def share_receive(box: Path, arg) -> dict:
     first = re.match(r"(package:[0-9a-f]{64})  (good|not-for-you|broken)", run.stdout)
     again = re.match(r"already received at row \d+: (\S+)", run.stdout)
     verdict = first.group(2) if first else again.group(1) if again else "broken"
-    got = {"state": "received", "verdict": verdict, "said": run.stdout.strip()}
-    # a correction: whom the package it replaces was passed on to, and what
-    # to name when this one is passed on the same way
-    passed = re.findall(
-        r"you passed that on to (\S+) as (package:[0-9a-f]{64})", run.stdout
-    )
-    if passed:
-        got["forward_with"] = [{"to": to, "replaces": pkg} for to, pkg in passed]
+    got = {"state": "received", "verdict": verdict,
+           "said": share_named(box, run.stdout.strip())}  # fmt: skip
     # a correction: whom the package it replaces was passed on to, and what
     # to name when this one is passed on the same way
     passed = re.findall(
@@ -3485,7 +3492,9 @@ def shares_listed(box: Path) -> dict:
             "people": share_people(box), "proposed": proposed,
             "sentences": [{"seal": s["seal"], "says": s["says"][:100]}
                           for s in share_sentences(box)[:20]],
-            "log": willow(SHARE, "log", "--box", str(box)).stdout.splitlines()}  # fmt: skip
+            "log": share_named(
+                box, willow(SHARE, "log", "--box", str(box)).stdout
+            ).splitlines()}  # fmt: skip
 
 
 # ── what is kept beside the record: seen, removed, archived ────────────────

@@ -26,7 +26,7 @@ model-context-provider/
 ├── willow.pin.json                         the Willow commit this runs on, and every file of it by SHA-256
 ├── pyproject.toml                          the project's name and its dev tools; nothing to install to run it
 ├── ruff.toml                               lint and format settings
-├── .gitignore                              caches and the dev lock file
+├── .gitignore                              caches, built packages, and never a key, an identity or a machine's settings
 ├── doors/                                  the ways in: each turns its own wire into a call to the runtime
 │   ├── __init__.py                         what a door is, and that it decides nothing
 │   ├── mcp.py                              the MCP door: stdio, one JSON-RPC message a line

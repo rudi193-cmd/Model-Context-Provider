@@ -196,6 +196,9 @@ def test_what_arrives_is_received_by_the_person_and_read_by_a_session_let_in(
     got = pipe(theirs, "share_receive", sent["file"])
     assert (got["state"], got["verdict"]) == ("received", "good"), got
     assert "received, not sealed by you" in got["said"]
+    # a key nobody named is said by its start; once named, by the name too
+    assert f"from {mine[0][:12]}…" in got["said"] and "Ines" not in got["said"]
+    assert f"to Walt ({walt[1][:12]}…)" in pipe(box, "shares")["log"][-1]
     told = model(theirs, "share_received")
     assert (told["state"], told["code"]) == ("refused", "no_grant")
     seal(theirs, model(theirs, "grant")["seal"])
@@ -206,6 +209,7 @@ def test_what_arrives_is_received_by_the_person_and_read_by_a_session_let_in(
     assert (
         pipe(theirs, "share_receive", sent["file"])["verdict"] == "good"
     )  # twice: once
+    assert f"Ines ({mine[0][:12]}…)" in pipe(theirs, "shares")["log"][-1]
     assert runtime.waiting(theirs)["state"] == "empty"  # receiving is never sealing
 
 

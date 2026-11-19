@@ -482,6 +482,36 @@ a time. Not built with it: a button on the seal page to stop a skill
 
 ### Could do, not asked for
 
+- **From a push on a model's tools over the real record (2026-11-18).**
+  What held: the sandbox (a write into the folder and a fetch both
+  failed), a path off the shelf, a job's long print cut at a whole line,
+  a task already done, a missing argument named. Where they could be
+  better:
+  - An empty question to `context` is refused as `record_broken` ("Your
+    record wouldn't open", run verify). The record is fine: it should be
+    refused as an empty question.
+  - `answer` with no page to answer about (after `context` under a grant)
+    is refused as `check_failed`, with "Check that WILLOW points at your
+    Willow folder". It should say there is no sealed page to answer.
+  - A refusal's next step always begins "Tell the person:", also when the
+    fix is the model's own (a report's name misspelt, an argument left
+    out, a date not year-month-day).
+  - `timeline` refused for a bad `since` gives the next step for a bad
+    `about`.
+  - `timeline` with `since` says `empty` when no line falls in those days,
+    yet writes the whole timeline to a file (150 KB here) and names it.
+    Each asking leaves a file in `made/`.
+  - `report` names are held to their exact case (`Todo` is refused).
+  - `minutes` is over the most shared at once on the real folder, and a
+    report has no parts as a timeline has, so a session let in gets none
+    of it.
+  - A timeline counts front-matter lines (`metadata:`, `node_type:`) as
+    lines about the matter. Willow's `timeline`, by passage.
+  - After a reconnect the client still showed the older descriptions of
+    `report`, `context` and `skill`. Seen once; whether the door should
+    send the list-changed notice when its own words change is not looked
+    into.
+
 - A strict answer must cite every passage on its page, which can force a
   clause that has nothing to do with the question (seen 2026-11-18). To
   let a model answer from some of the passages loosens a check: the

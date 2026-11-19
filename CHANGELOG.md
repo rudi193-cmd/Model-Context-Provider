@@ -4,6 +4,11 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **The ignore file says what it relied on others for.** `.venv/` and
+  `.ruff_cache/` (each ignored only by its own tool), an assistant's
+  settings for this machine (ignored only by the owner's own global
+  file), and what must never be committed from here: `*.key`, `share.id`
+  and `.env`.
 - **Easier to use, from one day's friction.** The person's door takes one
   request by words (`pipe.py --box DIR waiting`, `name=value` for an
   argument) and answers so a person can read it; `set_up.py --write
@@ -12,7 +17,8 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   go by their first words. The prompt hook no longer tells a session that
   asked to be let in that it is given nothing: it points at the `context`
   tool, decided beside the box with no row written. The `page` tool's
-  description says what its check holds a sentence to.
+  description says what its check holds a sentence to. What `share_receive`
+  and `shares` say names a key by the name the person gave it.
 - **A short front page, and a list of every file.** The README keeps the
   two lines, how a question goes and set-up; its other sections moved,
   word for word, into `docs/`, with the open list (`docs/OPEN.md`, once
