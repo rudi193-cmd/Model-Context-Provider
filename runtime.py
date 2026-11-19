@@ -757,7 +757,8 @@ def draft(box: Path, question: str, ask=None, door: str = "") -> dict:
 PLAIN = {
     "record_broken": ("Your record wouldn't open.",
                       "Run: python kernel.py verify --box {box} (it says what's wrong)."),
-    "nothing_to_scope": ("There's nothing to share yet: no question has found anything in your files.",
+    "nothing_to_scope": ("There's nothing to share yet: the last question found nothing in your files, "
+                         "or something else was asked of them since.",
                          "Ask a question your files answer, then propose it."),
     "not_sealed": ("Nothing is sealed for this, so nothing was shared.",
                    "Look at what waits on you (waiting) and seal the one you mean to share."),
@@ -907,8 +908,8 @@ FOR_MODEL = {
                "that. What you are given under a grant is not a sealed page.",
     "not_scope": "Get the page again (the page tool, action leave) and answer that.",
     "answer_refused": "Try the answer again; nothing was written.",
-    "nothing_to_scope": "Read first (the page tool, action read, with a question), "
-                        "then propose.",
+    "nothing_to_scope": "Read again (the page tool, action read, with a question "
+                        "their files hold), then propose straight after.",
     "no_verb": "This door has these tools: {verbs}.",
     "capture_refused": "Say it in other words: an empty note isn't kept, and the "
                        "same note is only handed in once.",

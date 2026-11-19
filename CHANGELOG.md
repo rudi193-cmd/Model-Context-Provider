@@ -4,6 +4,12 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Nothing to share says why it can be.** `nothing_to_scope` told the
+  person "no question has found anything in your files", even straight
+  after a read that found something and a second that found nothing. It
+  now says the last question found nothing, or something else was asked of
+  them since; a model's door says to read again with a question their files
+  hold, then propose straight after.
 - **Both repos have a pull request.** Willow's commits this was built on
   are willow-memory/Willow#379. Its rule is one version step for each
   add-on a pull request changes, so `kart` (stepped to 0.1.7 a commit at a
