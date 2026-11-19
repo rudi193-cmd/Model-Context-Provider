@@ -1,7 +1,7 @@
 {
   "_what": "The Willow this runtime was built on: its commit, and every file of what runs, by SHA-256. willow_pin.py refuses a checkout whose files differ; repin is the one way to move it.",
   "willow": "https://github.com/willow-memory/Willow",
-  "commit": "e2d539ce8919ce852fabc4f8145aec23bc1c0f42",
+  "commit": "3fcb9913753d4a8d8c3aa8b26819e84a9a6ec7b2",
   "add_ons": [
     "approved-only",
     "backup",
@@ -136,13 +136,13 @@
     "adapters/stdlib/stale-answers/stale_answers.py": "54616e180d41e4e812b01cf5db98556e2f53298a47c73a71ff3421ee250be5d1",
     "adapters/stdlib/test-shards/README.md": "2343c736baa39630036fe0cd496252f063fad5d9c7f371136a31b7e291906a12",
     "adapters/stdlib/test-shards/shards.py": "843505fd16d149e9b93d9f5418bb378f68afd30b05bfb19e381342112c2907a2",
-    "adapters/stdlib/timeline/README.md": "2fb5c08cd7968f844ddacfe0efbbf70d6951c1c0b8837c3d4a98b43b101dcc28",
+    "adapters/stdlib/timeline/README.md": "0eacebaea13462b588f8855f6c415720f1c253f975e2e1737f7ae14e1be62d01",
     "adapters/stdlib/timeline/timeline.py": "95c31ec2f45861e12cdef67166033aeb42611bc98273a37af899847ab1d6e39a",
-    "adapters/stdlib/todo/README.md": "fe351ee0b315bbc23af4e154b4112cf0980019c1306ac92ee48dcea4c99a1927",
+    "adapters/stdlib/todo/README.md": "051e37ce0904f2c1dc79ccc7ab32703262fb6700c84d768fa9519b6c02cafdb1",
     "adapters/stdlib/todo/todo.py": "1ae6976825829b5c3f13db5f0b4c599bfe06115acf70fe06f408221c961aee88",
     "adapters/stdlib/what-changed/README.md": "a3390ebca1ca4c829731b1accd75f52d1e368f66d6abfccf1b31b01406a74e5c",
     "adapters/stdlib/what-changed/what_changed.py": "2b0fdd8c7c386352a2b403ec818ca77f8973b021ecbd6a95b3e20f4c4375cb94",
-    "adapters/deps/kart/README.md": "ee31892e1598f5782e70215b756c7b9cbfbc611375c8dac80a5c1a2b69f3c968",
+    "adapters/deps/kart/README.md": "9736696f1f0d7857d48fb5d0cb7f8e4226c50b59dc2e0e9748d55eff2bed26c5",
     "adapters/deps/kart/kart.py": "af6099a3f915410e6a5d57068d6268ea3f9cd9f583c9ae1fdae49a67fb372ebf",
     "adapters/deps/kart/requirements-floor.txt": "d04d431fa4e26567611c60c8ca21ba35315ac5199a80e3a2ef1c427a4becc9a8",
     "adapters/deps/kart/requirements.txt": "f57c5eaf4102118b7bd6f3889303498e6854935f9df3bd36c899fa39165f6160"

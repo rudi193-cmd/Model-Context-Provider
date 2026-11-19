@@ -4,6 +4,12 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Both repos have a pull request.** Willow's commits this was built on
+  are willow-memory/Willow#379. Its rule is one version step for each
+  add-on a pull request changes, so `kart` (stepped to 0.1.7 a commit at a
+  time), `timeline` and `todo` (to 0.1.3) are numbered kart 0.1.3,
+  timeline 0.1.2 and todo 0.1.2 there. The pin moves to that commit:
+  three add-on cards differ by their version line, and nothing else.
 - **A model is told what is its own to fix.** A refusal's next step began
   "Tell the person:" at a model's door whatever it was. For the ones a
   model can put right itself (a report's name, a question with no words,
@@ -120,8 +126,8 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   hour), runs Willow's `what-changed`, so a file deleted from the folder
   leaves its hole too. (The owner, 2026-11-18: it is the person's data to
   delete or archive; the hole stays in the record.)
-- **Faster over a big folder.** The pin moves to Willow's `timeline` 0.1.3
-  and `todo` 0.1.3, which read only the files that matter for dates: 35
+- **Faster over a big folder.** The pin moves to Willow's `timeline`
+  and `todo` as they read only the files that matter for dates: 35
   seconds to 8, and 18 to 7, over 190,000 passages, the output unchanged.
   `pile-store` was measured and left out: reading the folder takes 1.4
   seconds, loading a store 2.3.
@@ -188,7 +194,7 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   0.1.6) and worked in the background; the worker stops when the queue is
   empty and the queue goes with the session. A worker that refused (no
   sandbox, a resource group that isn't ready) is said with the job that
-  still waits. The pin moves to kart 0.1.7, which puts back the limits a
+  still waits. The pin moves to a kart that puts back the limits a
   reload of systemd empties out of the resource group.
 - **A job says how it ended.** One that ended badly says how; one whose
   output Kartikeya clipped says so; the runtime no longer waits on a job

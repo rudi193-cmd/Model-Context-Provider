@@ -214,7 +214,7 @@ pattern:
   - **Note:** held, with one stated exception: a job needs the `kartikeya`
     package and `bwrap`, on a Python the person names beside the record;
     without them `job` is refused and everything else runs. The pin is at
-    Willow `e2d539ce`, which so far exists only on this machine.
+    Willow `3fcb9913`, on the branch of willow-memory/Willow#379.
 
 ### Open design questions
 
@@ -309,7 +309,7 @@ so none is lost. A box is ticked when it is built.
     queue (`queue`, `work`, `status`), stopped a fleet's settings reaching
     a job, keeps a failed job's last line off the record, and puts back
     the limits a reload of systemd empties out of its resource group
-    (0.1.3 to 0.1.7). Here: `job`, and `job_later` with `job_result` for a
+    (all of it kart 0.1.3, once numbered as one step). Here: `job`, and `job_later` with `job_result` for a
     job too long to wait on, on a model's door, under a session's grant.
     Seen in a real session the same day: a job run, and three queued jobs
     worked in order.
@@ -343,8 +343,8 @@ so none is lost. A box is ticked when it is built.
 - [x] **Depend on GitHub less.** The check and the hook that holds `main`
   are built and run here, and the check is the gate.
   - **Note:** the fifteen Willow commits this pin stands on (the hook
-    add-ons, `todo`, `people`, `hook-guard`, `kart`, `timeline`, `removed`) are on this machine
-    only; the owner said to save that pull request for later.
+    add-ons, `todo`, `people`, `hook-guard`, `kart`, `timeline`, `removed`) are
+    willow-memory/Willow#379, opened 2026-11-18.
 - [ ] **Quoted speech in the todo report.** About a dozen of the 91 lines
   are the owner quoted saying "I need to…" in a past session, not tasks.
   - **Needs:** the owner's yes; it is a change to Willow's `todo`, and it
