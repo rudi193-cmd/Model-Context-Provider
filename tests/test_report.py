@@ -378,8 +378,13 @@ def test_an_audit_never_shows_the_value_it_found_to_anyone(leaky, name):
         if f.is_file() and f.suffix in (".md", ".json", ".jsonl", ".txt")
     )
     assert page == owed["words"] and "deploy.md" in page
-    for text in (owed["words"], page, let_in, json.dumps(got), kept):
+    for text in (owed["words"], page, let_in):  # what a model reads: not a digit
         for value in SECRETS + NUMBERS:
+            assert value not in text
+    # what is written down holds hashes, where three digits turn up by
+    # chance: there it is the whole value that must never appear
+    for text in (json.dumps(got), kept):
+        for value in (*SECRETS, NHS):
             assert value not in text
     for value in (*SECRETS, NHS):  # whole, to no one: not even the person's read
         assert value not in mine

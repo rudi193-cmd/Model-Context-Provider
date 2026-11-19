@@ -839,7 +839,7 @@ PLAIN = {
     "skill_too_long": ("That skill is too long to read before sealing it, so it wasn't proposed.",
                        "Split it into smaller skills, each a file of its own."),
     "bring_what": ("That isn't something it can bring in.",
-                   'Say what, where from and what to call it: {{"kind": "notes", "calendar", "joplin", "evernote" or "google-keep", "from": "/path/to/the/folder", "as": "a-plain-name"}}.'),
+                   'Say what, where from and what to call it: {{"kind": "notes", "calendar", "joplin", "evernote", "google-keep", "mail" or "sms", "from": "/path/to/the/folder", "as": "a-plain-name"}}. For sms you may add "me" (your name in it) and "tz" (the time zone its messages were sent in).'),
     "bring_name": ("That name isn't one plain folder name.",
                    "Use letters, digits, dots, dashes and underscores, starting with a letter or digit, at most 64: vault-2024."),
     "bring_no_folder": ("There's no folder of yours to bring this into.",
@@ -1830,7 +1830,13 @@ BRING_IN = {"notes": "adapters/stdlib/notes/notes.py",
             "calendar": "adapters/stdlib/calendar/cal.py",
             "joplin": "adapters/stdlib/joplin/joplin.py",
             "evernote": "adapters/stdlib/evernote/evernote.py",
-            "google-keep": "adapters/stdlib/google-keep/google_keep.py"}  # fmt: skip
+            "google-keep": "adapters/stdlib/google-keep/google_keep.py",
+            "mail": "adapters/stdlib/mail/mail.py",
+            "sms": "adapters/stdlib/sms/sms.py"}  # fmt: skip
+#: what a kind's importer may also be told, each one plain line: a phone
+#: backup's own name for the person, and the time zone its messages were sent in
+BRING_ALSO = {"sms": ("me", "tz")}
+BRING_SAID = re.compile(r"[^-\s][^\n]{0,79}")
 BROUGHT_IN = "brought-in"
 BRING_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
 
@@ -1851,7 +1857,8 @@ def brought(box: Path) -> list[dict] | None:
 
 def bring_in(box: Path, arg) -> dict:
     """Write a text mirror of a notes vault (Obsidian, Logseq), of calendar
-    and contact files, or of a Joplin, Evernote or Google Keep export, into
+    and contact files, of a Joplin, Evernote or Google Keep export, of email
+    files, or of a phone's backup of its texts and calls, into
     the folder the box reads, so the next question finds them: the person's
     act on their own files, so no model's door and no host's door has it.
     Willow's add-on for that kind does the writing, by
@@ -1868,7 +1875,16 @@ def bring_in(box: Path, arg) -> dict:
     kind, src, name = asked.get("kind"), asked.get("from"), asked.get("as")
     if kind not in BRING_IN or not isinstance(src, str) or not src.strip():
         return {"state": "refused", "code": "bring_what",
-                "why": 'wanted {"kind": "notes", "calendar", "joplin", "evernote" or "google-keep", "from": PATH, "as": NAME}'}  # fmt: skip
+                "why": f'wanted {{"kind": one of {", ".join(BRING_IN)}, "from": PATH, "as": NAME}}'}  # fmt: skip
+    also = []
+    for extra in BRING_ALSO.get(kind, ()):
+        said = asked.get(extra)
+        if said is None:
+            continue
+        if not isinstance(said, str) or not BRING_SAID.fullmatch(said):
+            return {"state": "refused", "code": "bring_what",
+                    "why": f"{extra} is one plain line, and doesn't start with a dash"}  # fmt: skip
+        also += [f"--{extra}", said]
     if not isinstance(name, str) or not BRING_NAME.fullmatch(name) or ".." in name:
         return {"state": "refused", "code": "bring_name",
                 "why": f"{name!r} is not one plain folder name"}  # fmt: skip
@@ -1900,7 +1916,8 @@ def bring_in(box: Path, arg) -> dict:
     ):
         return {"state": "refused", "code": "bring_exists",
                 "why": f"{mirror} is there already, not from {origin}; never written over"}  # fmt: skip
-    run = willow(BRING_IN[kind], "mirror", "--from", str(origin), "--to", str(mirror))
+    run = willow(BRING_IN[kind], "mirror", "--from", str(origin), "--to", str(mirror),
+                 *also)  # fmt: skip
     said = run.stdout.strip()
     if run.returncode == 42:
         return {"state": "refused", "code": "bring_nothing",
@@ -2336,8 +2353,10 @@ def tasks_to_model(box: Path, where, let_in: bool = False) -> dict:
     A session the person let in is also given the tasks a model added
     under a grant for this folder, each marked as not sealed.
 
-    The words given at once are at most TASKS_MOST. Over it the oldest tasks
-    that fit are given and the rest are left off, with more: true. That says
+    The words of open tasks given at once are at most TASKS_MOST. Over it
+    the oldest that fit are given and the rest are left off, with more:
+    true. A task a session took up is always listed and weighs nothing (the
+    owner, 2026-11-18): claimed work must not crowd out what is still to do. That says
     only that tasks this session may take up were left off, never how many,
     and never of one it isn't given anyway: only tasks it may see are
     weighed. Finishing a task frees its words, so asking again after is how
@@ -2373,12 +2392,19 @@ def tasks_to_model(box: Path, where, let_in: bool = False) -> dict:
         for row in out:
             if row["status"] != "done":
                 row["text"] = next(said)
-    more, used = False, 0
-    for i, row in enumerate(out):  # weighed as given: withheld, which can lengthen
-        used += len(row.get("text", ""))
-        if used > TASKS_MOST and i:  # the first is always given
-            out, more = out[:i], True
-            break
+    # only open tasks are weighed, as given (withheld, which can lengthen).
+    # One a session took up is always listed and weighs nothing: it is
+    # someone's work already, and must never crowd out what is still to do
+    more, used, kept = False, 0, []
+    for row in out:
+        if row["status"] == "open":
+            used += len(row.get("text", ""))
+            first = not any(r["status"] == "open" for r in kept)
+            if more or (used > TASKS_MOST and not first):  # the first is always given
+                more = True  # and none after one that didn't fit: oldest first
+                continue
+        kept.append(row)
+    out = kept
     if out:
         return {"state": "populated", "tasks": out, **({"more": True} if more else {})}
     # only that its own task waits: the person's own tasks aren't hinted at
@@ -4316,17 +4342,21 @@ PROMPTS = {
         "family": "reports",
         "description": (
             "What's on your plate. Just run it: nothing to type after it. You get "
-            "what you wrote down to do and the dates coming up, each from a report "
-            "you sealed, or are told which report waits on your seal."
+            "what you wrote down to do, the dates coming up, and the actions still "
+            "open from your meeting notes, each from a report you sealed, or are "
+            "told which report waits on your seal."
         ),
         "arguments": [],
         "text": (
-            "The person asked what is on their plate. Use the report tool twice: once "
-            'with the name "todo" and once with the name "coming-up".\n\n'
+            "The person asked what is on their plate. Use the report tool three "
+            'times: with the name "todo", with the name "coming-up", and with the '
+            'name "minutes".\n\n'
             "For each report:\n"
             "- If you are given a page, it is lines of their own files. Say what it "
             "holds, plainly, the oldest thing to do and the soonest date first, and "
-            "name the file and line of anything you mention.\n"
+            "name the file and line of anything you mention. From the minutes, say "
+            "only the open actions, each with who owns it and when it is due; leave "
+            "out decisions and actions that are closed.\n"
             "- If it is waiting, say that the report waits on their seal, and that "
             "they can read it and seal it on their seal page.\n"
             "- If it is empty, say there is nothing to report.\n\n"

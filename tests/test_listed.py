@@ -127,6 +127,7 @@ def test_the_prompts_tell_a_model_which_verbs_to_use_and_hold_nothing_else(box):
     plate = runtime.call(box, "prompt", {"name": "plate"}, door="mcp")
     assert plate["state"] == "prompt"
     assert '"todo"' in plate["text"] and '"coming-up"' in plate["text"]
+    assert '"minutes"' in plate["text"] and "only the open actions" in plate["text"]
     assert "Do not guess" in plate["text"]
     # every tool a prompt names is one the door has
     for name in runtime.PROMPTS:

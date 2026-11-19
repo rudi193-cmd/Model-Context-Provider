@@ -51,6 +51,7 @@ ADD_ONS = (
     "index-cache",
     "joplin",  # an importer: loads only the kernel
     "local-model",
+    "mail",  # an importer: loads only the kernel
     "minutes",  # loads habits
     "notes",  # an importer: loads only the kernel
     "on-this-day",
@@ -66,6 +67,7 @@ ADD_ONS = (
     "sentence-check",
     "session-seal",
     "share",  # kart loads it: a job that came in a package, a result sent back
+    "sms",  # an importer: loads only the kernel
     "stale-answers",  # digest loads it; it loads pieces
     "timeline",  # loads only the kernel
     "todo",  # batch-ask's scan loads it

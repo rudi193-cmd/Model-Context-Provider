@@ -370,9 +370,8 @@ so none is lost. A box is ticked when it is built.
     (20,000) characters of words at once: the oldest tasks that fit, then
     `more: true` and nothing else about the rest (never a count). It is
     not refused whole, as `notes` is, since a session given no task can
-    take none up. A claimed task's words weigh like an open one's, so
-    many long claimed tasks can crowd out newer open ones until they are
-    finished: the owner's to rule on.
+    take none up. A task a session took up is always listed and weighs
+    nothing (the owner's ruling, 2026-11-18).
   - **Note (rows done):** a yes the kernel gave is remembered by the door
     that asked, in memory, while the proposal it was for reads the same,
     so a sealed task or a kept note is asked of the kernel once and not on

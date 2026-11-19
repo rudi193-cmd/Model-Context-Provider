@@ -63,6 +63,48 @@ JEX = jex(
 )
 
 
+EML = (
+    "From: Ada Example <ada@example.org>\nTo: Ben Example <ben@example.org>\n"
+    "Date: Wed, 14 Oct 2026 09:15:00 +0000\nSubject: Roof estimate\n\n"
+    "The estimate for the roof is in. The total is 4,200.\n"
+)
+ROOF = "what is the estimate for the roof"
+SENT = 1733213400  # 2024-12-03 08:10 UTC, in seconds; a backup keeps milliseconds
+WHO = "+1" + "555" + "0100"  # a made-up number, put together here
+
+
+def texts():
+    """A phone backup of two texts, as SMS Backup & Restore writes one."""
+    line = '<sms address="{who}" date="{at}" type="{kind}" body="{body}" contact_name="Dev Raman" />\n'
+    return (
+        "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>\n"
+        '<smses count="2">\n'
+        + line.format(who=WHO, at=SENT * 1000, kind=1,
+                      body="I can bring the ladder on Saturday")
+        + line.format(who=WHO, at=(SENT + 120) * 1000, kind=2, body="Saturday works")
+        + "</smses>\n"
+    )  # fmt: skip
+
+
+LADDER = "who can bring the ladder on Saturday"
+
+
+@pytest.fixture
+def mailbox(tmp_path):
+    m = tmp_path / "mail-export"
+    (m / "inbox").mkdir(parents=True)
+    (m / "inbox" / "roof.eml").write_text(EML)
+    return m
+
+
+@pytest.fixture
+def phone(tmp_path):
+    p = tmp_path / "phone-backup"
+    p.mkdir()
+    (p / "texts.xml").write_text(texts())
+    return p
+
+
 @pytest.fixture
 def joplin(tmp_path):
     j = tmp_path / "joplin-export"
@@ -368,3 +410,73 @@ def test_a_box_with_no_folder_to_read_refuses(box, vault):
     cfg["pile"] = str(box.parent / "gone")
     (box / "kernel.json").write_text(json.dumps(cfg))
     assert bring(box, "notes", vault)["code"] == "bring_no_folder"
+
+
+# ── email, and a phone's texts ──────────────────────────────────────────────
+def test_email_is_mirrored_with_its_map_hidden_from_every_question(box, mailbox):
+    from test_leave import seal
+
+    before = snapshot(mailbox)
+    got = bring(box, "mail", mailbox, "home")
+    assert got["state"] == "brought" and got["wrote"] == 1, got
+    mirror = box.parent / "pile" / "brought-in" / "mail-home"
+    text = (mirror / "inbox" / "roof.eml.txt").read_text()
+    assert "Subject: Roof estimate" in text and "The total is 4,200." in text
+    assert snapshot(mailbox) == before  # the original is never changed
+    where = found(box, ROOF)
+    assert where and where[0].startswith("brought-in/mail-home/inbox/roof.eml.txt")
+    # Willow's mail keeps a map of where each passage came from, in a hidden
+    # folder of the mirror: the kernel never reads it, so no question finds it
+    assert (mirror / ".places").is_dir()
+    assert not [w for w in found(box, "message places json") if ".places" in w]
+    # what a model is given of it is withheld: an address never leaves
+    asked = runtime.call(box, "grant", door="mcp", where="/w", session="s")
+    seal(box, asked["seal"])
+    page = runtime.call(box, "context", ROOF, door="mcp", where="/w", session="s")[
+        "page"
+    ]
+    assert "roof" in page and "ada@example.org" not in page
+    assert bring(box, "mail", mailbox, "home")["again"] is True  # a second run is safe
+
+
+def test_a_phones_texts_are_mirrored_and_say_who_you_are_and_when(box, phone):
+    got = bring(box, "sms", phone, "phone")
+    assert got["state"] == "brought" and got["wrote"] == 1, got
+    folder = box.parent / "pile" / "brought-in" / "sms-phone"
+    mirror = folder.joinpath("texts.xml.txt")
+    text = mirror.read_text()
+    assert "# Dev Raman" in text and "me: Saturday works" in text
+    where = found(box, LADDER)
+    assert where and where[0].startswith("brought-in/sms-phone/")
+    asked = {"kind": "sms", "from": str(phone), "as": "phone",
+             "me": "Robin", "tz": "America/Denver"}  # fmt: skip
+    named = runtime.call(box, "bring_in", asked, door="pipe")
+    assert named["state"] == "brought" and named["again"] is True, named
+    text = mirror.read_text()
+    assert "Robin: Saturday works" in text and "me: Saturday" not in text
+    assert "01:10" in text and "08:10" not in text  # as it was sent, in Denver
+
+
+def test_what_else_an_importer_is_told_is_one_plain_line_and_only_what_it_takes(
+    box, phone, vault
+):
+    base = {"kind": "sms", "from": str(phone), "as": "phone"}
+    for also in ({"tz": "--to"}, {"me": "-x"}, {"me": "a\nb"}, {"me": ""}, {"tz": 7},
+                 {"me": "x" * 81}):  # fmt: skip
+        got = runtime.call(box, "bring_in", {**base, **also}, door="pipe")
+        assert (got["state"], got["code"]) == ("refused", "bring_what"), also
+    wrong = runtime.call(box, "bring_in", {**base, "tz": "Mars/Olympus"}, door="pipe")
+    assert (wrong["state"], wrong["code"]) == (
+        "refused",
+        "bring_failed",
+    )  # the add-on's no
+    assert not (box.parent / "pile" / "brought-in").exists()
+    # a kind that takes nothing more is told nothing more
+    more = {
+        "kind": "notes",
+        "from": str(vault),
+        "as": "v",
+        "me": "Robin",
+        "tz": "nowhere",
+    }
+    assert runtime.call(box, "bring_in", more, door="pipe")["state"] == "brought"

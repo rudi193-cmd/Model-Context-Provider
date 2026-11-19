@@ -886,6 +886,17 @@ The kinds, and what each reads from the folder you point at:
 | `joplin` | a Joplin export (`.jex`), each note with its notebook and dates; the trash is left out |
 | `evernote` | Evernote exports (`.enex`), each note with its notebook, tags and dates |
 | `google-keep` | Google Keep notes from a Takeout (`.json`), each with its day and labels |
+| `mail` | email files (`.eml`) and mailboxes (`.mbox`), each message with its sender, recipients, date and subject above its body; attachments are named, never read |
+| `sms` | a phone's backup of its texts and calls (Android's SMS Backup & Restore files, or an iPhone backup's messages database), a section a person, a line a message |
+
+Two of these hold other people's words, so think before you bring them in.
+Email addresses and numbers are withheld from anything a model is given,
+as everywhere; a name is withheld only if it is on your names list. Willow's
+`mail` also keeps a map of where each passage came from, in a hidden folder
+of the mirror (`.places/`); the kernel never reads it, so no question finds
+it. For `sms` you may add `"me"` with your name (your own messages are `me`
+otherwise) and `"tz"` with the zone they were sent in, such as
+`America/Denver` (this machine's own otherwise).
 
 It is refused, in plain words, when `from` is inside the record or your
 folder, or holds them, or is the mirror itself; when the name is not one
@@ -905,7 +916,7 @@ current first, and rebuilds it only when a file in the folder changed.
 
 | From Willow | Used for |
 |---|---|
-| `notes`, `calendar`, `joplin`, `evernote`, `google-keep` | bringing in a vault, calendar files or an export, as a text mirror in the folder |
+| `notes`, `calendar`, `joplin`, `evernote`, `google-keep`, `mail`, `sms` | bringing in a vault, calendar files, an export, email or a phone's texts, as a text mirror in the folder |
 | the kernel: `bite`, `propose`, `seal`, the record | reading, proposing, and the person's seal |
 | `approved-only` | the sealed scope as one page, by name, only whole |
 | `sentence-check` | holding the model's sentence to its page |

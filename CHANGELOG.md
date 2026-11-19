@@ -4,6 +4,12 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Three rulings of the owner's, 2026-11-18.** A task a session took up
+  is always listed and weighs nothing toward the task list's limit, so
+  claimed work never crowds out what is still to do. The `plate` prompt
+  asks for `minutes` too, and says only its open actions. `bring_in` takes
+  `mail` (`.eml` and `.mbox`) and `sms` (a phone's backup of its texts and
+  calls, with `me` and `tz` handed on), both Willow's add-ons, in the pin.
 - **Fewer rows on the record.** A third of a day's rows were this runtime
   asking the kernel what it had already said: whether a grant, a task, a
   note or a skill is sealed (a row each time), and what waits (a row each

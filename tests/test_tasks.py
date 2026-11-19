@@ -477,3 +477,24 @@ def test_each_task_verb_is_on_the_sent_log_in_plain_words_and_never_its_words(
                  "a task marked done, its result put on its project's shelf"):  # fmt: skip
         assert line in said
     assert "task_add" not in said and "task_claim" not in said
+
+
+def test_a_task_someone_took_up_weighs_nothing_and_never_crowds_out_what_is_open(
+    box, here, monkeypatch
+):
+    monkeypatch.setattr(runtime, "TASKS_MOST", 120)
+    session(box, here, "s1")
+    made = [sealed_task(box, here, f"Task {n} " + "w" * 44) for n in range(1, 5)]
+    tasks_aged(box, made)  # the first made is the oldest
+    for tid in made[:2]:  # the two oldest are someone's work already
+        model(box, "task_claim", tid, here)
+    got = model(box, "tasks", where=here)
+    assert [(t["id"], t["status"]) for t in got["tasks"]] == [
+        (made[0], "claimed"), (made[1], "claimed"), (made[2], "open"), (made[3], "open")]  # fmt: skip
+    assert "more" not in got  # the two open ones fit: the claimed weighed nothing
+    assert all(
+        "text" in t for t in got["tasks"]
+    )  # and a claimed one still says what it is
+    monkeypatch.setattr(runtime, "TASKS_MOST", 60)
+    got = model(box, "tasks", where=here)
+    assert [t["id"] for t in got["tasks"]] == made[:3] and got["more"] is True
