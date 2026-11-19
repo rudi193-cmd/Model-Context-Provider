@@ -33,15 +33,51 @@ ADD_ONS = (
     "approved-only",
     "backup",
     "batch-ask",  # index-cache and claude-code load its scan
+    "box-health",
+    "calendar",  # an importer: loads only the kernel
     "claude-code",
+    "coming-up",  # loads pieces
+    "digest",  # loads coming-up and stale-answers
+    "evernote",  # an importer: loads only the kernel
+    "google-keep",  # an importer: loads only the kernel
+    "habits",  # minutes loads it; it loads only the kernel
+    "hook-errors",
+    "hook-feedback",
+    "hook-guard",
+    "hook-handoff",
+    "hook-leaks",  # loads privacy
+    "hook-read-first",
+    "hook-shell",
     "index-cache",
+    "joplin",  # an importer: loads only the kernel
     "local-model",
+    "mail",  # an importer: loads only the kernel
+    "minutes",  # loads habits
+    "notes",  # an importer: loads only the kernel
+    "on-this-day",
     "openai-compatible",  # local-model loads it
-    "privacy",
+    "people",  # loads only the kernel
+    "pieces",  # coming-up loads it from beside it
+    "pii-audit",  # loads only the kernel
+    "privacy",  # secrets-audit loads it
+    "ref-check",  # loads only the kernel
+    "removed",  # loads only the kernel
+    "rss-out",  # loads only the kernel
+    "secrets-audit",  # loads privacy
     "sentence-check",
     "session-seal",
+    "share",  # kart loads it: a job that came in a package, a result sent back
+    "sms",  # an importer: loads only the kernel
+    "stale-answers",  # digest loads it; it loads pieces
+    "test-shards",  # check.py asks it how to cut the tests into parts
+    "timeline",  # loads only the kernel
     "todo",  # batch-ask's scan loads it
+    "what-changed",  # loads only the kernel
 )
+
+#: add-ons that need a package installed, under adapters/deps: Kartikeya runs
+#: a sealed job in its sandbox, in a Python that has it
+DEPS = ("kart",)
 
 
 def default_root() -> Path:
@@ -51,10 +87,11 @@ def default_root() -> Path:
 
 def files(root: Path) -> list[str]:
     """The files the pin covers in this checkout, as paths inside it: the
-    kernel, and every file of each add-on but its tests."""
+    kernel, and every file of each add-on but its tests, those that need a
+    package (adapters/deps) with the rest."""
     out = ["kernel.py"] if (root / "kernel.py").is_file() else []
-    for name in ADD_ONS:
-        d = root / "adapters" / "stdlib" / name
+    dirs = [root / "adapters" / "stdlib" / name for name in ADD_ONS]
+    for d in dirs + [root / "adapters" / "deps" / name for name in DEPS]:
         if d.is_dir():
             out += [
                 p.relative_to(root).as_posix()
@@ -120,6 +157,7 @@ def repin(root: Path, pin: Path = PIN) -> tuple[int, str]:
         "willow": "https://github.com/willow-memory/Willow",
         "commit": head.stdout.strip(),
         "add_ons": list(ADD_ONS),
+        "deps": list(DEPS),
         "files": new,
     }
     pin.write_text(json.dumps(doc, indent=2) + "\n")

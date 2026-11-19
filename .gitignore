@@ -1,2 +1,19 @@
+# caches and tools' own folders
 __pycache__/
 .pytest_cache/
+.ruff_cache/
+.venv/
+uv.lock
+
+# built packages
+dist/
+build/
+*.egg-info/
+
+# never a key, an identity or a secret: these are the person's, not the repo's
+*.key
+share.id
+.env
+
+# an assistant's settings for this machine: they hold its paths
+.claude/settings.local.json

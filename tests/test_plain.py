@@ -44,6 +44,8 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         return runtime.call(box, "leave", door="mcp")
     if code == "inside":
         return runtime.call(box, "leave", str(box / "out.md"), door="pipe")
+    if code == "no_question":
+        return runtime.call(box, "context", "  ", door="mcp")
     if code == "no_page":
         return runtime.call(box, "answer", "Frost [x].", door="mcp")
     if code == "not_scope":
@@ -124,10 +126,164 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         made = runtime.call(box, "backup", str(usb), door="pipe")["runtime"]
         (runtime.state(box) / "names.txt").write_text("Brigid\n")
         return runtime.call(box, "restore", str(usb / made), door="pipe")
+    if code == "capture_refused":
+        return runtime.call(box, "capture", "  ", door="mcp")
+    if code == "no_resource":
+        return runtime.call(box, "resource", "provider://key/the-key", door="mcp")
+    if code == "no_prompt":
+        return runtime.call(box, "prompt", {"name": "horoscope"}, door="mcp")
+    if code == "no_such_job":
+        got = runtime.call(box, "grant", door="mcp", where="/w", session="s")
+        run = runtime.willow("kernel.py", "seal", "--box", str(box), got["seal"])
+        assert run.returncode == 0, run.stderr
+        return runtime.call(
+            box,
+            "job_result",
+            "0" * 12 + "-" + "0" * 8,
+            door="mcp",
+            where="/w",
+            session="s",
+        )
+    if code == "no_grant":
+        return runtime.call(box, "job", "ls", door="mcp", where="/w", session="s")
+    if code in ("job_refused", "job_too_long"):
+        got = runtime.call(box, "grant", door="mcp", where="/w", session="s")
+        run = runtime.willow("kernel.py", "seal", "--box", str(box), got["seal"])
+        assert run.returncode == 0, run.stderr
+        if code == "job_refused":
+            return runtime.call(box, "job", "", door="mcp", where="/w", session="s")
+        monkeypatch.setattr(runtime, "JOB_MOST", 3)
+        monkeypatch.setattr(
+            runtime,
+            "job",
+            lambda *a, **k: {"state": "refused", "code": "job_too_long", "why": "x"},
+        )
+        return runtime.call(box, "job", "ls", door="mcp", where="/w", session="s")
+    if code == "no_skill":
+        runtime.call(box, "tools", {"on": ["skills"]}, door="pipe")
+        return runtime.call(box, "skill", "nope", door="mcp")
+    if code == "tool_off":
+        runtime.call(box, "tools", {"off": ["shelf"]}, door="pipe")
+        return runtime.call(box, "shelf_list", door="mcp", where="/w")
+    if code == "tool_refused":
+        return runtime.call(box, "tool", {"name": "shelf"}, door="mcp")
+    if code == "tools_refused":
+        return runtime.call(box, "tools", {"off": ["core"]}, door="pipe")
+    if code == "remove_refused":
+        return runtime.call(box, "remove", {"kind": "made"}, door="pipe")
+    if code == "timeline_refused":
+        return runtime.call(box, "timeline", " ", door="pipe")
+    if code == "feed_refused":
+        return runtime.call(box, "feed", {"to": str(box / "feed.xml")}, door="pipe")
+    if code == "share_refused":
+        return runtime.call(box, "share_send", {"answers": "nope", "for": "x"}, door="pipe")  # fmt: skip
+    if code == "no_share_id":
+        return runtime.call(box, "share_receive", str(usb / "p.json"), door="pipe")
+    if code == "no_such_person":
+        from test_share import sentence
+
+        runtime.call(box, "tools", {"on": ["sharing"]}, door="pipe")
+        asked = {"answers": sentence(box), "for": "Nobody"}
+        return runtime.call(box, "share_propose", asked, door="mcp")
+    if code == "skill_refused":
+        return runtime.call(
+            box, "skill_add", {"path": str(box / "record.jsonl")}, door="pipe"
+        )
+    if code == "skill_too_long":
+        (usb / "long.md").write_text("Do a thing. " * 20)
+        monkeypatch.setattr(runtime, "SKILL_MOST", 10)
+        return runtime.call(
+            box, "skill_add", {"path": str(usb / "long.md")}, door="pipe"
+        )
+    if code == "no_report":
+        return runtime.call(box, "report", "horoscope", door="mcp")
+    if code == "report_failed":
+        monkeypatch.setitem(runtime.REPORTS, "todo", "no/such/todo.py")
+        return runtime.call(box, "report", "todo", door="mcp")
+    if code == "report_too_long":
+        (box.parent / "pile" / "chores.md").write_text("TODO: order the tubers.\n")
+        monkeypatch.setattr(runtime, "REPORT_MOST", 10)
+        let = {"door": "mcp", "where": "/w", "session": "s"}  # given only let in
+        seal(box, runtime.call(box, "grant", **let)["seal"])
+        return runtime.call(box, "report", "todo", **let)
+    if code == "shelf_refused":
+        return runtime.call(box, "shelf_add", {"name": "../x", "text": "t"},
+                            door="mcp", where=str(usb))  # fmt: skip
+    if code == "not_on_shelf":
+        return runtime.call(box, "shelf_read", "nope.md", door="mcp", where=str(usb))
+    if code == "event_unread":
+        return runtime.call(box, "event", "not json", door="guard")
+    if code == "guard_failed":
+        monkeypatch.setattr(runtime, "HOOK_GUARD", "no/such/guard.py")
+        call = {"hook_event_name": "PreToolUse", "tool_name": "Bash",
+                "tool_input": {"command": "ls"}}  # fmt: skip
+        return runtime.call(box, "event", call, door="guard")
+    if code in BRING:
+        return BRING[code](box, tmp_path_factory)
     if code == "willow_unpinned":
         monkeypatch.setattr(runtime, "PIN", usb / "no-pin.json")
         return runtime.call(box, "read", FROST, door="pipe")
+    if code in ("task_refused", "no_such_task", "task_taken", "task_not_held"):
+        here = str(usb)
+        words = {"text": "Order the tubers.", "project": ""}
+        if code == "task_refused":
+            return runtime.call(box, "task_add", {"text": " ", "project": ""},
+                                door="mcp", where=here)  # fmt: skip
+        if code == "no_such_task":
+            return runtime.call(box, "task_claim", "model-" + "a1" * 6, door="mcp", where=here)  # fmt: skip
+        added = runtime.call(box, "task_add", words, door="mcp", where=here)
+        seal(box, added["seal"])
+        runtime.note_session(box, {"cwd": here, "session_id": "first"})
+        if code == "task_not_held":
+            return runtime.call(box, "task_done", {"id": added["task"], "result": "x"},
+                                door="mcp", where=here)  # fmt: skip
+        runtime.call(box, "task_claim", added["task"], door="mcp", where=here)
+        runtime.note_session(box, {"cwd": here, "session_id": "second"})
+        return runtime.call(box, "task_claim", added["task"], door="mcp", where=here)
+    if code == "notes_too_long":
+        seal(box, runtime.call(box, "capture", "A note to keep.", door="mcp")["seal"])
+        monkeypatch.setattr(runtime, "NOTES_MOST", 5)
+        return runtime.call(box, "notes", door="mcp")
     raise AssertionError(f"no scenario for {code}")
+
+
+def _bring(box, src, kind="notes", name="mine"):
+    arg = {"kind": kind, "from": str(src), "as": name}
+    return runtime.call(box, "bring_in", arg, door="pipe")
+
+
+def _vault(tmp_path_factory):
+    v = tmp_path_factory.mktemp("vault")
+    (v / "a.md").write_text("Rosemary is potted in April.\n")
+    return v
+
+
+def _bring_exists(box, tmp_path_factory):
+    _bring(box, _vault(tmp_path_factory))
+    return _bring(box, _vault(tmp_path_factory))
+
+
+def _bring_record(box, tmp_path_factory):
+    (runtime.state(box) / "brought-in.json").write_text("not json")
+    return runtime.call(box, "brought_in", door="pipe")
+
+
+def _bring_no_folder(box, tmp_path_factory):
+    (box / "kernel.json").write_text(json.dumps({"pile": str(box.parent / "gone")}))
+    return _bring(box, _vault(tmp_path_factory))
+
+
+#: how each refusal of bring_in is reached (used by scenario above)
+BRING = {
+    "bring_what": lambda box, t: _bring(box, _vault(t), kind="photos"),
+    "bring_name": lambda box, t: _bring(box, _vault(t), name="../x"),
+    "bring_no_folder": _bring_no_folder,
+    "bring_inside": lambda box, t: _bring(box, box.parent / "pile"),
+    "bring_exists": _bring_exists,
+    "bring_nothing": lambda box, t: _bring(box, t.mktemp("empty")),
+    "bring_failed": lambda box, t: _bring(box, box.parent / "no-such-folder"),
+    "bring_record": _bring_record,
+}
 
 
 @pytest.mark.parametrize("code", sorted(runtime.PLAIN))
@@ -150,6 +306,34 @@ def test_a_models_door_is_told_what_to_tell_the_person(box):
     got = runtime.call(box, "leave", door="mcp")
     assert got["next"].startswith("Tell the person: ")
     assert not runtime.call(box, "leave", "/x", door="pipe")["next"].startswith("Tell")
+
+
+def test_what_a_model_can_put_right_itself_is_said_to_it_and_not_passed_on(box):
+    """A misspelt report, an empty question, a missing argument: the model's
+    own to fix, so it isn't told to tell the person. What only the person
+    can fix (a seal, a setting) still is."""
+    mine = [("report", "Todo", "no_report"), ("context", " ", "no_question"),
+            ("shelf_read", "nope.md", "not_on_shelf"), ("answer", "Frost [x].", "no_page"),
+            ("task_claim", "model-000000000000", "no_such_task")]  # fmt: skip
+    for verb, arg, code in mine:
+        got = runtime.call(box, verb, arg, door="mcp", where="/w")
+        assert got["code"] == code, got
+        assert got["next"] and "Tell the person" not in got["next"], got
+    assert "small letters" in runtime.call(box, "report", "Todo", door="mcp")["next"]
+    # every one names a refusal there is, and none speaks of the person's
+    # own things as the model's ("your files", "you sealed")
+    assert set(runtime.FOR_MODEL) <= set(runtime.PLAIN)
+    for code, words in runtime.FOR_MODEL.items():
+        assert not re.search(r"\byour (files|folder|record|seal)|you sealed", words), (
+            code
+        )
+    # the person's own door is told as before, in the person's words
+    theirs = runtime.call(box, "report", "Todo", door="pipe")["next"]
+    assert theirs.startswith("The reports are") and "small letters" not in theirs
+    # a hook's host is no model: it is still told what to tell the person
+    assert runtime.call(box, "context", " ", door="hook")["next"].startswith(
+        "Tell the person"
+    )
 
 
 def test_the_refusals_own_words_stay_for_whoever_needs_the_detail(box):

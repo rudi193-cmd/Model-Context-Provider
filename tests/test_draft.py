@@ -104,7 +104,8 @@ def client(box, caps, reply):
           "params": {"protocolVersion": "2025-06-18", "capabilities": caps}})  # fmt: skip
     json.loads(p.stdout.readline())
     send({"jsonrpc": "2.0", "id": 2, "method": "tools/call",
-          "params": {"name": "draft", "arguments": {"question": FROST}}})  # fmt: skip
+          "params": {"name": "page",
+                     "arguments": {"action": "draft", "question": FROST}}})  # fmt: skip
     asked = []
     while True:
         msg = json.loads(p.stdout.readline())

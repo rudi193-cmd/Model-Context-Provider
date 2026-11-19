@@ -12,11 +12,13 @@ record, and only when you name a model.
     python set_up.py --box BOX --model URL NAME
     python set_up.py --box BOX --write cursor
     python set_up.py --box BOX --write all
+    python set_up.py --box BOX --write command    your own door, as `provider`
 """
 
 from __future__ import annotations
 
 import json
+import os
 import shlex
 import sys
 from pathlib import Path
@@ -58,19 +60,43 @@ def check(box: Path) -> list[tuple[str, bool, str]]:
     return out
 
 
+#: the tools the guard is asked about before they run: the ones that read a
+#: file by name, change one, or run a command
+GUARDED = "Write|Edit|MultiEdit|NotebookEdit|Read|NotebookRead|Grep|Glob|Bash"
+
+
+def claude_hooks(box: Path) -> dict:
+    """Claude Code's hooks, as its settings file holds them: the prompt hook,
+    the session door, and the guard door at each moment it answers."""
+    env = f"WILLOW={runtime.WILLOW}"
+
+    def line(door: str) -> str:
+        argv = [sys.executable, str(HERE / "doors" / door), "--box", str(box)]
+        return " ".join([env, *map(shlex.quote, argv)])
+
+    def run(door: str, **more) -> dict:
+        return {"type": "command", "command": line(door), **more}
+
+    guard = run("guard.py")
+    return {"hooks": {
+        "UserPromptSubmit": [{"hooks": [run("hook.py")]}],
+        "SessionStart": [{"hooks": [run("session.py")]}, {"hooks": [guard]}],
+        "SessionEnd": [{"hooks": [run("session.py", timeout=60)]}, {"hooks": [guard]}],
+        "PreToolUse": [{"matcher": GUARDED, "hooks": [guard]}],
+        "PostToolUse": [{"matcher": "Bash", "hooks": [guard]}],
+        "PostToolUseFailure": [{"matcher": "Bash", "hooks": [guard]}],
+        "Stop": [{"hooks": [guard]}],
+        "PreCompact": [{"hooks": [guard]}],
+    }}  # fmt: skip
+
+
 def paste(box: Path) -> str:
     """What to paste: Claude Code's MCP + hooks, then every other assistant
     from Willow's hosts table, each in its own settings shape. --write does
     the merge instead."""
     env = f"WILLOW={runtime.WILLOW}"
     door = [sys.executable, str(HERE / "doors" / "mcp.py"), "--box", str(box)]
-    hook = " ".join([env, *map(shlex.quote, [sys.executable, str(HERE / "doors" / "hook.py"), "--box", str(box)])])  # fmt: skip
-    session = " ".join([env, *map(shlex.quote, [sys.executable, str(HERE / "doors" / "session.py"), "--box", str(box)])])  # fmt: skip
-    settings = {"hooks": {
-        "UserPromptSubmit": [{"hooks": [{"type": "command", "command": hook}]}],
-        "SessionStart": [{"hooks": [{"type": "command", "command": session}]}],
-        "SessionEnd": [{"hooks": [{"type": "command", "command": session, "timeout": 60}]}],
-    }}  # fmt: skip
+    settings = claude_hooks(box)
     others = hosts.paste_all(box)
     return "\n".join([
         "1. The MCP door, for Claude Code in every folder (run it once):",
@@ -78,8 +104,10 @@ def paste(box: Path) -> str:
         "    claude mcp add --scope user model-context-provider -e " + shlex.quote(env) + " -- " + shlex.join(door),
         "",
         "2. The hooks, in ~/.claude/settings.json (merge them with what's there): the prompt",
-        "   hook, and the session door, which closes each session for your one seal and",
-        "   tells you at the next start what waits on it:",
+        "   hook; the session door, which closes each session for your one seal and",
+        "   tells you at the next start what waits on it; and the guard door, which",
+        "   stops a tool call that names your key, writes into your record, holds a",
+        "   secret, edits a file it hasn't read, or repeats a command that failed twice:",
         "",
         *("    " + ln for ln in json.dumps(settings, indent=2).splitlines()),
         "",
@@ -96,19 +124,15 @@ def paste(box: Path) -> str:
         "",
         "Your door has more: python doors/pipe.py --box " + shlex.quote(str(box)),
         '  with {"waiting": true}, {"preview": true}, {"shared": true}, {"backup": "/media/usb"} a line.',
+        "Or save it as a command, and say: provider waiting",
+        "  python set_up.py --box " + shlex.quote(str(box)) + " --write command",
     ])  # fmt: skip
 
 
 def write_claude_hooks(box: Path) -> list[str]:
-    """Merge Claude Code's prompt + session hooks into ~/.claude/settings.json."""
-    env = f"WILLOW={runtime.WILLOW}"
-    hook = " ".join([env, *map(shlex.quote, [sys.executable, str(HERE / "doors" / "hook.py"), "--box", str(box.resolve())])])  # fmt: skip
-    session = " ".join([env, *map(shlex.quote, [sys.executable, str(HERE / "doors" / "session.py"), "--box", str(box.resolve())])])  # fmt: skip
-    patch = {"hooks": {
-        "UserPromptSubmit": [{"hooks": [{"type": "command", "command": hook}]}],
-        "SessionStart": [{"hooks": [{"type": "command", "command": session}]}],
-        "SessionEnd": [{"hooks": [{"type": "command", "command": session, "timeout": 60}]}],
-    }}  # fmt: skip
+    """Merge Claude Code's prompt, session and guard hooks into
+    ~/.claude/settings.json."""
+    patch = claude_hooks(box.resolve())
     path = Path.home() / ".claude" / "settings.json"
     existing: dict = {}
     if path.is_file():
@@ -130,6 +154,7 @@ def write_claude_hooks(box: Path) -> list[str]:
                     "model-context-provider" in str(h.get("command", ""))
                     or "doors/hook.py" in str(h.get("command", ""))
                     or "doors/session.py" in str(h.get("command", ""))
+                    or "doors/guard.py" in str(h.get("command", ""))
                     for h in (e.get("hooks") or [e])
                     if isinstance(h, dict)
                 )
@@ -140,14 +165,50 @@ def write_claude_hooks(box: Path) -> list[str]:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(out, indent=2) + "\n")
     return [
-        f"wrote {path} (UserPromptSubmit, SessionStart, SessionEnd)",
+        f"wrote {path} ({', '.join(patch['hooks'])})",
         "MCP for Claude Code still needs: claude mcp add --scope user … "
         "(printed above when you run without --write)",
     ]
 
 
+COMMAND = "provider"
+
+
+def write_command(box: Path) -> list[str]:
+    """Save the person's own door as a command, `provider`, with their
+    record and this Python filled in: ~/.local/bin/provider. One that is
+    there and differs is never written over."""
+    pipe = Path(__file__).resolve().parent / "doors" / "pipe.py"
+    willow = os.environ.get("WILLOW")
+    text = "#!/bin/sh\n# Model Context Provider: your own door, by words.\n" + (
+        f"export WILLOW={shlex.quote(willow)}\n" if willow else ""
+    ) + (
+        f"exec {shlex.quote(sys.executable)} {shlex.quote(str(pipe))} "
+        f'--box {shlex.quote(str(box.resolve()))} "$@"\n'
+    )  # fmt: skip
+    path = Path.home() / ".local" / "bin" / COMMAND
+    if path.exists() and path.read_text() != text:
+        return [f"refused: {path} is there already and differs; move it, then run this again"]  # fmt: skip
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+    path.chmod(0o755)
+    on_path = str(path.parent) in os.environ.get("PATH", "").split(os.pathsep)
+    return [
+        f"wrote {path}",
+        f"Try it: {COMMAND} waiting",
+        *(
+            []
+            if on_path
+            else [f"{path.parent} isn't on your PATH yet: add it, or run {path}"]
+        ),  # fmt: skip
+    ]
+
+
 def write(box: Path, which: str) -> list[str]:
-    """Finish setup for one host, or all MCP hosts plus Claude's hooks."""
+    """Finish setup for one host, or all MCP hosts plus Claude's hooks; or
+    save the person's own door as a command."""
+    if which == "command":
+        return write_command(box)
     if which == "claude-code":
         return write_claude_hooks(box)
     if which == "all":
