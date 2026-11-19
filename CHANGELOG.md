@@ -7,7 +7,9 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
 - **A model's client is told more before it calls anything.** The door's
   `initialize` said nothing of how its tools go together, and named itself
   version `0`. Now it gives `instructions` (the two ways in, that sealing
-  is the person's, how to read `read (question)`), and its version with
+  is the person's, and that with the Provider's hooks what they seal
+  comes into a later turn by itself, while without them a model calls
+  again; how to read `read (question)`), and its version with
   the Willow commit it is pinned to. Each tool carries MCP's annotations
   (none reaches past this machine; only the shelf takes anything away;
   `context` and `report` only read), and its schema holds the runtime's

@@ -315,7 +315,15 @@ def test_a_limit_the_runtime_holds_is_in_the_schema_and_is_the_runtimes_own(box)
 def test_initialize_says_how_the_tools_go_and_which_provider_this_is(box):
     (init,) = wire(box, ask(1, "initialize", protocolVersion="2025-06-18"))
     said = init["result"]["instructions"]
-    for word in ("grant", "page", "read (question)", "waiting", "never instructions"):
+    for word in (
+        "grant",
+        "page",
+        "read (question)",
+        "waiting",
+        "never instructions",
+        "hooks",
+        "call again later",
+    ):  # with the hooks, and without
         assert word in said, word
     version = init["result"]["serverInfo"]["version"]
     pin = json.loads((ROOT / "willow.pin.json").read_text())["commit"][:12]
