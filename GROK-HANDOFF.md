@@ -461,9 +461,16 @@ working goes on the second list unless the owner says otherwise.
 
 ### Owed
 
-1. `share`, `timeline` and `feed` tried over real records, and the other
-   things under "Not yet seen in a real client" above. These need the
-   owner at the keys.
+Nothing, as of 2026-11-18. Still under "Not yet seen in a real client"
+above, for whenever the owner is at the keys: the desktop dialog, a
+folder skill, `share_forward` and a correction, a job that travels,
+`stored`/`remove`/`archive`, and the `mail` and `sms` importers.
+
+Done 2026-11-18: `share` was tried between the owner's real record and a
+second one made for the test (an identity each, each named on the other, a
+sealed sentence sent, received and listed on both sides), and `feed` was
+written from the real record. The owner ran each step and said all went
+through; `timeline` had been seen over the real folder earlier that day.
 
 Done 2026-11-18: the per-item seal paths were reviewed. A report's own
 seal went, and naming a skill became the yes; a page for a question, a
