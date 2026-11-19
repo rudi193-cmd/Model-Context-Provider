@@ -4,6 +4,16 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A model's client is told more before it calls anything.** The door's
+  `initialize` said nothing of how its tools go together, and named itself
+  version `0`. Now it gives `instructions` (the two ways in, that sealing
+  is the person's, how to read `read (question)`), and its version with
+  the Willow commit it is pinned to. Each tool carries MCP's annotations
+  (none reaches past this machine; only the shelf takes anything away;
+  `context` and `report` only read), and its schema holds the runtime's
+  own limits: a note's length, a shelf or skill name's pattern, the report
+  names, a date's form. The nine everyday tools are 6,172 characters, under
+  the 7,000 they are held to.
 - **What a model hands in has an end.** A model never let in could write
   without limit beside the person's record: a note of any size, any number
   of them (each kept in the record's proposals, each waiting on the seal

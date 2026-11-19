@@ -143,6 +143,21 @@ there were four. The verbs are unchanged underneath; each action is one of
 them, decided and written down exactly as before, and your shared page
 still names what was done by its verb.
 
+What else the door tells a model's client, before any tool is called:
+
+- **How the tools go together**, once, at the start (MCP's
+  `instructions`): the two ways in, that sealing is yours, and how to read
+  an action's arguments in a description.
+- **What each tool does to your machine** (MCP's annotations): which only
+  read, that only the shelf's `remove` takes anything away, and that none
+  reaches past this machine. A client can ask you less often for a tool
+  that only reads.
+- **The limits, in each tool's schema**: a note's 20,000 characters, a
+  shelf name's letters, the report names, a date's form. A model keeps
+  inside them instead of finding them by being refused.
+- **Which Provider it is**: its version and the Willow commit it is pinned
+  to, as `0.1.0+willow.4c1ab7cc6112`.
+
 | Tool | Actions | Group | On |
 |---|---|---|---|
 | `grant` | | core | always |

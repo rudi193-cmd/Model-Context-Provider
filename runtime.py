@@ -983,6 +983,21 @@ FACES = {"pipe": "person", "mcp": "model", "hook": "host", "guard": "host",
 SENTENCE_CHECK = "adapters/stdlib/sentence-check/sentence_check.py"
 
 
+def version() -> str:
+    """This runtime's version and the Willow it is pinned to, as a door
+    names itself: so a model, or a report of what went wrong, says exactly
+    which it talked to (0.1.0+willow.4c1ab7cc6112)."""
+    here = Path(__file__).resolve().parent
+    said = re.search(
+        r'^version = "([^"]+)"', (here / "pyproject.toml").read_text(), re.M
+    )
+    try:
+        commit = json.loads((here / "willow.pin.json").read_text())["commit"][:12]
+    except (OSError, ValueError, KeyError):
+        commit = "unpinned"
+    return f"{said.group(1) if said else '0'}+willow.{commit}"
+
+
 PRIVACY = "adapters/stdlib/privacy/privacy.py"
 
 #: files that are keys by their kind, whatever they hold
