@@ -6,7 +6,7 @@ since grown into the project's working list: what the owner threw in
 along the way, what was found when each line was held to the code, and
 the owner's rulings. A box is ticked when the thing is built here. A line
 starting **Note** was added afterwards: what was found, and what it still
-needs. Last held to the code on 2026-11-18. What is still open is
+needs. Last held to the code on 2026-11-19. What is still open is
 gathered at the end, under "Open now".
 
 ## Handoff: Model-Context-Provider (MCP → Provider)
@@ -463,10 +463,46 @@ working goes on the second list unless the owner says otherwise.
 
 ### Owed
 
-Nothing, as of 2026-11-18. Still under "Not yet seen in a real client"
+Nothing, as of 2026-11-19. Still under "Not yet seen in a real client"
 above, for whenever the owner is at the keys: the desktop dialog, a
 folder skill, `share_forward` and a correction, a job that travels,
 `stored`/`remove`/`archive`, and the `mail` and `sms` importers.
+
+Tried 2026-11-19, through the doors in a cloud container over a made-up
+record, never sealing, so not yet in a real client:
+- a folder skill: a key file (`id_ed25519`) was listed and given, and hid
+  the file after it; both fixed (below);
+- `stored`, `remove` and `archive`: each hole on the record, the archive's
+  own fingerprint kept, a second remove and a path out of the kind refused;
+- the `mail` and `sms` importers: the mirrors as their cards say, an
+  attachment named and never read, emails and phone numbers withheld on
+  the page; "Gate code is 4471" was not, which is Willow's `privacy`
+  (willow-memory/Willow#380, the pin moved with it).
+Not tried there: the desktop dialog (no desktop), `share_forward` and a
+correction (they need sealed sentences), and a job (kart's sandbox needs
+`bwrap`, which the container had not).
+
+Done 2026-11-19, each from that session, with tests that fail without it:
+- `withhold` hands back every text in its place: an unterminated key in
+  one passage took the separators after it, so later passages came back
+  under other passages' places, or not at all.
+- A key, by its kind or by a private key's words, is never listed in a
+  skill nor named as one.
+- What a model hands in has an end: a note at most 20,000 characters, at
+  most 50 waiting at once, a project's shelf at most 200 things or 50 MB
+  (40 MB had gone in, in seconds, from a session never let in).
+- A JSON-RPC batch, or JSON that is no object, is answered `invalid
+  request` rather than left without a reply.
+- A model's client is told more before it calls anything: `instructions`
+  at initialize (with the hooks and without), annotations on each tool,
+  the runtime's limits in each schema, and a version with the pinned
+  Willow commit.
+- A refusal names what the person types (`provider waiting`, the seal
+  page), and speaks to them on their own door.
+- `nothing_to_scope` says the last question found nothing, or something
+  else was asked since.
+- The strict answer's cite rule, on the owner's ruling (below).
+- The README says which numbers are withheld, not all of them.
 
 Done 2026-11-18: `share` was tried between the owner's real record and a
 second one made for the test (an identity each, each named on the other, a
@@ -502,15 +538,19 @@ a time. Not built with it: a button on the seal page to stop a skill
     yet writes the whole timeline to a file (150 KB here) and names it.
     Each asking leaves a file in `made/`.
   - `report` names are held to their exact case (`Todo` is refused).
+    (The names are in the report tool's schema since 2026-11-19, so a
+    model is told them before it asks; `Todo` is still refused.)
   - `minutes` is over the most shared at once on the real folder, and a
     report has no parts as a timeline has, so a session let in gets none
     of it.
   - A timeline counts front-matter lines (`metadata:`, `node_type:`) as
     lines about the matter. Willow's `timeline`, by passage.
-  - After a reconnect the client still showed the older descriptions of
-    `report`, `context` and `skill`. Seen once; whether the door should
-    send the list-changed notice when its own words change is not looked
-    into.
+  - (Fixed 2026-11-19: after a reconnect the client still showed the
+    older descriptions of `report`, `context` and `skill`. The door told a
+    client the list changed only when a tool's name did, and only within
+    one run. It now keeps the fingerprint of the whole list it last sent,
+    names, words, schemas and hints, and a new session whose list differs
+    is told so at once.)
 
 - ~~A strict answer must cite every passage on its page~~, which could
   force a clause that has nothing to do with the question (seen
@@ -544,4 +584,7 @@ a time. Not built with it: a button on the seal page to stop a skill
 
 Name socratic-fork as a folder; an `ask-here` file to turn the dialog on;
 a `deny.txt` for `hook-shell`; a copy of `share.id` kept somewhere safe;
-the Willow commits pushed when the time comes.
+the Willow commits pushed when the time comes: willow-memory/Willow#380
+(the game-box flake, `removed`'s mutants, `strip` showing why, and
+`privacy`'s codes) is green and waits on review, and the pin is on its
+branch until it merges.
