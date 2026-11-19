@@ -78,3 +78,13 @@ def test_a_text_that_cannot_come_back_whole_lets_nothing_leave(box, monkeypatch)
     monkeypatch.setattr(runtime, "scrub", lambda ts: real(ts)[:-1] or [])
     with pytest.raises(RuntimeError, match="didn't come back whole"):
         runtime.withhold(box, ["one", "two"])
+
+
+def test_a_code_that_opens_something_is_withheld_and_what_it_opens_kept(box):
+    """Seen on a page from a made-up phone backup, beside a phone number that
+    was withheld: Willow's privacy now knows a code by what it opens."""
+    (box.parent / "pile" / "garden.md").write_text(
+        "The first frost comes in late October. Gate code is 4471.\n"
+    )
+    got = page(box)["page"]
+    assert "4471" not in got and "Gate code is [withheld: code]" in got

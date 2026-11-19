@@ -4,6 +4,12 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A code that opens something is withheld.** The pin moves to Willow's
+  `privacy` 0.1.1 (willow-memory/Willow#380): a gate, door or alarm code, a
+  passcode, a PIN or a combination, 3 to 10 digits after what it opens,
+  the label kept (`Gate code is [withheld: code]`). Two files differ, its
+  code and its card; the card says what it still misses, a few digits with
+  nothing before them saying what they open.
 - **Withholding hands back every text, in its place.** `withhold` scrubs
   many texts in one pass, joined by a separator. Willow's pattern for a
   private key runs to its END, or to the end of what it is given when
