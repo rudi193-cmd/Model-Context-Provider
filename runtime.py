@@ -987,6 +987,28 @@ FACES = {"pipe": "person", "mcp": "model", "hook": "host", "guard": "host",
 SENTENCE_CHECK = "adapters/stdlib/sentence-check/sentence_check.py"
 
 
+def tools_fingerprint(listing: list) -> str:
+    """One hash of a tools list as a model's client is sent it: names,
+    words, schemas and hints, so a change to any of them is a change."""
+    return hashlib.sha256(json.dumps(listing, sort_keys=True).encode()).hexdigest()
+
+
+def tools_told(box: Path, fingerprint: str | None = None) -> str:
+    """The fingerprint of the tools list a model's client of this record was
+    last sent, kept beside it; given one, it is kept instead. A client that
+    reconnects may show the list it had before, so a door that finds the
+    list changed since tells it so at the start."""
+    f = state(box) / "tools-told.json"
+    if fingerprint is not None:
+        f.write_text(json.dumps({"fingerprint": fingerprint}))
+        return fingerprint
+    try:
+        got = json.loads(f.read_text()).get("fingerprint", "")
+    except (OSError, ValueError, AttributeError):
+        return ""
+    return got if isinstance(got, str) else ""
+
+
 def version() -> str:
     """This runtime's version and the Willow it is pinned to, as a door
     names itself: so a model, or a report of what went wrong, says exactly

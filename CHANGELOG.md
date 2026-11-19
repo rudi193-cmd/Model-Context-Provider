@@ -4,6 +4,13 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A client that reconnects is told the list changed.** After a
+  reconnect a client could still show older tool descriptions: the door
+  sent `list_changed` only when a tool's name changed, and only within one
+  run. It now keeps, beside the record, the fingerprint of the whole list
+  it last sent (names, words, schemas, hints); a new session whose list
+  differs is told at once, and a change within a session to any of those
+  is told as a name's was.
 - **A sentence cites the passages it comes from, and what it left out is
   shown.** On the owner's ruling (2026-11-19), a strict answer cites at
   least one passage on its page and need not cite them all: citing every

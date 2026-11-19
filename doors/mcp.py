@@ -181,6 +181,18 @@ def offered(box: Path) -> list[dict]:
     return runtime.call(box, "tools", door="mcp", where=here()).get("tools", [])
 
 
+def listing(box: Path) -> list[dict]:
+    """The tools as a model's client is sent them: the runtime's, in this
+    door's words."""
+    return [{"name": t["name"], "description": WORDS[t["name"]],
+             "inputSchema": schema(t["actions"], t["name"]),
+             "annotations": {**HINTS[t["name"]], "openWorldHint": False}}
+            for t in offered(box)]  # fmt: skip
+
+
+CHANGED = {"jsonrpc": "2.0", "method": "notifications/tools/list_changed"}
+
+
 def answer(box: Path, msg: dict, ask=None) -> dict | None:
     if not isinstance(msg, dict):
         # a batch (MCP has none since 2025-06-18), or JSON that is no request
@@ -204,10 +216,7 @@ def answer(box: Path, msg: dict, ask=None) -> dict | None:
     if method == "ping":
         return ok({})
     if method == "tools/list":
-        return ok({"tools": [{"name": t["name"], "description": WORDS[t["name"]],
-                              "inputSchema": schema(t["actions"], t["name"]),
-                              "annotations": {**HINTS[t["name"]], "openWorldHint": False}}
-                             for t in offered(box)]})  # fmt: skip
+        return ok({"tools": listing(box)})
     if method == "tools/call":
         # the runtime's one way to call a tool: it finds the action's verb,
         # refuses what isn't a tool or is turned off, and writes it down
@@ -300,7 +309,7 @@ def main(argv: list[str]) -> int:
     box = Path(argv[1])
     lines = iter(sys.stdin)
     asker = Asker(lines, sys.stdout)
-    listed = None  # the tools last listed to this client, by name
+    listed = None  # the fingerprint of the tools last listed to this client
     for raw in lines:
         if not raw.strip():
             continue
@@ -317,15 +326,22 @@ def main(argv: list[str]) -> int:
             reply = answer(box, msg, asker if asker.can else None)
         if reply is not None:
             print(json.dumps(reply), flush=True)
-        # the person can turn a group of tools on or off while a session is
-        # open: a client that has the list is told it changed
-        now = [t["name"] for t in offered(box)]
-        if isinstance(msg, dict) and msg.get("method") == "tools/list":
-            listed = now
+        # the list a client was sent, by its fingerprint: names, words,
+        # schemas and hints. The person can turn a group on or off while a
+        # session is open, and this door's own words change between runs; a
+        # client that reconnects can still show what it had, so a new
+        # session whose list differs from the last one sent is told at once
+        method = msg.get("method") if isinstance(msg, dict) else None
+        now = runtime.tools_fingerprint(listing(box))
+        if method == "tools/list":
+            listed = runtime.tools_told(box, now)
+        elif method == "notifications/initialized":
+            told = runtime.tools_told(box)
+            if told and told != now:
+                print(json.dumps(CHANGED), flush=True)
         elif listed is not None and now != listed:
-            listed = now
-            print(json.dumps({"jsonrpc": "2.0",
-                              "method": "notifications/tools/list_changed"}), flush=True)  # fmt: skip
+            listed = runtime.tools_told(box, now)
+            print(json.dumps(CHANGED), flush=True)
     return 0
 
 

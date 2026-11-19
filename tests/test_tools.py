@@ -329,3 +329,25 @@ def test_initialize_says_how_the_tools_go_and_which_provider_this_is(box):
     pin = json.loads((ROOT / "willow.pin.json").read_text())["commit"][:12]
     assert version.endswith(f"+willow.{pin}")
     assert version.split("+")[0] in (ROOT / "pyproject.toml").read_text()
+
+
+def test_a_client_that_reconnects_to_changed_words_is_told_at_the_start(box):
+    """Seen 2026-11-18: after a reconnect the client still showed the older
+    descriptions. The door keeps the fingerprint of the list it last sent
+    (names, words, schemas, hints); a new session whose list differs is told
+    it changed as soon as it starts, and one whose list is the same is not."""
+    start = [ask(1, "initialize", protocolVersion="2025-06-18"),
+             {"jsonrpc": "2.0", "method": "notifications/initialized"}, ask(2, "ping")]  # fmt: skip
+    changed = {"jsonrpc": "2.0", "method": "notifications/tools/list_changed"}
+    assert changed not in wire(box, *start)  # never sent a list: nothing to say
+    wire(box, *start, ask(3, "tools/list"))  # a client is sent this door's list
+    assert changed not in wire(box, *start)  # the same words: nothing to say
+    runtime.tools_told(box, "0" * 64)  # as if an older door's words were sent last
+    got = wire(box, *start)
+    assert got[1] == changed and got[2]["id"] == 2  # told at once, before anything else
+    wire(box, *start, ask(3, "tools/list"))  # it asks again, and has the new list
+    assert changed not in wire(box, *start)
+    # a change to a tool's words alone is a change of the list
+    (a, b) = (door.listing(box), door.listing(box))
+    b[0]["description"] += " More."
+    assert runtime.tools_fingerprint(a) != runtime.tools_fingerprint(b)
