@@ -214,7 +214,7 @@ pattern:
   - **Note:** held, with one stated exception: a job needs the `kartikeya`
     package and `bwrap`, on a Python the person names beside the record;
     without them `job` is refused and everything else runs. The pin is at
-    Willow `f2d0f531`, on the branch of willow-memory/Willow#379.
+    Willow `e4f50ac5`, on the branch of willow-memory/Willow#379.
 
 ### Open design questions
 

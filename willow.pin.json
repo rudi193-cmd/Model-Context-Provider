@@ -1,7 +1,7 @@
 {
   "_what": "The Willow this runtime was built on: its commit, and every file of what runs, by SHA-256. willow_pin.py refuses a checkout whose files differ; repin is the one way to move it.",
   "willow": "https://github.com/willow-memory/Willow",
-  "commit": "f2d0f5318a79ce8dd097c8e4165e361615263dd6",
+  "commit": "e4f50ac556b25834015e952ed0a49d597fe1efbe",
   "add_ons": [
     "approved-only",
     "backup",
@@ -115,7 +115,7 @@
     "adapters/stdlib/ref-check/README.md": "56a68021082bbf7fb4c4c37a13762e0d554fffc2cae9fd9c718608ca6ce43519",
     "adapters/stdlib/ref-check/ref_check.py": "eea553bcd5416bf9882c3ec924e058b53c6d5bf3dc6cd0cf1851281f780b2198",
     "adapters/stdlib/removed/README.md": "30a53c79710195f2aec1bbe87285b1a55a5811c60ce6bd0649f4914d517e4d1a",
-    "adapters/stdlib/removed/removed.py": "9ad7d8b2a9e7250a3ceaeaf4cbe52acfa1bf7b2fb7df1c704e2080f0d2711acd",
+    "adapters/stdlib/removed/removed.py": "9e397c79f601597b482d02ffd1f3e05f412a86f4819267e5ceb0d88e24d8f2ed",
     "adapters/stdlib/rss-out/README.md": "7ef2e078f21d39384d04ff264cfa53e3c02af0b211061db0f3d9b86e0cfe7337",
     "adapters/stdlib/rss-out/rss_out.py": "4336a185ded03dd90cb68ac56f52ffcb79238f3119fcee312598b794c2218a0b",
     "adapters/stdlib/secrets-audit/README.md": "b3358a19220932fa439fcfd9b4a51643cfe5272c4e86b0c8f7e88dd6c5233bce",
