@@ -128,6 +128,7 @@ one JSON request a line, which is how the rest of these pages write it
 | Notes, tasks, shelves, what piles up beside your record, and importing from elsewhere | [docs/keeping.md](docs/keeping.md) |
 | What it runs on, what stays on the machine, what has been seen working, and where the design comes from | [docs/background.md](docs/background.md) |
 | What was asked, what was built and what is left | [docs/OPEN.md](docs/OPEN.md) |
+| Everyone's base assistant: the layers, what fills each, and what is left to build | [docs/base-jarvis.md](docs/base-jarvis.md) |
 | What changed, and when | [CHANGELOG.md](CHANGELOG.md) |
 | Every file, and what it is | [FILES.md](FILES.md) |
 | Design notes | [docs/NOTES.md](docs/NOTES.md) |

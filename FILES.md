@@ -43,6 +43,7 @@ model-context-provider/
 │   ├── sharing.md                          sending a sealed sentence, or a job, to another person
 │   ├── keeping.md                          notes, tasks, shelves, what is kept, and bringing things in
 │   ├── background.md                       what it stands on, what stays on the machine, what has been seen working
+│   ├── base-jarvis.md                      everyone's base assistant: the layers, what fills each, what is left to build
 │   ├── OPEN.md                             what was asked, what was built, and what is left
 │   └── NOTES.md                            design notes that fit nowhere else
 ├── tests/                                  one file a subject; each docstring says what it holds the code to

@@ -4,6 +4,11 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A base Jarvis, written down.** `docs/base-jarvis.md`: everyone's base
+  assistant as the Grove's five layers (voice, desk, tools, memory,
+  trust), what already fills each across Willow, this Provider, Die-Namic
+  and the Grove, the rule it inherits (record choices, never people), what
+  is left to build, and what Willow's forge gave when asked (hand built).
 - **The seal page fits a phone.** A model's sentence quotes its page's
   seal, a 70-character id with no break, and at a phone's width the page
   ran 137 pixels too wide and scrolled sideways. A card's text now breaks a
