@@ -4,6 +4,12 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **The base Jarvis page, corrected and widened.** The base is the
+  Grove, as the owner decided on 2026-09-01 (quoted from the Grove's
+  phone-surface notes); with the rules it inherits (no inside names reach
+  the person, a conversation, an age gate, small models each on a slice)
+  and the gaps none of the four piles answers: a lost key, other people's
+  words, a household, the phone's plaintext.
 - **A base Jarvis, written down.** `docs/base-jarvis.md`: everyone's base
   assistant as the Grove's five layers (voice, desk, tools, memory,
   trust), what already fills each across Willow, this Provider, Die-Namic
