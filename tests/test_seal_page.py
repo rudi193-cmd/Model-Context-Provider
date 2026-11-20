@@ -452,3 +452,13 @@ def test_the_tools_page_is_held_to_the_same_table(box, browser):
     got, _ = browser.click("turn_off", "jobs", origin="http://evil.example")
     assert got.status == 403
     assert not (runtime.state(box) / "tools.txt").exists()
+
+
+def test_a_long_word_in_a_card_breaks_rather_than_widening_the_page():
+    """A model's sentence quotes its page's seal, a 70-character id with no
+    break, in a card's prose: at a phone's 390 pixels the page ran 137 too
+    wide and scrolled sideways (seen in headless Chromium, 2026-11-20)."""
+    import re
+
+    (card,) = re.findall(r"\.card \{[^}]*\}", seal_page.CSS)
+    assert "overflow-wrap: anywhere" in card

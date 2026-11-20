@@ -4,6 +4,12 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **The seal page fits a phone.** A model's sentence quotes its page's
+  seal, a 70-character id with no break, and at a phone's width the page
+  ran 137 pixels too wide and scrolled sideways. A card's text now breaks a
+  word that can't fit. Seen by rendering the page's own HTML, with its own
+  headers, in headless Chromium: never served, nothing clicked; the policy
+  let no script run and nothing load but its stylesheet.
 - **A session's corrections go in the backup.** They wait beside the
   record until the session ends, in `corrections/`, which `backup` and
   `restore` didn't carry; now they do, held to the same names.

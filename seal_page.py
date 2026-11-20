@@ -106,8 +106,11 @@ h2 { font-size: 1.1rem; margin: 0 0 .25rem; }
 p { margin: .4rem 0; max-width: 46rem; }
 .soft, .kind { color: var(--soft); font-size: .9rem; }
 .kind { text-transform: uppercase; letter-spacing: .06em; font-size: .75rem; }
+/* a seal's id or a long path in a card's prose breaks rather than widening
+   the page: on a phone it scrolled sideways (seen 2026-11-20) */
 .card { background: var(--card); border: 1px solid var(--line);
-  border-radius: .5rem; padding: 1rem 1.25rem; margin: 1rem 0; }
+  border-radius: .5rem; padding: 1rem 1.25rem; margin: 1rem 0;
+  overflow-wrap: anywhere; }
 .note { border-left: .25rem solid var(--go); }
 .note.refused { border-left-color: var(--no); }
 pre, blockquote { background: var(--paper); border: 1px solid var(--line);
