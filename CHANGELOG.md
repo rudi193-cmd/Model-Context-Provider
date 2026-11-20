@@ -4,6 +4,12 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A page can't close its own frame.** The prompt hook frames a sealed
+  page in `<sealed-page>` tags. A page holding those tags itself (a note,
+  or another person's email brought in with `mail`) closed the frame
+  early, so what followed looked to stand outside it. The frame's name
+  inside a page now has its hyphen made a non-breaking one: it reads the
+  same, and the frame closes once, at its end.
 - **A client that reconnects is told the list changed.** After a
   reconnect a client could still show older tool descriptions: the door
   sent `list_changed` only when a tool's name changed, and only within one
