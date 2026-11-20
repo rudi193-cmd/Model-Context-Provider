@@ -621,6 +621,53 @@ a time. Not built with it: a button on the seal page to stop a skill
      tells a model `report todo` is for that; the tools' words could.
   1 and 2 matter most.
 
+- **The broad fix for both lists, and other ways to see it (2026-11-20).**
+  Asked of Claude after the two lists above; the owner is working on the
+  fix from another angle, so these are views to weigh, not a plan.
+  - **One translation at the edge.** Both lists are the inside leaking
+    out: `bite`, `box`, `proposal:` and a hash, `came_of`, a page's
+    markup. Refusals don't leak because they pass through `PLAIN` and
+    `test_plain` holds every code to plain words. Everything else never
+    did. Every state, not only a refusal, could carry `say` and `next`
+    for its reader (model and person), held by a test the same way; name
+    things by what they are about (the question, the folder), not by an
+    id, from what is kept beside the record since the record keeps no
+    question's words; prose for the reader and data for a machine (a
+    page's passages as id, file, text); what is at stake first, the
+    detail folded under "Exactly what you'd be sealing".
+  - **The person's jobs, not the system's verbs.** List the few things the
+    person comes to do (let an assistant work on these notes; what did it
+    see this week; take that back) and count the steps each takes now. It
+    asks whether a reply should be seen at all, not how it reads.
+  - **Decisions, not screens.** Each card is a decision: show what the
+    person needs to make it well (what leaves, to whom, for how long, and
+    whether it can be undone) and nothing else. A grant's card says
+    "until the session ends" but not what has been read so far.
+  - **The model as the interface.** Most people won't open the seal page;
+    they hear of it from their assistant. So a reply to a model is what it
+    should say to the person: write each as that sentence. A waiting reply
+    with a seal id fails at once.
+  - **Dead ends, and getting out of them.** Every reply where the reader
+    can't act next without knowing more (a bare `sealed`, a struck
+    answer, `populated`), held by a test as `test_plain` holds refusals.
+  - **Names at birth.** A scope, a grant or a note gets only a hash when
+    it is made. A handle given then (the question, the folder, a note's
+    first words), kept beside the record, and most of the display needs
+    no translating.
+  - **What the protocol already offers.** MCP has elicitation (a client
+    asks the person natively) and resource subscriptions (a client is
+    told something changed): a yes asked and settled in the assistant the
+    person already uses, the page for review. Elicitation was left out
+    because a hook can answer it, which is the right worry, so it needs
+    care.
+  - **Measure it, as Willow's studies do.** Freeze a few real tasks, have
+    a few models and the person do them cold, count steps, dead ends and
+    wrong turns, change one thing, run again: the only view that says
+    whether a fix helped rather than read better.
+  Claude's pairing: the translation layer with the model as the
+  interface (it settles who each sentence is for, so the two lists become
+  one), then measuring it.
+
 ### The owner's to decide (changes to Willow)
 
 - An early exit in the kernel's date reader: `on-this-day`, `coming-up`
