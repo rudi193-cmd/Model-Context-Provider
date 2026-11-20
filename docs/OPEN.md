@@ -595,6 +595,32 @@ a time. Not built with it: a button on the seal page to stop a skill
   1, 2, 5 and the count are wording; 3, 4's order and 6 are layout, to be
   seen as a mock-up first. None changes what a seal does.
 
+- **The model's side, read as a model in a whole session (2026-11-20).**
+  The MCP door driven from initialize to the shelf over a throwaway record,
+  a page and a session's yes sealed with the test key between calls. A
+  refusal carries `say` and `next`; most of what stalls is in replies that
+  aren't refusals:
+  1. A struck answer gives no way forward: `"nothing the boxes lack":
+     "failed: comes is no box's"`, with no `say` or `next`. "Box" is
+     sentence-check's word, never the model's, and the word was on the
+     page, in the passage the sentence didn't cite. It could say so:
+     "comes isn't in the passage you cited; it is in 5015f34a7102". With
+     the ruling that a sentence may cite part of its page, that is the
+     next step.
+  2. A reply that waits (`propose`, `grant`, `note keep`) gives a 64-hex
+     seal id and nothing to tell the person. It could carry a `next` as a
+     refusal does: what waits, for which question, on their seal page.
+  3. The sealed page comes as markup (ids in backticks beside
+     "human-sealed", passages in code fences) that the model must take
+     apart to cite. The same reply could carry the passages as data: id,
+     file, text.
+  4. `context` not let in says only `populated`, with no next step, where
+     `timeline`'s refusal says to ask with `grant`.
+  5. Under a yes, "what is left to do in the garden" gave the frost line,
+     not the line marked to do: the kernel's rank, by design. Nothing
+     tells a model `report todo` is for that; the tools' words could.
+  1 and 2 matter most.
+
 ### The owner's to decide (changes to Willow)
 
 - An early exit in the kernel's date reader: `on-this-day`, `coming-up`
