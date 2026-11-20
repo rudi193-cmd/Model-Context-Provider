@@ -4,6 +4,12 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **The guard reads a command run on the record by another.** Probed with
+  34 direct calls, the guard door refused 33; `find BOX -delete` went
+  through, and so did `find -exec rm`, `git -C BOX clean`, `tar -C BOX` and
+  `unzip -d BOX`. The pin moves to Willow's `hook-guard` 0.1.2
+  (willow-memory/Willow#380), which reads each; `find`, `git status`,
+  `tar -t` and `unzip -l` still pass.
 - **A page can't close its own frame.** The prompt hook frames a sealed
   page in `<sealed-page>` tags. A page holding those tags itself (a note,
   or another person's email brought in with `mail`) closed the frame

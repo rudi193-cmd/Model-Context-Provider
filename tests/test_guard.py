@@ -286,3 +286,17 @@ def test_a_sibling_that_only_starts_with_the_same_name_is_not_protected(box):
 def test_guards_hand_hook_guard_the_runtimes_folder(box):
     asked = dict(runtime.guards(box))["hook-guard"]
     assert asked[-2:] == ("--also", str(runtime.state(box)))
+
+
+def test_a_command_run_on_the_record_by_another_is_blocked(box):
+    """Seen 2026-11-20: find -delete, find -exec rm and git -C clean named the
+    record in plain sight and went through. Willow's hook-guard, at the pinned
+    commit, now reads them; find alone and git status still pass."""
+    for command in (f"find {box} -name '*.jsonl' -delete",
+                    f"find {box} -type f -exec rm {{}} +",
+                    f"git -C {box} clean -fdx", f"tar -xf /tmp/x.tar -C {box}",
+                    f"unzip -o /tmp/x.zip -d {box}"):  # fmt: skip
+        got = guard(box, before("Bash", command=command))
+        assert got.returncode == 2 and "box-write" in got.stderr, command
+    for command in (f"find {box} -name '*.jsonl'", f"git -C {box} status"):
+        assert guard(box, before("Bash", command=command)).returncode == 0, command

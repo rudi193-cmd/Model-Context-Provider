@@ -80,7 +80,9 @@ such file that guard isn't asked.
 
 That guard stops a careless or direct tool call: a Write or Edit of a file
 in the box or in `BOX.runtime`, or a command that redirects into it or runs
-`rm`, `mv`, `cp`, `tee`, `sed -i` and the like on it. It does not stop code
+`rm`, `mv`, `cp`, `tee`, `sed -i` and the like on it, `find` with `-delete`
+or `-exec rm` from it, `git -C` on it with `clean`, `checkout` or `reset`,
+and `tar` or `unzip` unpacking into it. It does not stop code
 a model runs: a script that builds the path at run time, a `$VAR` path, or a
 `cd` earlier in the same command gets through, and so would a call the host
 never sends to a hook. Nothing here hides the folder from a model that can
