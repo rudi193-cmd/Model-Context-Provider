@@ -552,3 +552,24 @@ def test_an_answer_after_a_read_under_a_grant_says_there_is_no_sealed_page(box):
     got = call(box, "answer", "The first frost comes in late October [abc].")
     assert (got["state"], got["code"]) == ("refused", "no_page"), got
     assert "WILLOW" not in got["next"]
+
+
+def test_under_a_grant_a_question_sealed_as_a_page_is_given_that_page(box):
+    """The kernel answers a question the person sealed a page for with the
+    seal, and serves no passage: under a grant that came back as a bare
+    {"state": "sealed"}, nothing a model could use. It is the page now, as
+    leave gives it, and a page the person stopped is said so."""
+    call(box, "read", FROST)
+    page_seal = call(box, "propose")["seal"]
+    seal(box, page_seal)
+    let_in(box)
+    got = call(box, "context", FROST)
+    assert (got["state"], got["by"]) == ("left", "seal"), got
+    assert "first frost comes in late October" in got["page"]
+    assert (runtime.state(box) / "last-page.md").read_text() == got[
+        "page"
+    ]  # answerable
+    call(box, "stop", page_seal, door="pipe")
+    stopped = call(box, "context", FROST)
+    assert (stopped["state"], stopped["code"]) == ("refused", "stopped"), stopped
+    assert "October" not in json.dumps(stopped)

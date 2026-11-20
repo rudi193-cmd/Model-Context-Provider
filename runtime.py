@@ -2933,6 +2933,18 @@ def context_granted(box: Path, question: str) -> dict:
     """Under a grant: what the files hold on these words, withheld, with
     where each passage is from. No page is proposed and nothing waits."""
     got = read(box, question)
+    if got.get("state") == "sealed":
+        # the kernel answers a question the person sealed a page for with
+        # that seal, and serves no passage: give the page, as leave would,
+        # or say it was stopped, never the bare seal
+        by = got.get("by")
+        if by in scopes(box):
+            page = sealed_page(box, by)
+            if page["state"] == "left":
+                (state(box) / "last-page.md").write_text(page["page"])
+                return {**page, "by": "seal"}
+            return page  # stopped, or not whole: said, and nothing leaves
+        return {"state": "populated"}
     served = got.get("served") if isinstance(got, dict) else None
     if got.get("state") == "refused" or not served:
         return (

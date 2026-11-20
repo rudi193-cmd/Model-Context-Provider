@@ -4,6 +4,12 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Under a session's yes, a question you sealed a page for gives that
+  page.** The kernel answers a sealed question with its seal and serves no
+  passage, and under a yes `context` passed that on as a bare
+  `{"state": "sealed"}`: nothing a model could use, and no word that the
+  page was stopped when it was. It now gives the page, as `leave` does, and
+  a page you stopped is refused as `stopped`.
 - **The pin is on Willow's main.** willow-memory/Willow#380 merged as
   6714ea5; the pin names that commit, and no pinned file differs from the
   branch commit it named before.
