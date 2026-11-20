@@ -572,6 +572,29 @@ a time. Not built with it: a button on the seal page to stop a skill
 - Willow's `rss-out` can write inside the record's folder; the runtime
   refuses that, the add-on itself does not.
 
+- **The seal page, read as the person on a phone (2026-11-20).** From its
+  own HTML rendered over a throwaway record, at 390 pixels, in headless
+  Chromium. Several break the plain-words rule the refusals are held to
+  (no `bite`, `kernel`, `proposal:`):
+  1. A session's card says what was done in the kernel's words: "2 × bite:
+     empty, 4 × bite: served, 1 × boot, 4 × out, 5 × proposal: pass, 1 ×
+     seal". In the person's: questions asked of their files and how many
+     found something, things given to a model, things handed in, sealed.
+  2. A model's sentence's card ends on "the page of proposal:" and 64 hex
+     digits, "(page sha256 …); sentence-check held it". The checks above
+     it say what held; it could name the question the page was sealed for.
+  3. A page to share shows the page's own markup: `## car.md`, `car.md:1`
+     and its code fences. The file as a heading and the passage as a quote.
+  4. No count at the top, and the cards in the order they came: a session
+     asking to read, the one with most at stake, can be anywhere. A line
+     saying how many wait, and grants first.
+  5. A note's card is headed "A suggestion" and titled "a note to keep".
+  6. Each card ends in two to four grey paragraphs, so on a phone its
+     buttons are far from what they decide. The detail could fold into
+     "Exactly what you'd be sealing", one line left above the buttons.
+  1, 2, 5 and the count are wording; 3, 4's order and 6 are layout, to be
+  seen as a mock-up first. None changes what a seal does.
+
 ### The owner's to decide (changes to Willow)
 
 - An early exit in the kernel's date reader: `on-this-day`, `coming-up`
