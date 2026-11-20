@@ -64,7 +64,7 @@ fixed rule and never a reading of what the assistant meant:
 | | blocked if it edits a file the assistant hasn't read this session, or that changed since | `hook-read-first` |
 | | blocked if the same command already failed twice this session the same way | `hook-errors` |
 | after a command | a failure is kept on your record by the command's hash and exit code, never its words | `hook-errors` |
-| at a prompt | a correction ("no", "wrong", "I said") is proposed, and waits on your seal like anything else | `hook-feedback` |
+| at a prompt | a correction ("no", "wrong", "nope", "I said", by `hook-feedback`'s words list; never "no thanks" or "no worries") is kept beside your record for the session, 50 at most, and goes nowhere else; at the session's end it is sealed with the session, once, its words on the session's card. Your own words list goes in `BOX.runtime/corrections.txt` | `hook-feedback` (`match`), `session-seal` (`--with`) |
 | at a turn's end | where the session ended is kept: its id and folder | `hook-handoff` |
 | at the next session's start in that same folder, or its first prompt | the model is told that, once: "session S ended in FOLDER". A session in another folder isn't told: one record hears every project's sessions, and each picks up its own | `hook-handoff` |
 | at a session's start, and before a summary | the model is told how many things wait on your seal: a count, and nothing of what they are | the runtime |

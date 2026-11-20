@@ -14,7 +14,7 @@ use MCP for Cursor (hosts.py show cursor). At each prompt this asks the
 runtime what the model may be given. What it prints goes into the turn:
 the sealed page framed as data; or one line saying nothing is sealed; or
 nothing. Before that it hands the prompt to the runtime as a moment of the
-session: a correction ("no", "wrong", "I said") is proposed for the person's
+session: a correction ("no", "wrong", "I said") is kept for the session's one
 seal, and a new session gets one line saying where the last one ended. It
 always exits 0, since a hook that fails would stop the person
 typing, and it never crashes on what it is sent.

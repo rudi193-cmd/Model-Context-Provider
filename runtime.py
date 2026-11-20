@@ -1732,14 +1732,54 @@ def answer(box: Path, sentence: str) -> dict:
 SESSION_SEAL = "adapters/stdlib/session-seal/session_seal.py"
 
 
-def close(box: Path) -> dict:
+#: corrections a session keeps for its one seal: more than this and the
+#: rest aren't kept, so the seal page holds no more than a person reads
+CORRECTIONS_MOST = 50
+
+
+def corrections_of(box: Path, session) -> Path | None:
+    """Where a session's corrections are kept until it ends, beside the box."""
+    if not isinstance(session, str) or not session.strip():
+        return None
+    key = hashlib.sha256(session.strip().encode()).hexdigest()[:16]
+    return state(box) / "corrections" / f"{key}.json"
+
+
+def correction_kept(box: Path, session, said) -> None:
+    """A correction the person typed, kept for its session's one seal: in
+    their words, once each, CORRECTIONS_MOST at most. Nothing goes on the
+    record, and nothing waits on its own."""
+    f = corrections_of(box, session)
+    text = str(said or "").strip()[:SAID_MOST]
+    if f is None or not text:
+        return
+    try:
+        kept = json.loads(f.read_text()) if f.is_file() else []
+    except ValueError:
+        kept = []
+    if text in kept or len(kept) >= CORRECTIONS_MOST:
+        return
+    f.parent.mkdir(exist_ok=True)
+    f.write_text(json.dumps([*kept, text]))
+
+
+#: the most of one correction kept: session-seal's own most
+SAID_MOST = 2_000
+
+
+def close(box: Path, session=None) -> dict:
     """At a session's end, Willow's session-seal: the record's rows since the
     last bundle, as one proposal for the person to seal once (yes, these were
-    my actions). It only proposes; it never seals. Its bite is now the
-    record's last, so the read a model made goes with the session."""
-    run = willow(SESSION_SEAL, "--box", str(box), "--json", "--index", str(index(box)))
+    my actions), and with it what they said to correct the assistant that
+    session, in their words. It only proposes; it never seals. Its bite is
+    now the record's last, so the read a model made goes with the session."""
+    kept = corrections_of(box, session)
+    with_ = ("--with", str(kept)) if kept is not None and kept.is_file() else ()
+    run = willow(
+        SESSION_SEAL, "--box", str(box), "--json", "--index", str(index(box)), *with_
+    )
     if run.returncode == 2 and not run.stdout:  # a session-seal without --index
-        run = willow(SESSION_SEAL, "--box", str(box), "--json")
+        run = willow(SESSION_SEAL, "--box", str(box), "--json", *with_)
     try:
         doc = json.loads(run.stdout)
     except ValueError:
@@ -1752,6 +1792,8 @@ def close(box: Path) -> dict:
     if doc.get("state") != "populated":
         return {"state": "empty"}
     forget_read(box)
+    if with_:  # in the session's proposal now: kept nowhere else
+        kept.unlink(missing_ok=True)
     rows = [r for g in doc.get("groups", []) for r in g["rows"]]
     return {"state": "waiting", "seal": rows[0]["what"] if rows else None,
             "rows": doc.get("said", "")}  # fmt: skip
@@ -4141,8 +4183,16 @@ def event(box: Path, sent) -> dict:
             says.append("Model Context Provider: the person has let this session read "
                         "from their files while it works in this folder.")  # fmt: skip
     if name == "UserPromptSubmit":
-        run = hooked(sent, HOOK_FEEDBACK, "run", *at)
-        if run.returncode != 0:
+        # a correction of the person's is kept for the session's one seal,
+        # not handed in on its own (the owner's word, 2026-11-20)
+        mine = state(box) / "corrections.txt"
+        words = ("--words", str(mine)) if mine.is_file() else ()
+        run = hooked(sent, HOOK_FEEDBACK, "match", *words)
+        if run.returncode == 42:
+            said = next((sent[k] for k in ("prompt", "user_prompt", "text")
+                         if isinstance(sent.get(k), str) and sent[k].strip()), "")  # fmt: skip
+            correction_kept(box, sent.get("session_id"), said)
+        elif run.returncode != 0:
             return {"state": "refused", "code": "guard_failed",
                     "why": f"hook-feedback: {run.stderr.strip()[-300:]}"}  # fmt: skip
     if name in ("Stop", "SessionStart", "UserPromptSubmit"):
@@ -4187,7 +4237,7 @@ VERBS = {
         "check": lambda box, arg, **kw: check_sent(box, Path(str(arg))),
         "models": lambda box, arg, **kw: models(box),
         "draft": lambda box, arg, **kw: draft(box, str(arg), None, kw.get("door", "")),
-        "close": lambda box, arg, **kw: close(box),
+        "close": lambda box, arg, **kw: close(box, arg),
         "owed": lambda box, arg, **kw: owed(box),
         "report": lambda box, arg, **kw: report(box, arg),
         # naming a skill is the person's alone: a model never chooses a file

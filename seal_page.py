@@ -401,14 +401,26 @@ def card(box: Path, token: str, w: dict) -> str:
     data = str(prop.get("data", w.get("words", "")))
     if kind == "session":
         try:
-            came = json.loads(data).get("came_of", {})
+            bundle = json.loads(data)
+            came = bundle.get("came_of", {})
+            said = [str(t) for t in bundle.get("corrections", []) if isinstance(t, str)]
         except (ValueError, AttributeError):
-            came = {}
+            came, said = {}, []
         did = ", ".join(f"{n} × {k}" for k, n in sorted(came.items()))
         body = (
             '<p class="kind">A session</p>'
             f"<h2>{esc(w.get('claim') or 'A session’s actions')}</h2>"
             + (f"<p>What was done: {esc(did)}.</p>" if did else "")
+            + (
+                "<p><b>What you said to correct the assistant</b></p><ul>"
+                + "".join(f"<li>{esc(t)}</li>" for t in said)
+                + "</ul>"
+                + '<p class="soft">Each was caught by its words. Sealing keeps '
+                "them with the session; one that wasn’t a correction is kept "
+                "as it was said, and goes nowhere else.</p>"
+                if said
+                else ""
+            )
             + '<p class="soft">Sealing says these actions were yours. It lets no '
             "page leave: a page leaves only on its own seal.</p>"
         )

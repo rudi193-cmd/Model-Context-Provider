@@ -102,7 +102,10 @@ and where. Name one that holds nothing you mind a job listing.
 A seal at every step is a lot to ask. At a session's end the session door
 asks the runtime to `close` it: Willow's `session-seal` bundles the record's
 rows since the last close (each by number, kind and hash, no words) as one
-proposal, "yes, these were my actions". At the next start, the person is
+proposal, "yes, these were my actions". What the person said that session
+to correct the assistant goes in with it, in their words (`--with`), so
+those are sealed with the session, once, rather than a card each. At the
+next start, the person is
 told what waits on them: a one-line count (Claude Code's `systemMessage`),
 and a card naming each claim with its seal line and the seal page's command
 (Cursor's `user_message`, a desktop notice when the OS has one, and

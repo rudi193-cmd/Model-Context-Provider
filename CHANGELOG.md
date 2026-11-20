@@ -4,6 +4,16 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Corrections are sealed with their session, once.** Each correction the
+  person typed was a card of its own on the seal page, past any cap, and
+  "No thanks, that's fine" or "no worries" counted as one while "nope,
+  not that" didn't. On the owner's word: a correction is known by Willow's
+  `hook-feedback` words list (`match`, which writes nothing; a list of
+  your own in `BOX.runtime/corrections.txt`), kept beside the record for
+  its session, 50 at most and once each, and handed to `session-seal
+  --with` at the session's end, so it is in the session's one proposal.
+  The session's card lists them. The pin moves to Willow's
+  `hook-feedback` 0.1.1 and `session-seal` 0.3.1 (#380).
 - **The guard reads a command run on the record by another.** Probed with
   34 direct calls, the guard door refused 33; `find BOX -delete` went
   through, and so did `find -exec rm`, `git -C BOX clean`, `tar -C BOX` and
