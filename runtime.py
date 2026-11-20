@@ -234,6 +234,9 @@ def backup(box: Path, to: Path) -> dict:
     tasks_dir = src / "tasks"  # and the tasks' bookkeeping
     if tasks_dir.is_dir():
         files += sorted(p for p in tasks_dir.iterdir() if p.is_file())
+    said_dir = src / "corrections"  # and a session's corrections, until it ends
+    if said_dir.is_dir():
+        files += sorted(p for p in said_dir.iterdir() if p.is_file())
     files = [f for f in files if kept_name(f.relative_to(src).as_posix())
              and not f.name.startswith("share.id")]  # fmt: skip
     names = {f: f.relative_to(src).as_posix() for f in files}
@@ -263,7 +266,9 @@ def backup(box: Path, to: Path) -> dict:
 def kept_name(n: str) -> bool:
     """Whether a name is one the runtime keeps beside the box: a file's own
     name with no folder, or a shelf's card (shelf/KEY.json) or one thing on a
-    shelf (shelf/KEY/NAME), or the tasks' bookkeeping (tasks/state.json). Never a path that climbs or names nothing."""
+    shelf (shelf/KEY/NAME), or the tasks' bookkeeping (tasks/state.json), or
+    a session's corrections waiting for its seal (corrections/KEY.json).
+    Never a path that climbs or names nothing."""
     parts = n.split("/")
     if any(p in ("", ".", "..") or "\\" in p or Path(p).name != p for p in parts):
         return False
@@ -271,6 +276,7 @@ def kept_name(n: str) -> bool:
         len(parts) == 1
         or (parts[0] == "shelf" and len(parts) in (2, 3))
         or (parts[0] == "tasks" and len(parts) == 2)
+        or (parts[0] == "corrections" and len(parts) == 2)
     )
 
 

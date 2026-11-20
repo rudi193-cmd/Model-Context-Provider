@@ -4,6 +4,9 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A session's corrections go in the backup.** They wait beside the
+  record until the session ends, in `corrections/`, which `backup` and
+  `restore` didn't carry; now they do, held to the same names.
 - **Under a session's yes, a question you sealed a page for gives that
   page.** The kernel answers a sealed question with its seal and serves no
   passage, and under a yes `context` passed that on as a bare
