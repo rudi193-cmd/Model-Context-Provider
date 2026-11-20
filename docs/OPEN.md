@@ -583,8 +583,14 @@ a time. Not built with it: a button on the seal page to stop a skill
 ### The owner's own
 
 Name socratic-fork as a folder; an `ask-here` file to turn the dialog on;
-a `deny.txt` for `hook-shell`; a copy of `share.id` kept somewhere safe;
-the Willow commits pushed when the time comes: willow-memory/Willow#380
-(the game-box flake, `removed`'s mutants, `strip` showing why, and
-`privacy`'s codes) is green and waits on review, and the pin is on its
-branch until it merges.
+a `deny.txt` for `hook-shell`; a copy of `share.id` kept somewhere safe.
+Willow's commits are pushed: willow-memory/Willow#380 (the game-box flake,
+`removed`'s mutants, `strip` showing why, `privacy`'s codes, `hook-guard`'s
+find, git, tar and unzip, `hook-feedback`'s words list, `session-seal
+--with`, the UI's words example) merged on 2026-11-20 as 6714ea5, and the
+pin is on that commit of main. Its one red was `strip (3.14)` timing out
+on shard 3, whose `test_cores.py` the timings file prices at 35 s against
+139 s; `times.py write --run latest` refreshes it, and needs gh. A kernel
+command to give a record its words list after it is made is the owner's,
+under way; `set_up.py`'s notice for a record with none names the next
+record until then.

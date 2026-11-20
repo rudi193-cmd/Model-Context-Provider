@@ -4,6 +4,9 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **The pin is on Willow's main.** willow-memory/Willow#380 merged as
+  6714ea5; the pin names that commit, and no pinned file differs from the
+  branch commit it named before.
 - **A record is pointed at a words list before it is made.** A record
   takes its words list only when it is made, and Willow's UI ticks the
   starter list only when the stack holds `starter-words`; nothing here
