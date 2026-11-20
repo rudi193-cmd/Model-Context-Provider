@@ -4,6 +4,15 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A record is pointed at a words list before it is made.** A record
+  takes its words list only when it is made, and Willow's UI ticks the
+  starter list only when the stack holds `starter-words`; nothing here
+  said so, and `set_up.py` called "your words: none" ok. Now `set_up.py
+  --stack` on a stack with no record yet and no `starter-words` gives the
+  one command that adds it, a record with no words is a notice (`--`) that
+  says what it costs and stops nothing, a record with words is told it
+  can add its own lines any time, and the README's setup says to keep the
+  starter list ticked.
 - **Corrections are sealed with their session, once.** Each correction the
   person typed was a card of its own on the seal page, past any cap, and
   "No thanks, that's fine" or "no worries" counted as one while "nope,

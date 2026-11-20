@@ -148,3 +148,41 @@ def test_write_command_saves_the_persons_door_and_never_writes_over_another(
     code, out = run("--box", box, "--write", "command")
     assert code == 2 and "refused" in out
     assert saved.read_text() == "#!/bin/sh\necho something else\n"
+
+
+def test_a_stack_without_the_starter_words_is_told_before_its_record_is_made(tmp_path):
+    """A record takes its words list only when it is made, and Willow's UI
+    ticks the starter list only when the stack holds it."""
+    stack = tmp_path / "stack"
+    (stack / "mine").mkdir(parents=True)
+    (stack / "STACK.json").write_text(json.dumps({"addons": ["approved-only"]}))
+    code, out = run("--stack", stack)
+    assert code == 42 and "Start it" in out
+    assert "Your stack has no starter-words" in out
+    assert f"ui/assemble.py add starter-words --to {stack}" in out
+    (stack / "STACK.json").write_text(json.dumps({"addons": ["starter-words"]}))
+    assert "no starter-words" not in run("--stack", stack)[1]
+    (stack / "STACK.json").unlink()  # no list to read: nothing guessed
+    assert "no starter-words" not in run("--stack", stack)[1]
+
+
+def test_a_record_with_no_words_is_said_so_and_setup_still_finishes(box):
+    code, out = run("--box", box)
+    assert code == 0, out
+    assert "--  your words: none: this record was made with no words list" in out
+    assert "ok  your words" not in out
+
+
+def test_a_record_with_words_is_told_it_can_add_its_own(tmp_path):
+    pile, words = tmp_path / "pile", tmp_path / "my-words.txt"
+    pile.mkdir()
+    (pile / "car.md").write_text("The MOT is due in March.\n")
+    words.write_text("mot = inspection, test\n")
+    words.chmod(0o600)
+    b = tmp_path / "box"
+    made = runtime.willow("kernel.py", "init", "--box", str(b), "--pile", str(pile),
+                          "--key", str(tmp_path / "k.key"), "--words", str(words))  # fmt: skip
+    assert made.returncode == 0, made.stderr
+    code, out = run("--box", b)
+    assert code == 0 and f"ok  your words: in use: {words}" in out
+    assert "add a line of your own to it any time" in out

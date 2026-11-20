@@ -61,8 +61,12 @@ You need Python 3.9 or newer and a Willow checkout at the commit
 this runs (the kernel and each add-on it uses) by its SHA-256, and nothing runs
 on a Willow whose files differ: `python3 willow_pin.py check` says which.
 Nothing else in Willow matters to it. Make your record in Willow's UI: pick
-your folders, type your own words into the words step, seal it, and press
-**Start it**. Then:
+your folders, keep the starter words list ticked in the words step and add
+your own, seal it, and press **Start it**. A record takes its words list
+only when it is made, and a question in your own words finds less without
+one; the UI ticks the starter list when your stack holds it
+(`python ui/assemble.py add starter-words --to STACK`, in Willow), and
+`set_up.py --stack` says so before your record is made. Then:
 
     python set_up.py --stack PATH/TO/YOUR/STACK
 

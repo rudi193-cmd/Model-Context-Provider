@@ -35,8 +35,37 @@ def boxes(stack: Path) -> list[Path]:
     return sorted(p.parent for p in (stack / "mine").glob("*/box/kernel.json"))
 
 
-def check(box: Path) -> list[tuple[str, bool, str]]:
-    """What setup looked at: (what, fine, said)."""
+#: Willow's base list of what a person's words mean in their files
+STARTER = "starter-words"
+
+
+def stack_has_starter(stack: Path) -> bool | None:
+    """Whether a stack's add-ons hold the starter words list; None when the
+    stack's own list can't be read."""
+    try:
+        got = json.loads((stack / "STACK.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    names = got.get("addons") if isinstance(got, dict) else None
+    return STARTER in names if isinstance(names, (list, dict)) else None
+
+
+def no_words_yet(stack: Path) -> str:
+    """What to do before the record is made, when the stack holds no words
+    list: the one time a record can take one."""
+    add = shlex.join([sys.executable, str(runtime.WILLOW / "ui" / "assemble.py"),
+                      "add", STARTER, "--to", str(stack)])  # fmt: skip
+    return (
+        "Your stack has no starter-words, so the words step starts with no "
+        "words list ticked. A record takes its list only when it is made, "
+        "and a question in your own words finds less without one. Add it "
+        f"first, then keep it ticked in the words step:\n\n    {add}\n"
+    )
+
+
+def check(box: Path) -> list[tuple[str, bool | None, str]]:
+    """What setup looked at: (what, fine, said). Fine is None for what is
+    worth knowing and stops nothing."""
     out = []
     willow_ok = (runtime.WILLOW / "kernel.py").is_file()
     out.append(("Willow", willow_ok, str(runtime.WILLOW) if willow_ok
@@ -52,8 +81,14 @@ def check(box: Path) -> list[tuple[str, bool, str]]:
     out.append(("your record", run.returncode == 0,
                 run.stdout.strip() or run.stderr.strip()))  # fmt: skip
     cfg = json.loads((box / "kernel.json").read_text())
-    out.append(("your words", True, f"in use: {cfg['words']}" if cfg.get("words")
-                else "none: type them in the words step of Willow's UI, then Start"))  # fmt: skip
+    if cfg.get("words"):
+        out.append(("your words", True, f"in use: {cfg['words']}; add a line of your own "
+                    "to it any time (your word = what your files call it, another)"))  # fmt: skip
+    else:
+        out.append(("your words", None, "none: this record was made with no words list, "
+                    "so a question in your own words finds less. A record takes its list "
+                    "only when it is made: for the next one, put starter-words in your "
+                    "stack and keep it ticked in the words step"))  # fmt: skip
     model = runtime.state(box) / "model.json"
     out.append(("a model to draft with", True, f"named in {model}" if model.exists()
                 else "none: drafting needs a client that samples, or --model URL NAME"))  # fmt: skip
@@ -253,6 +288,8 @@ def main(argv: list[str]) -> int:
     if "--stack" in opts:
         found = boxes(Path(opts["--stack"]))
         if not found:
+            if stack_has_starter(Path(opts["--stack"])) is False:
+                print(no_words_yet(Path(opts["--stack"])))
             print(f"No record under {opts['--stack']}/mine yet: seal your pick in "
                   "Willow's UI and press Start it, then run this again.")  # fmt: skip
             return 42
@@ -280,8 +317,8 @@ def main(argv: list[str]) -> int:
     print(f"Your record: {box}\n")
     looked = check(box)
     for what, fine, said in looked:
-        print(f"  {'ok ' if fine else 'NO '} {what}: {said}")
-    if not all(fine for _, fine, _ in looked):
+        print(f"  {'ok ' if fine else '-- ' if fine is None else 'NO '} {what}: {said}")
+    if any(fine is False for _, fine, _ in looked):
         print("\nFix what says NO first; nothing below would work without it.")
         return 2
     if "--write" in opts:
