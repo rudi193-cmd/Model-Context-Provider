@@ -211,6 +211,16 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         )
     if code == "no_report":
         return runtime.call(box, "report", "horoscope", door="mcp")
+    if code == "reads_one_folder":
+        # a record made from two places, which Willow's backup can't yet read
+        a, b = tmp_path_factory.mktemp("a"), tmp_path_factory.mktemp("b")
+        (a / "notes.md").write_text("The first frost comes in late October.\n")
+        (b / "garden.md").write_text("Tomatoes want sun.\n")
+        two = tmp_path_factory.mktemp("two") / "box"
+        made = runtime.willow("kernel.py", "init", "--box", str(two), "--from", f"a={a}",
+                              "--from", f"b={b}", "--key", str(two.parent / "k.key"))  # fmt: skip
+        assert made.returncode == 0, made.stderr
+        return runtime.call(two, "backup", str(usb), door="pipe")
     if code == "report_failed":
         monkeypatch.setitem(runtime.REPORTS, "todo", "no/such/todo.py")
         return runtime.call(box, "report", "todo", door="mcp")

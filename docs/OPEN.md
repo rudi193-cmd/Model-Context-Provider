@@ -526,15 +526,13 @@ a time. Not built with it: a button on the seal page to stop a skill
   whom. Reading their files, and the word anywhere else, is let by. A
   script the model writes, or `python -c`, gets past it, as past
   `hook-guard`. `tests/test_guard.py` holds both sides.
-- **A record made with `--from` and the Provider's backup (2026-11-20).**
-  Willow's `backup` is one of the 37 add-ons that crash with a traceback
-  on a box reading several places (willow-memory/Willow#383, a strict
-  xfail each), and `runtime.backup()` calls it. A record made in Willow's
-  UI is one folder and isn't touched; one made by hand with `--from` is.
-  Until #383 is fixed, the runtime can say so in its own words (the record
-  reads several places; Willow's backup reads one) instead of passing the
-  traceback through, with a test on such a record.
-
+- ~~**A record made with `--from` and the Provider's backup.**~~ Done
+  2026-11-21, and wider than backup: on a record of two sources, backup,
+  `coming-up`, `pii-audit`, `secrets-audit`, `ref-check` and `timeline`
+  each passed a scrap of Willow's traceback to the person. `one_folder()`
+  reads the kernel's own refusal (CONST-VI-9) in what the add-on said and
+  answers `reads_one_folder` in plain words; no list of add-ons is kept,
+  so each one Willow fixes under #383 simply starts working.
 - The check, faster still: Willow's `test-impact` (only the tests a change
   can reach, first) and `ci-memo` are written around Willow's own layout
   and were not used; `slow-tests` reads the timing file the check now

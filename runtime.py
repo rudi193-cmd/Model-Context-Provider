@@ -202,6 +202,18 @@ def chain_holds(lines: list[str]) -> bool:
     )
 
 
+def one_folder(run: subprocess.CompletedProcess, what: str) -> dict | None:
+    """Willow's add-on that reads one folder, refused by the kernel because
+    this record reads its files from several places (init --from, CONST-VI-9),
+    said as that rather than as the add-on's traceback; None for any other
+    failure. Willow's #383 holds each such add-on to read them, or refuse."""
+    if "CONST-VI-9" not in (run.stderr or "") + (run.stdout or ""):
+        return None
+    return {"state": "refused", "code": "reads_one_folder",
+            "why": f"Willow's {what} reads one folder, and this record reads its files "
+                   "from several places (willow-memory/Willow#383)"}  # fmt: skip
+
+
 def backup(box: Path, to: Path) -> dict:
     """Willow's backup of the box, and beside it a zip of what the runtime
     keeps beside the box (the sent log, the scopes it proposed, the person's
@@ -210,6 +222,8 @@ def backup(box: Path, to: Path) -> dict:
     deleted. Neither holds the key, nor the identity the person shares with
     (share.id): a secret is never put in a zip."""
     run = willow(BACKUP, "--box", str(box), "--to", str(to))
+    if run.returncode != 0 and (said := one_folder(run, "backup")):
+        return said
     if run.returncode != 0:
         return {
             "state": "refused",
@@ -843,6 +857,8 @@ PLAIN = {
                      "See what is there (shelf_list): each shows the name to ask for."),
     "no_report": ("That isn't a report this makes.",
                   "The reports are: todo (what you wrote down to do), coming-up (dates in your files in the next two weeks), on-this-day (what you wrote on this date in earlier years), people (everyone your files name, a line each), ref-check (links and file:line places that no longer hold), pii-audit (where personal numbers sit, never the numbers), secrets-audit (where passwords and keys sit, never the values) and minutes (decisions and open actions)."),
+    "reads_one_folder": ("Your record reads your files from more than one place, and this reads only one folder, so it wasn't done.",
+                         "It works on a record made from one folder, as Willow's UI makes them; for this record, wait for Willow to read them all."),
     "report_failed": ("The report couldn't be made, so nothing was shared.",
                       "Check that WILLOW points at your Willow folder."),
     "report_too_long": ("The report is too long to share whole, so nothing was shared.",
@@ -1279,6 +1295,8 @@ def report(box: Path, name, for_model: bool = False) -> dict:
         doc = None
     # a report's exit code says what it found (42: something that waits on
     # the person, or nothing at all), never whether it ran: its own words do
+    if run.returncode not in (0, 42) and (said := one_folder(run, name)):
+        return said
     if run.returncode not in (0, 42) or not isinstance(doc, dict):
         return {"state": "refused", "code": "report_failed",
                 "why": (run.stderr or run.stdout).strip()[-300:]}  # fmt: skip
@@ -4096,6 +4114,8 @@ def timeline(box: Path, arg) -> dict:
         run = willow(TIMELINE, "--box", str(box), "--to", str(to), about)
     if run.returncode == 42:  # nothing holds the words, or they are too common
         return {"state": "empty", "about": about, "said": run.stdout.strip()[-300:]}
+    if run.returncode != 0 and (said := one_folder(run, "timeline")):
+        return said
     if run.returncode != 0 or not to.is_file():
         return {"state": "refused", "code": "timeline_refused",
                 "why": (run.stderr or run.stdout).strip()[-300:]}  # fmt: skip

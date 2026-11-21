@@ -81,6 +81,10 @@ this ([willow-memory/Willow#373](https://github.com/willow-memory/Willow/pull/37
 - **Sealing away from the box.** The seal page is on this machine only; a
   phone is not built. Nor is a seal through the client (MCP elicitation):
   that form would sit on a model's door. [NOTES.md](NOTES.md) has both.
+- **A record made from several places** (Willow's `init --from`): backup,
+  `coming-up`, the two audits, `ref-check` and `timeline` say they read one
+  folder and are not run, until Willow's add-ons read every place
+  (willow-memory/Willow#383). A record made in Willow's UI is one folder.
 - **Models off this machine** are refused. Sending even a sealed page to
   someone else's server is a bigger step, and would be the person's
   explicit line in `model.json`.

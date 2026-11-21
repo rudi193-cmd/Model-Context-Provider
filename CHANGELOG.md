@@ -4,6 +4,10 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A record made from several places is told, not shown a traceback.**
+  Backup, `coming-up`, `pii-audit`, `secrets-audit`, `ref-check` and
+  `timeline` refuse in plain words (`reads_one_folder`) on a record made
+  with `init --from`, whose Willow add-ons read one folder (Willow #383).
 - **The guard door refuses the person's own door.** A model's tool call
   that runs the pipe, the `provider` command, the seal page or the seal
   prompt is blocked by the runtime, before Willow's guards, naming the door;
