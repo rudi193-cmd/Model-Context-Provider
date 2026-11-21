@@ -808,8 +808,35 @@ there:
   `timestamp_timeout=0` so no earlier ticket carries it) every time. The
   Grove's shape.
 
-Claude's lean: *C*, with a password where a passkey isn't there yet, and
-*A* as the way to try it first.
+- *D.* The key in a password manager, behind its own switch: no second
+  account at all. Most managers can ask the person on each read: 1Password
+  and Bitwarden by Touch ID or Windows Hello, macOS Keychain by confirming
+  each access, KeePassXC by confirming a client's request. That is "the
+  person, every time" on every system, by a fingerprint where there is one.
+  Not GNOME's keyring: unlocked for the session, it answers any program
+  running as the person, no better than a file. Willow has no add-on for a
+  manager (2026-11-21: none built; `encrypt`, for the record at rest, is an
+  idea), and the box found the question asked nowhere before.
+
+  **The catch is the kernel.** `sealed()` reads the key on every question,
+  every `verify` and every `out`, to check each seal row's proof, and the
+  proofs are HMACs, which only the secret that made them can check. With
+  "ask every time" on, the person would be asked at every question, not at
+  each seal. **The way past it is a key pair**, which the Grove already names
+  ("Keys are HMAC secrets. The real thing is passkeys or Ed25519",
+  `docs/design/one-script/next-pile.md`): the private half signs a seal and
+  stays in the manager behind its switch; the public half, in the box,
+  checks every proof, so the manager asks exactly once a seal. That is the
+  kernel's change and the law's (CONST-0-4, the human key), in all five
+  ports and the vectors; and Python's standard library has no Ed25519,
+  which the kernel is held to. The owner's.
+
+  Until then, with no code: a password manager can keep a copy of the key,
+  as `backup`'s card says the key belongs somewhere other than the backup.
+
+Claude's lean: *D* where the kernel can take a key pair, since it needs no
+second account and asks by fingerprint; until then *C*, with a password
+where a passkey isn't there yet, and *A* as the way to try it first.
 
 **The record, shared and append-only.** The kernel writes the record as
 the person while asking and as the keyholder while sealing, so the box's
@@ -820,7 +847,10 @@ rows be added and none rewritten, by either; the chain and Willow's
 `removed` add rows, so they keep working; nothing here truncates it.
 
 **Open in it, the owner's:**
-- A, C, or both; and a password until passkeys, or passkeys first.
+- A, C, D, or more than one; and a password until passkeys, or passkeys first.
+- For D: a key pair in the kernel, and how, with the standard library
+  holding no Ed25519 (a port of it in the kernel's own code, or a signature
+  the standard library has, or the kernel calling out to one).
 - Whether the box's folder is the person's with a shared group, or the
   keyholder's with the person reading it.
 - Whether `chattr +a` is a step setup prints, or only said.

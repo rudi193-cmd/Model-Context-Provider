@@ -8,7 +8,9 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   never its bytes: the account setup runs as is the one any assistant runs
   as, so a key it can read is one a script the assistant writes can read.
   The key in an account of its own, with sealing across it, is designed in
-  `docs/OPEN.md`, not built.
+  `docs/OPEN.md`, not built, with a fourth way: the key in a password
+  manager behind its ask-every-time switch, which waits on a key pair in
+  the kernel.
 - **The guard door where an assistant can't switch it off.** In
   `~/.claude/settings.json` an assistant allowed to edit `~/.claude` could
   unwire it. `set_up.py --write managed` writes the same hooks for Claude
