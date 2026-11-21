@@ -831,6 +831,70 @@ there:
   ports and the vectors; and Python's standard library has no Ed25519,
   which the kernel is held to. The owner's.
 
+  **Each port, and its standard library** (checked 2026-11-21 on this
+  machine's runtimes):
+
+  | Port | Ed25519 in its own library | What it takes |
+  |---|---|---|
+  | Python (`kernel.py`) | no: `hashlib` and `hmac`, no signatures | its own code (RFC 8032's reference is about a hundred lines) |
+  | Go | yes, `crypto/ed25519` (Go 1.13) | nothing; the port's floor is 1.15 |
+  | TypeScript (Node) | yes, `crypto.sign`/`verify` with `ed25519` | nothing (Node 14 has it; seen on 22) |
+  | Java | yes from JDK 15 (seen on 21) | its floor from JDK 11 to 15, or 17 |
+  | Rust | no: `std` has no crypto, the port takes no crates | its own code, from Go's, as the port already is |
+  | C# (.NET 8) | no: ECDSA, no Ed25519 | its own code, or a package the port doesn't take |
+
+  ECDSA, which four of them have, isn't in Python or Rust either, and its
+  signatures differ each time unless made deterministic, which fights the
+  vectors. Ed25519 is the same bytes everywhere, with RFC 8032's test
+  vectors as RFC 4231's are for the HMACs now.
+
+  **Signing and checking are split.** A seal is signed once, at the
+  person's click, and that need not be the kernel: 1Password, Bitwarden,
+  KeePassXC and Secretive each act as an SSH agent that asks the person on
+  every signature, and the agent's protocol is a few length-prefixed
+  messages on a Unix socket, which the standard library speaks with no
+  program of its own. The private key then never reaches the kernel at all.
+  A key file signed in the kernel stays for people with no manager.
+  Checking needs only the public half, so the ports' own code holds no
+  secret, and the timing care hand-written signing needs doesn't arise.
+
+  **Measured** (2026-11-21, a scratch Ed25519 from RFC 8032's reference,
+  standard library only, holding its vectors 1 and 2 and refusing a changed
+  message or another signature):
+
+  | One seal | Python 3.9 | 3.13 | 3.14 |
+  |---|---|---|---|
+  | today's HMAC check | 0.003 ms | 0.002 ms | 0.002 ms |
+  | Ed25519 check, RFC 8032's reference | 4.2 ms | 3.6 ms | 3.9 ms |
+  | Ed25519 check, one pass over both scalars (Straus) | 2.8 ms | 2.3 ms | not run |
+  | Ed25519 signing, once a seal | 4.0 ms | 3.4 ms | 3.7 ms |
+
+  Every command reads the whole record, and `sealed()` checks every seal
+  row: `bite` once, `propose`, `seal` and `decline` twice, `out` and
+  `verify` once each, every decline row too. At 2.5 ms a row, 500 seals is
+  over a second a question.
+
+  **Two changes make it a non-issue for questions:**
+  - *Check only the seals a question can use.* `bite` serves a sealed
+    answer only for its own question (`asked == k`), so it can check those
+    rows alone: one check or none a question, at any size of record. Worth
+    doing with the HMACs now, too. `verify`, `out`, `propose` and a seal
+    still read every row once: about 1 to 2.5 s for 500.
+  - *Remember a checked row within one process.* A row's proof never
+    changes, the record only growing, so a memo by the row's hash, in
+    memory, halves `propose` and `seal`, and in a process that stays up,
+    as `pile-serve` does, checks each seal once in its life. Never on disk:
+    the kernel keeps no index on purpose (LIMITS.md) and trusts no file in
+    the box, and a file saying "these were checked" would be one that code
+    could write a forged seal into.
+
+  **What else it costs:** the seals there are, HMACs that only the old
+  secret checks, need a way across (one row proven under both keys that
+  vouches for every seal before it, then the old secret retired); and
+  passkeys are another algorithm again: Apple's, Google's and Windows
+  Hello's sign with ECDSA P-256, so passkeys later mean P-256 checking in
+  every port as well.
+
   Until then, with no code: a password manager can keep a copy of the key,
   as `backup`'s card says the key belongs somewhere other than the backup.
 

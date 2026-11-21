@@ -10,7 +10,9 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   The key in an account of its own, with sealing across it, is designed in
   `docs/OPEN.md`, not built, with a fourth way: the key in a password
   manager behind its ask-every-time switch, which waits on a key pair in
-  the kernel.
+  the kernel. Each port's library, and the cost measured: Ed25519 checks
+  at 2.3 to 4.2 ms a seal in pure Python, a non-issue for questions once
+  `bite` checks only its own question's seals.
 - **The guard door where an assistant can't switch it off.** In
   `~/.claude/settings.json` an assistant allowed to edit `~/.claude` could
   unwire it. `set_up.py --write managed` writes the same hooks for Claude
