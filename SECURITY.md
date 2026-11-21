@@ -25,10 +25,14 @@ welcome.
   assistant runs as can't read it is the guarantee for that;
 - the guard door unwired by an assistant: from `~/.claude/settings.json`
   it can be, which `set_up.py` says; installed through Claude Code's managed
-  settings (`set_up.py --write managed`) it should not be. Its code can
+  settings (`set_up.py --write managed`) it should not be, nor switched
+  off by breaking it (it refuses when it can't answer). Its code can
   still be changed by an assistant running as the account that owns the
   Provider's folder, which `set_up.py` says ("who can change this code");
-  installed where only an administrator writes, it should not be;
+  with the managed sandbox and deny rules, or installed where only an
+  administrator writes, it should not be;
+- with the managed settings installed, your key read, or your record,
+  `BOX.runtime` or this code changed, by a command Claude Code ran;
 - what left not on the sent log, or the log changed without `check` saying
   so against a pin, or against the last session the person sealed.
 

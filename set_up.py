@@ -105,7 +105,9 @@ def check(box: Path) -> list[tuple[str, bool | None, str]]:
                 if reader == "another account" else
                 "this account, the one any assistant you run works as, so a script it "
                 "writes can read it, whatever a guard says. Keeping it in an account of "
-                "its own, with sealing across, is designed in docs/OPEN.md, not built"
+                "its own, with sealing across, is designed in docs/OPEN.md, not built. "
+                "For Claude Code, --write managed has its sandbox refuse the read to "
+                "every command"
                 if reader == "this account" else
                 "can't be told here"))  # fmt: skip
     writer = code_writer()
@@ -114,7 +116,8 @@ def check(box: Path) -> list[tuple[str, bool | None, str]]:
                 if writer == "another account" else
                 f"this account, so an assistant running as you could change the doors in "
                 f"{HERE} by a command, the guard door too. Installed where only an "
-                "administrator can write is designed in docs/OPEN.md, not built"
+                "administrator can write is designed in docs/OPEN.md, not built. For "
+                "Claude Code, --write managed has its sandbox and deny rules refuse the edit"
                 if writer == "this account" else
                 "can't be told here"))  # fmt: skip
     where = guard_where(box)
@@ -125,6 +128,13 @@ def check(box: Path) -> list[tuple[str, bool | None, str]]:
                 "switch it off; to make it the administrator's: python set_up.py --box "
                 f"{shlex.quote(str(box))} --write managed" if where == "user" else
                 "not in Claude Code's settings (another assistant's hooks are its own)"))  # fmt: skip
+    if where:
+        out.append(("a guard that can't answer", True if guard_closed(box) else None,
+                    "refuses the call (onFailure: block)" if guard_closed(box) else
+                    "lets the call through: Claude Code takes a guard that crashed or timed "
+                    "out as leave to go on. Write the hooks again: python set_up.py --box "
+                    f"{shlex.quote(str(box))} --write " + ("managed" if where == "managed"
+                                                          else "claude-code")))  # fmt: skip
     model = runtime.state(box) / "model.json"
     out.append(("a model to draft with", True, f"named in {model}" if model.exists()
                 else "none: drafting needs a client that samples, or --model URL NAME"))  # fmt: skip
@@ -149,11 +159,16 @@ def claude_hooks(box: Path) -> dict:
         return {"type": "command", "command": line(door), **more}
 
     guard = run("guard.py")
+    # before a tool runs, a guard that can't answer is a No: Claude Code
+    # otherwise takes a crash, a timeout or bad output as leave to go on
+    # (Claude Code 2.1.295 and later). Not on the prompt hook, whose failure
+    # would block every prompt, nor where the call has already run.
+    gate = {**guard, "onFailure": "block"}
     return {"hooks": {
         "UserPromptSubmit": [{"hooks": [run("hook.py")]}],
         "SessionStart": [{"hooks": [run("session.py")]}, {"hooks": [guard]}],
         "SessionEnd": [{"hooks": [run("session.py", timeout=60)]}, {"hooks": [guard]}],
-        "PreToolUse": [{"matcher": GUARDED, "hooks": [guard]}],
+        "PreToolUse": [{"matcher": GUARDED, "hooks": [gate]}],
         "PostToolUse": [{"matcher": "Bash", "hooks": [guard]}],
         "PostToolUseFailure": [{"matcher": "Bash", "hooks": [guard]}],
         "Stop": [{"hooks": [guard]}],
@@ -258,6 +273,30 @@ def managed_dir() -> Path:
     return Path("/etc/claude-code")
 
 
+def guard_closed(box: Path) -> bool:
+    """Whether the settings that run this record's guard door (managed first,
+    then the person's own) have it refuse a tool call when it can't answer:
+    onFailure "block" on its PreToolUse entry."""
+    d = managed_dir()
+    files = [d / "managed-settings.json",
+             *sorted((d / "managed-settings.d").glob("*.json")),
+             Path.home() / ".claude" / "settings.json"]  # fmt: skip
+    mine = str(box.resolve())
+    for f in files:
+        try:
+            doc = json.loads(f.read_text())
+            entries = doc["hooks"]["PreToolUse"]
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        hooks = [h for e in entries if isinstance(e, dict)
+                 for h in e.get("hooks") or [] if isinstance(h, dict)
+                 and "doors/guard.py" in str(h.get("command", ""))
+                 and mine in str(h.get("command", ""))]  # fmt: skip
+        if hooks:
+            return all(h.get("onFailure") == "block" for h in hooks)
+    return False
+
+
 def guard_where(box: Path) -> str:
     """Where Claude Code is told to run this record's guard door: "managed"
     when a managed settings file holds it, "user" when only the person's own
@@ -323,14 +362,55 @@ def code_writer(root: Path | None = None) -> str:
     return "another account"
 
 
+def on_wsl() -> bool:
+    """Linux under Windows, where /etc/claude-code is the person's to write."""
+    try:
+        return "microsoft" in Path("/proc/version").read_text().lower()
+    except OSError:
+        return False
+
+
+def managed(box: Path) -> dict:
+    """What goes in Claude Code's managed settings: the hooks, then what an
+    assistant's own code can't get past, since the system holds it, not a
+    guard of words. The sandbox (not on Windows itself, where Claude Code
+    has none) refuses every shell command it runs, and what that starts, a
+    read of the key and a write to the record, the runtime's files or the
+    code the doors run; no command may leave it, and Claude Code doesn't
+    start without it. The file tools run outside the sandbox, so deny rules
+    hold the same paths for them. Hooks and MCP servers run outside both:
+    that is how sealing still reads the key."""
+    box = box.resolve()
+    key = Path(json.loads((box / "kernel.json").read_text())["key"]).resolve()
+    kept = [box, runtime.state(box).resolve(), HERE, runtime.WILLOW.resolve()]
+    doc = claude_hooks(box)
+    doc["permissions"] = {"deny": [f"Read(/{key})", f"Edit(/{key})",
+                                   *(f"Edit(/{d}/**)" for d in kept)]}  # fmt: skip
+    if not sys.platform.startswith("win"):
+        doc["sandbox"] = {
+            "enabled": True,
+            "failIfUnavailable": True,
+            "allowUnsandboxedCommands": False,
+            "filesystem": {"denyRead": [str(key)],
+                           "denyWrite": [str(key), *map(str, kept)]},
+        }  # fmt: skip
+    return doc
+
+
 def write_managed(box: Path) -> list[str]:
-    """Claude Code's hooks, the same as --write claude-code, as a file of
-    their own for its managed settings, and the line that installs it. That
-    folder is an administrator's, so this never writes there: the person
-    runs the line, with sudo. Once it is there, an assistant that can edit
-    ~/.claude can't switch the guard door off, and disableAllHooks in user or
-    project settings doesn't reach it."""
-    text = json.dumps(claude_hooks(box.resolve()), indent=2) + "\n"
+    """Claude Code's managed settings for this record (managed() says what),
+    as a file of their own, and the line that installs it. That folder is an
+    administrator's, so this never writes there: the person runs the line,
+    with sudo. Once it is there, an assistant that can edit ~/.claude can't
+    switch the guard door off, and disableAllHooks or a project's sandbox
+    settings don't reach it. Refused on WSL, where that folder is the
+    person's to write and so no barrier."""
+    if on_wsl():
+        return ["refused: on WSL, /etc/claude-code is yours to write, so managed "
+                "settings there hold nothing against an assistant running as you. "
+                "Use Windows' own, C:\\Program Files\\ClaudeCode, with Claude Code's "
+                "wslInheritsWindowsSettings"]  # fmt: skip
+    text = json.dumps(managed(box), indent=2) + "\n"
     made = Path.home() / ".claude" / "model-context-provider-managed.json"
     made.parent.mkdir(parents=True, exist_ok=True)
     made.write_text(text)
@@ -345,12 +425,36 @@ def write_managed(box: Path) -> list[str]:
             f"sudo install -D -m 644 {shlex.quote(str(made))} {shlex.quote(str(to))}"
         )
     return [
-        f"wrote {made}: the hooks, for Claude Code's managed settings",
-        "Install it, in a terminal of your own (it needs your administrator password):",
+        f"wrote {made}: the hooks, the sandbox and the deny rules, for Claude Code's",
+        "managed settings. Read it before you install it. Install it in a terminal of",
+        "your own (it needs your administrator password), readable by everyone (644):",
+        "a managed file Claude Code can't read is skipped without a word.",
         "",
         f"    {install}",
         "",
-        "Then an assistant can't switch the guard door off by editing your settings.",
+        "Then an assistant can't switch the guard door off by editing your settings,",
+        "and no command it runs can read your key or change your record, this",
+        f"runtime's files, or the code in {HERE} and {runtime.WILLOW}, whatever its words.",
+        "What else it changes, for every project in Claude Code:",
+        *(
+            [
+                "  - every shell command runs in Claude Code's sandbox: it writes only in the",
+                "    project's folder, and network to a new host asks you first;",
+                "  - Claude Code won't start where the sandbox can't run"
+                + (
+                    " (Linux needs bubblewrap and socat: sudo apt install bubblewrap socat);"
+                    if sys.platform.startswith("linux")
+                    else ";"
+                ),
+            ]
+            if not sys.platform.startswith("win")
+            else [
+                "  - Windows itself has no sandbox: only the deny rules hold, for the file tools;"
+            ]
+        ),
+        f"  - an assistant can't edit the Provider in {HERE}, nor Willow in",
+        f"    {runtime.WILLOW}: work on either in another checkout, not the one the",
+        "    hooks run from (docs/OPEN.md).",
         "The same hooks in ~/.claude/settings.json can stay: a hook named twice runs once.",
         'To block every hook but managed ones too, add "allowManagedHooksOnly": true to the',
         "file before you install it; that blocks your own other hooks as well.",

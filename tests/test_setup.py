@@ -206,7 +206,7 @@ def test_the_hooks_are_written_for_managed_settings_with_the_line_that_installs_
     monkeypatch.setattr(setup, "managed_dir", lambda: managed)
     lines = setup.write(box, "managed")
     made = home / ".claude" / "model-context-provider-managed.json"
-    assert json.loads(made.read_text()) == setup.claude_hooks(box.resolve())
+    assert json.loads(made.read_text()) == setup.managed(box)
     to = managed / "managed-settings.d" / setup.MANAGED_NAME
     assert any(
         str(to) in ln and ln.strip().startswith(("sudo", "copy")) for ln in lines
@@ -299,3 +299,76 @@ def test_setup_says_who_can_change_the_code_the_doors_run(box, tmp_path, monkeyp
             writable.clear()
         monkeypatch.setattr(setup, "HERE", code)
         assert row()[1] is True and "can't change the doors" in row()[2]
+
+
+def test_the_guard_refuses_a_call_when_it_cant_answer(box, tmp_path, monkeypatch):
+    """Claude Code takes a hook that crashed, timed out or printed nonsense as
+    leave to go on, so one bad edit to the guard switched it off. Before a
+    tool runs, the guard is written to refuse then; the prompt hook isn't,
+    or a crash would stop every prompt; and setup says which it is."""
+    hooks = setup.claude_hooks(box.resolve())["hooks"]
+    (pre,) = [h for e in hooks["PreToolUse"] for h in e["hooks"]]
+    assert "doors/guard.py" in pre["command"] and pre["onFailure"] == "block"
+    for event in ("UserPromptSubmit", "SessionStart", "Stop", "PostToolUse"):
+        assert all("onFailure" not in h for e in hooks[event] for h in e["hooks"])
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr(setup, "managed_dir", lambda: tmp_path / "etc-claude-code")
+
+    def row():
+        return next(
+            (r for r in setup.check(box) if r[0] == "a guard that can't answer"), None
+        )
+
+    assert row() is None  # no guard door wired: nothing to say of it
+    setup.write(box, "claude-code")
+    assert setup.guard_closed(box) and row()[1] is True
+    f = home / ".claude" / "settings.json"
+    doc = json.loads(f.read_text())
+    for e in doc["hooks"]["PreToolUse"]:
+        for h in e["hooks"]:
+            h.pop("onFailure", None)  # a settings file written before this
+    f.write_text(json.dumps(doc))
+    assert not setup.guard_closed(box)
+    assert row()[1] is None and "lets the call through" in row()[2]
+    assert "--write claude-code" in row()[2]
+
+
+def test_managed_settings_hold_the_key_and_code_by_the_system_not_by_words(
+    box, tmp_path
+):
+    """What no guard of words could do: the sandbox refuses every shell
+    command a read of the key and a write to the record, the runtime's
+    files and the code, whatever its words, and no command may leave it;
+    the file tools, outside the sandbox, are held by deny rules, absolute
+    paths written as Claude Code reads them (a double slash)."""
+    doc = setup.managed(box)
+    key = Path(json.loads((box / "kernel.json").read_text())["key"]).resolve()
+    kept = [box.resolve(), setup.runtime.state(box).resolve(), setup.HERE,
+            setup.runtime.WILLOW.resolve()]  # fmt: skip
+    assert doc["hooks"] == setup.claude_hooks(box.resolve())["hooks"]
+    deny = doc["permissions"]["deny"]
+    assert f"Read(/{key})" in deny and deny[0].startswith("Read(//")
+    assert all(f"Edit(/{d}/**)" in deny for d in kept)
+    if sys.platform.startswith("win"):
+        assert "sandbox" not in doc  # Claude Code has none on Windows itself
+        return
+    sb = doc["sandbox"]
+    assert sb["enabled"] and sb["failIfUnavailable"]
+    assert sb["allowUnsandboxedCommands"] is False
+    assert sb["filesystem"]["denyRead"] == [str(key)]
+    assert set(sb["filesystem"]["denyWrite"]) == {str(key), *map(str, kept)}
+    assert not any(p.startswith("//") for p in sb["filesystem"]["denyWrite"])
+
+
+def test_on_wsl_managed_settings_are_refused_since_they_hold_nothing(
+    box, tmp_path, monkeypatch
+):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr(setup, "on_wsl", lambda: True)
+    (line,) = setup.write(box, "managed")
+    assert line.startswith("refused:") and "wslInheritsWindowsSettings" in line
+    assert not (home / ".claude" / "model-context-provider-managed.json").exists()

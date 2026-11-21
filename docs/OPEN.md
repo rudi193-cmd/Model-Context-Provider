@@ -736,9 +736,24 @@ and another box could take the rig's address.
 
 The Provider then asks `http://127.0.0.1:11434/v1`, which is loopback, so
 it is allowed. The wire is encrypted, and SSH's host key says it is the
-rig. Owed for it: a paragraph in the README, `set_up.py --model`'s refusal
-of an address off this machine saying "a model on another machine of
-yours: tunnel it", and a try end to end.
+rig, once its fingerprint has been checked the first time (before that it
+is the first answer's word). Owed for it: a paragraph in the README,
+`set_up.py --model`'s refusal of an address off this machine saying "a
+model on another machine of yours: tunnel it", and a try end to end.
+
+**Two holes in the tunnel as written** (found 2026-11-21, by research and
+the boxes):
+- *Shadowing.* Anything already listening on that loopback port (a local
+  Ollama on 11434 is the usual one) passes `on_this_machine`, and a
+  tunnel that failed to bind says so only in the terminal that ran it:
+  the page goes to the wrong server, which is still this machine. So the
+  tunnel takes `-o ExitOnForwardFailure=yes` and a port nothing else uses
+  (`-L 21434:localhost:11434`), and the check at each draft is the
+  sealed weights hash against what the server says it serves (Ollama's
+  `/api/show` names the blob by its SHA-256), not the address.
+- *The host key.* `-o StrictHostKeyChecking=yes` with a known-hosts file
+  of the rig's alone, its fingerprint read once off the rig's own screen;
+  the fingerprint is what step 3 seals.
 
 **The way to build: "my rig", sealed.**
 1. *On the rig:* `weights-card` writes the card, and `weights-pin` stands
@@ -747,14 +762,38 @@ yours: tunnel it", and a try end to end.
    answers, through the path in step 3.
 3. *Named once, sealed:* the rig goes into `model.json` as a proposal
    through the kernel, like a session's grant, holding the card's SHA-256,
-   the exam's score, and the path: an SSH tunnel, or HTTPS with the rig's
-   certificate pinned by its fingerprint. Plain HTTP off this machine
-   stays refused.
+   the exam's score, and the path: an SSH tunnel with the rig's host-key
+   fingerprint, or HTTPS with the rig's certificate pinned by its SHA-256.
+   Python's standard library pins one cleanly: that certificate as the
+   only trust anchor (`load_verify_locations`), or the peer certificate's
+   SHA-256 compared after the handshake, which proves the rig holds its
+   key. The seal names the certificate, not an address, so a Tailscale
+   `100.64/10` or an IPv6 address needs no rule of its own. Plain HTTP off
+   this machine stays refused, and so do redirects. A pinned certificate
+   proves the rig to the laptop, not the laptop to the rig: the server
+   takes an API key (`llama-server` and vLLM have `--api-key`) or mTLS,
+   and Ollama, which has neither, stays behind the tunnel.
 4. *Every draft:* the page goes only by that path; the sent log says "to
    your rig at …"; withholding is as it is now; the record names the model
    by `model-card`.
 5. *Now and then:* `model-drift` asks its frozen questions; a changed
    answer stops the rig until the person looks, and looking is a seal.
+   Temperature 0 is not deterministic (batch size, cache state, a runtime
+   or driver update move it, and a seed does nothing at temperature 0), so
+   each question is asked more than once at freezing, the rig's own noise
+   measured, and only a change past it counts. The frozen file names the
+   runtime and its version, the template and the context length
+   (`num_ctx`), since an Ollama Modelfile changes all three over the same
+   weights.
+
+**What this proves, and what it doesn't.** The path keeps the page from
+anyone else on the network and from a box that took the rig's address.
+The hash and drift catch a swapped or changed model by accident. A rig
+that lies is out of reach: it reports a hash it chose and answers a drift
+question it recognises, and nothing proves the weights served at home
+(confidential computing on a data-centre GPU attests the GPU, not the
+weights, and no consumer card has it). That is the person's own machine;
+saying so is the design.
 
 A cloud address stays refused: the step to someone else's server is not
 taken here. The Provider's own code is a check against the sealed rig
@@ -769,6 +808,12 @@ and the last drift result; every judgement in it is a Willow card's.
   offered, or only shows.
 - Whether the tunnel is set up by the person, as today, or by
   `set_up.py`, which would then be running `ssh`.
+- Whether the Grove's D10 (no Tailscale Funnel or cloudflared,
+  `one-box/README.md:223`) covers a private tailnet, which isn't public
+  ingress; until then the tunnel and a pinned certificate are the paths.
+- Willow's `openai-compatible`, `model-exam` and `model-drift` cards say
+  temperature 0 with a fixed seed says the same thing twice. Not always:
+  theirs to correct.
 
 ### The key in an account of its own (designed 2026-11-21, not built)
 
@@ -787,7 +832,28 @@ that change the design", 1): a check of which account calls keeps out
 other users and sandboxes, not the model in the person's own shell; acts
 only the person does (grant, seal) take a passkey every time, never an
 account alone. A password every time is the weaker form that every system
-has.
+has. And it goes further than the ways below: the click itself is a
+**WebAuthn passkey** (`one-box/README.md:243`), its challenge the SHA-256
+of what is approved and a nonce, with user verification required, so it
+takes a touch or a PIN that no process on the machine can make; the
+challenge hashing the content means a Yes covers those bytes and no
+others (`:560`, for an outbound grant). That is the target; A to D are
+the ways to it, or around it until it is built.
+
+**Much of it without a second account: Claude Code's sandbox** (its docs,
+sandboxing, checked 2026-11-21). From managed settings, with
+`allowUnsandboxedCommands: false` (which makes `dangerouslyDisableSandbox`
+ignored, and a project can't loosen it) and `failIfUnavailable: true`,
+`filesystem.denyRead` on the key makes the system refuse the read to every
+command the assistant runs, and what it starts, whatever its words: the
+thing no guard of words could do. The sandbox covers shell commands only;
+file tools, hooks and MCP servers run outside it, so the same paths take
+managed deny rules for Read, Edit and Write. Hooks and the runtime running
+outside it is what lets sealing still read the key. `set_up.py --write
+managed` writes all of it now. It holds for Claude Code, not for another
+assistant, nor for code the person runs; and on WSL, where
+`/etc/claude-code` is the person's to write, not at all. The account of
+the key's own stays the guarantee for everything else.
 
 **The steps, for when sealing can cross** (not to follow yet: today they
 would stop the seal page and the desktop prompt from sealing). The person
@@ -815,8 +881,20 @@ there:
   account at all. Most managers can ask the person on each read: 1Password
   and Bitwarden by Touch ID or Windows Hello, macOS Keychain by confirming
   each access, KeePassXC by confirming a client's request. That is "the
-  person, every time" on every system, by a fingerprint where there is one.
-  Not GNOME's keyring: unlocked for the session, it answers any program
+  person, every time" on every system, by a fingerprint where there is one,
+  **but only in a per-request mode**: 1Password's SSH agent approves once
+  per app and session by default (per request is a setting; "all
+  applications" gives the guarantee up), Bitwarden's is unverified, and a
+  binary on a macOS Keychain item's trusted list reads it with no prompt.
+  And no agent's prompt shows *what* it signs: a process running as the
+  person can ask for a signature over a forged seal row at the moment
+  they expect a prompt. So the signed bytes hold the seal row's hash and a
+  nonce the seal page shows beside it, as the Grove's passkey challenge
+  does; the prompt is a second factor, the page the content check. On
+  X11 any client can click another's dialog (XTEST), so a prompt there is
+  no barrier; Wayland's is, and Yama's `ptrace_scope` at 1 or more keeps a
+  process running as the person out of an unlocked agent's memory. Not
+  GNOME's keyring: unlocked for the session, it answers any program
   running as the person, no better than a file. Willow has no add-on for a
   manager (2026-11-21: none built; `encrypt`, for the record at rest, is an
   idea), and the box found the question asked nowhere before.
@@ -831,15 +909,17 @@ there:
   stays in the manager behind its switch; the public half, in the box,
   checks every proof, so the manager asks exactly once a seal. That is the
   kernel's change and the law's (CONST-0-4, the human key), in all five
-  ports and the vectors; and Python's standard library has no Ed25519,
-  which the kernel is held to. The owner's.
+  ports and the vectors. Python's standard library has no Ed25519, but
+  Willow does: `adapters/stdlib/share/ed25519.py`, sign and check from RFC
+  8032 in the standard library alone, held to RFC 8032's vectors and to
+  pyca/cryptography's. The kernel starts from it. The owner's.
 
   **Each port, and its standard library** (checked 2026-11-21 on this
   machine's runtimes):
 
   | Port | Ed25519 in its own library | What it takes |
   |---|---|---|
-  | Python (`kernel.py`) | no: `hashlib` and `hmac`, no signatures | its own code (RFC 8032's reference is about a hundred lines) |
+  | Python (`kernel.py`) | no: `hashlib` and `hmac`, no signatures | Willow's own `share/ed25519.py`, with the checks below and a faster pass |
   | Go | yes, `crypto/ed25519` (Go 1.13) | nothing; the port's floor is 1.15 |
   | TypeScript (Node) | yes, `crypto.sign`/`verify` with `ed25519` | nothing (Node 14 has it; seen on 22) |
   | Java | yes from JDK 15 (seen on 21) | its floor from JDK 11 to 15, or 17 |
@@ -848,8 +928,26 @@ there:
 
   ECDSA, which four of them have, isn't in Python or Rust either, and its
   signatures differ each time unless made deterministic, which fights the
-  vectors. Ed25519 is the same bytes everywhere, with RFC 8032's test
-  vectors as RFC 4231's are for the HMACs now.
+  vectors. Ed25519 signs the same bytes everywhere; **checking is not the
+  same everywhere** ("Taming the many EdDSAs", 2020): libraries differ on
+  a non-canonical encoding, a small-order point and the cofactor. So the
+  ports share one rule, written down:
+  - refuse S ≥ L, and an A or R whose y is ≥ p;
+  - refuse the eight small-order encodings for A and R;
+  - check `[S]B = R + [k]A` without the cofactor;
+  - check the person's public key once, when it is installed: it decodes
+    and is of prime order. With that, the checks with and without the
+    cofactor agree.
+
+  Go's, Node's and Java's own checks then need only a small check of the
+  bytes in front (Java compares decoded points, so the y ≥ p rule is what
+  makes it agree). ZIP-215's looser rule would mean code of our own in
+  every port. Willow's `ed25519.py` holds the first and third rules and
+  not the small-order ones; the Grove's pinned verifier refuses
+  small-order and non-canonical keys (`tests/test_onescript_sign.py`),
+  which are the first edge vectors. Then Wycheproof's EdDSA vectors and
+  C2SP's CCTV edge cases, beside RFC 8032's, each port's expected answer
+  made by the Python rule. Rust's port needs its own SHA-512 as well.
 
   **Signing and checking are split.** A seal is signed once, at the
   person's click, and that need not be the kernel: 1Password, Bitwarden,
@@ -893,7 +991,9 @@ there:
 
   **What else it costs:** the seals there are, HMACs that only the old
   secret checks, need a way across (one row proven under both keys that
-  vouches for every seal before it, then the old secret retired); and
+  vouches for every seal before it, then the old secret retired; `share`
+  already keeps a chain of rotations, each signed by both its keys, which
+  is that shape); and
   passkeys are another algorithm again: Apple's, Google's and Windows
   Hello's sign with ECDSA P-256, so passkeys later mean P-256 checking in
   every port as well.
@@ -901,9 +1001,11 @@ there:
   Until then, with no code: a password manager can keep a copy of the key,
   as `backup`'s card says the key belongs somewhere other than the backup.
 
-Claude's lean: *D* where the kernel can take a key pair, since it needs no
-second account and asks by fingerprint; until then *C*, with a password
-where a passkey isn't there yet, and *A* as the way to try it first.
+Claude's lean (2026-11-21, after the research): the Grove's passkey as the
+target, its challenge holding the seal row's hash; the managed sandbox
+now, for Claude Code; *D* where the kernel takes a key pair, in a
+per-request mode, with the row's hash in what is signed; *C* with a
+password where a passkey isn't there yet; *A* as the way to try it first.
 
 **The record, shared and append-only.** The kernel writes the record as
 the person while asking and as the keyholder while sealing, so the box's
@@ -924,6 +1026,17 @@ files differ, so a changed Willow stops the runtime rather than getting
 past it. But the pin is in the Provider's folder too. `set_up.py` now
 says who can change this code ("who can change this code"), from each
 file's and folder's owner and mode, never their bytes.
+
+Two more, found 2026-11-21. **A hook that fails lets the call through**:
+Claude Code treats a crash, a timeout or bad output as a non-blocking
+error, so one bad edit to `doors/guard.py` switched the guard off with no
+word. `set_up.py` now writes the guard door with `onFailure: "block"`
+(Claude Code 2.1.295 and later), so a guard that can't answer is a No,
+and says whether it is there. (The Grove's 2026-10-06 research says Claude
+Code has no such switch; it has one now.) And **for Claude Code, managed
+`denyWrite` and Edit/Write deny rules on this folder** stop the edit
+before an install is built; `--write managed` writes them, so the folder
+hooks run from is no longer one to work on the Provider in.
 
 The steps, when built (the person names where):
 - *Linux:* `sudo install -d -o root -g root -m 755 /opt/model-context-provider`,

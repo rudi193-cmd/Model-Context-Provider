@@ -99,6 +99,26 @@ A hook there isn't turned off by user or project settings. `set_up.py` says
 which of the two this record's guard door is in. (The design is the Grove's
 one-box threat 3, "the doors can be removed", 2026-10-06.)
 
+A guard that can't answer is a No. Claude Code takes a hook that crashed,
+timed out or printed nonsense as leave to go on, so a broken `guard.py`
+was a guard switched off. Before a tool runs, the guard door is written
+with `onFailure: "block"` (Claude Code 2.1.295 and later), and setup says
+whether the one wired has it ("a guard that can't answer"). Only there:
+the prompt hook's failure would block every prompt, and after a tool has
+run there is nothing left to stop.
+
+What words can't hold, the system can. The managed file also turns on
+Claude Code's sandbox, which no command may leave
+(`allowUnsandboxedCommands: false`) and without which Claude Code doesn't
+start (`failIfUnavailable`): every shell command an assistant runs, and
+what it starts, is refused a read of your key and a write to your record,
+`BOX.runtime`, the Provider's folder and Willow's, however the path is
+built. The file tools run outside the sandbox, so deny rules name the same
+paths for them. Hooks and MCP servers run outside both, as you, which is
+how a seal still reads your key. It holds for Claude Code alone, not on
+Windows itself (no sandbox there: the deny rules only), and not on WSL,
+where setup refuses it because `/etc/claude-code` is yours to write.
+
 What these hand a model is a rule's name, a session's id and folder, or a
 count. None of them hands it a word of your files: Willow's `hook-start`,
 `hook-compact` and `hook-impact`, which do, are not used.

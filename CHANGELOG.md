@@ -4,6 +4,28 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A guard that can't answer is a No.** Claude Code took a hook that
+  crashed, timed out or printed nonsense as leave to go on, so one bad
+  edit to `doors/guard.py` switched the guard off. Its PreToolUse entry
+  now carries `onFailure: "block"` (Claude Code 2.1.295 and later), and
+  `set_up.py` says whether the wired one has it. Only there: the prompt
+  hook's failure would block every prompt.
+- **Managed settings hold by the system, not by words.** `--write managed`
+  adds Claude Code's sandbox (`enabled`, `failIfUnavailable`,
+  `allowUnsandboxedCommands: false`), refusing every shell command a read
+  of the key and a write to the record, `BOX.runtime`, the Provider's
+  folder and Willow's, however the path is built; and managed deny rules
+  for the file tools, which the sandbox doesn't cover, on the same paths.
+  It says what it changes for every project before you install it, and
+  that the file must be readable (644). Not on Windows itself (no
+  sandbox: the deny rules only); refused on WSL, where `/etc/claude-code`
+  is the person's to write.
+- **OPEN.md held to the research.** Four research runs and the boxes:
+  the Grove's passkey with a content-hashed challenge named as the
+  target; option D's caveats (per-request mode only; a prompt doesn't
+  show what it signs); Willow's own `share/ed25519.py` and its rotation
+  chain, already there; one Ed25519 check for every port; and the rig's
+  tunnel shadowing, host-key and threat model.
 - **Your seal pins the sent log's end.** A chained log can't vouch for its
   last line, so a cut there showed only against a pin kept by hand. Each
   session's close now hands Willow's session-seal the log (`--log`), and
