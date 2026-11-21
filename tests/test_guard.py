@@ -57,6 +57,48 @@ def test_a_command_that_seals_or_declines_is_blocked(box):
     assert guard(box, before("Bash", command=asked)).returncode == 0
 
 
+def test_a_command_that_runs_the_persons_own_door_is_blocked(box, tmp_path):
+    """Found 2026-11-20: a model's shell could run the person's door. The
+    pipe hands back passages with no seal (it is theirs), and takes stop,
+    restore and share_send; the seal programs carry the person's click.
+    Running one is refused, by the runtime before Willow's guards."""
+    pipe, page, prompt = (
+        ROOT / "doors" / "pipe.py",
+        ROOT / "seal_page.py",
+        ROOT / "seal_prompt.py",
+    )
+    for command in (
+        f'python3 {pipe} --box {box} <<< \'{{"read": "frost"}}\'',
+        f'echo \'{{"stop": "x"}}\' | python3 {pipe} --box {box}',
+        f"env WILLOW=/w python3 -u {pipe} --box {box}",
+        f"timeout 5 python3.11 {pipe} --box {box}",
+        "provider read frost",
+        "cd /tmp && provider share_send answers=last for=Walt",
+        "~/.local/bin/provider waiting",
+        f"python3 {page} --box {box}",
+        f"nohup python3 {prompt} --box {box} --seal proposal:{'0' * 64} &",
+        f"{pipe} --box {box}",
+    ):
+        run = guard(box, before("Bash", command=command))
+        assert run.returncode == 2 and "rule own-door" in run.stderr, command
+    # each one is on the sent log, as any blocked call is: by whom, never its words
+    sent = (runtime.state(box) / "sent.jsonl").read_text()
+    assert '"by": "provider"' in sent and "frost" not in sent
+    # relative to the call's own folder, as the host sends it
+    sent = {**before("Bash", command="python3 doors/pipe.py --box B"), "cwd": str(ROOT)}
+    assert guard(box, sent).returncode == 2
+    # reading a door, or the word anywhere else, is not running it
+    for command in (
+        f"cat {pipe}",
+        f"grep -n provider {ROOT / 'README.md'}",
+        "git log --grep provider",
+        f"python3 -m pytest -q {ROOT / 'tests' / 'test_shared.py'}",
+        f"sed -n 1,20p {page}",
+    ):
+        assert guard(box, before("Bash", command=command)).returncode == 0, command
+    assert runtime.persons_door("echo provider") == ""
+
+
 def test_a_write_into_the_record_is_blocked(box):
     run = guard(box, before("Write", file_path=str(box / "record.jsonl"), content="x"))
     assert run.returncode == 2 and "rule box-write" in run.stderr

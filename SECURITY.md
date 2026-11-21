@@ -17,6 +17,12 @@ welcome.
 - a seal or a decline the person didn't click: the seal page reached from
   another machine, another website, a frame, or a model's door, or made to
   seal something that wasn't waiting;
+- the person's own door (the pipe, the `provider` command, the seal page or
+  the seal prompt) run by a model's tool call, or the kernel's `seal` or
+  `decline` run by one, in a shape the guard door names: a command line
+  that runs it directly. A script a model writes to get round it is past
+  what a guard of words can see; keeping the key where the account the
+  assistant runs as can't read it is the guarantee for that;
 - what left not on the sent log, or the log changed without `check` saying
   so against a pin.
 

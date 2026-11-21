@@ -58,7 +58,8 @@ fixed rule and never a reading of what the assistant meant:
 
 | When | What happens | Willow's |
 |---|---|---|
-| before a tool call | blocked if it names your key, changes a file in your record other than through the kernel, or changes a file in `BOX.runtime` (what the runtime keeps beside the box: what you stopped, the names withheld, the sent log, the shelf); reading them is fine | `hook-guard` (`--also`) |
+| before a tool call | blocked if it runs your own door: the pipe (`doors/pipe.py`), the `provider` command, the seal page or the seal prompt, as the program or the script an interpreter is handed; reading their files is fine | the runtime |
+| | blocked if it names your key, runs the kernel's `seal` or `decline` (which read the key themselves), changes a file in your record other than through the kernel, or changes a file in `BOX.runtime` (what the runtime keeps beside the box: what you stopped, the names withheld, the sent log, the shelf); reading them is fine | `hook-guard` (`--also`) |
 | | blocked if what it writes or runs holds a key, a password or a card number; the value is never shown | `hook-leaks` |
 | | blocked if it runs a command you denied, read the way the shell reads it | `hook-shell` |
 | | blocked if it edits a file the assistant hasn't read this session, or that changed since | `hook-read-first` |

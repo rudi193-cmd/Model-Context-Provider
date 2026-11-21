@@ -1912,6 +1912,96 @@ def guards(box: Path) -> list[tuple[str, tuple[str, ...]]]:
     return out
 
 
+#: the person's own doors: what runs them is the person's, never a model's
+#: (the pipe hands back passages with no seal, the seal programs carry a click)
+PERSONS_DOORS = {
+    HERE / "doors" / "pipe.py": "the pipe door",
+    HERE / "seal_page.py": "the seal page",
+    HERE / "seal_prompt.py": "the seal prompt",
+}
+#: the command set_up.py saves for the person's door (`--write command`)
+PERSONS_COMMAND = "provider"
+#: words a command is run through, said before it
+WRAPPERS = frozenset(
+    {"env", "exec", "nohup", "sudo", "command", "nice", "time", "timeout"}
+)
+#: programs that run the script they are handed
+INTERPRETERS = re.compile(r"(python|pypy)(\d+(\.\d+)*)?|sh|bash|zsh|dash")
+
+
+def commands_of(line: str) -> list[list[str]]:
+    """A command line as its commands, each its words; a line that can't be
+    read as shell is read by blanks, which sees less but never raises."""
+    try:
+        lex = shlex.shlex(line, posix=True, punctuation_chars=True)
+        lex.whitespace_split = True
+        words = list(lex)
+    except ValueError:
+        words = line.split()
+    out: list[list[str]] = [[]]
+    for w in words:
+        if w in (";", "&&", "||", "|", "&", "|&", "(", ")"):
+            out.append([])
+        else:
+            out[-1].append(w)
+    return [c for c in out if c]
+
+
+def persons_door(command: str, cwd: str = "") -> str:
+    """Which of the person's own doors a command runs, or "": the door as the
+    program, the script an interpreter is handed, or the saved `provider`
+    command. Reading a door's file, or the word anywhere else, is not running
+    it. Like Willow's hook-guard, a test of words: a door reached by a script
+    the model writes gets through."""
+
+    def at(word: str) -> Path | None:
+        try:
+            return (Path(cwd or ".") / Path(word).expanduser()).resolve()
+        except (OSError, RuntimeError, ValueError):
+            return None
+
+    for words in commands_of(command):
+        i = 0
+        while i < len(words) and ("=" in words[i] and not words[i].startswith("-")):
+            i += 1  # VAR=value before the program
+        while i < len(words) and Path(words[i]).name in WRAPPERS:
+            i += 1
+            while i < len(words) and (words[i].startswith("-") or "=" in words[i]
+                                      or words[i].replace(".", "").isdigit()):  # fmt: skip
+                i += 1  # timeout 5, env -i X=1, nice -n 10
+        if i >= len(words):
+            continue
+        program = words[i]
+        if Path(program).name == PERSONS_COMMAND or at(program) == (
+            Path.home() / ".local" / "bin" / PERSONS_COMMAND
+        ):
+            return f"the {PERSONS_COMMAND} command"
+        if at(program) in PERSONS_DOORS:
+            return PERSONS_DOORS[at(program)]
+        if INTERPRETERS.fullmatch(Path(program).name):
+            script = next((w for w in words[i + 1 :] if not w.startswith("-")), None)
+            if script is not None and at(script) in PERSONS_DOORS:
+                return PERSONS_DOORS[at(script)]
+    return ""
+
+
+def own_doors_guard(sent: dict) -> dict | None:
+    """The runtime's own guard, asked before Willow's: a model's tool call
+    that runs one of the person's doors is blocked, naming the door. None
+    when it runs none."""
+    given = sent.get("tool_input")
+    command = given.get("command") if isinstance(given, dict) else None
+    if sent.get("tool_name") != "Bash" or not isinstance(command, str):
+        return None
+    cwd = sent.get("cwd") if isinstance(sent.get("cwd"), str) else ""
+    door = persons_door(command, cwd)
+    if not door:
+        return None
+    return {"state": "blocked", "by": "provider",
+            "says": f"blocked: rule own-door: this command runs {door}, the person's own; "
+                    "only they run it, never an assistant."}  # fmt: skip
+
+
 def judged(sent: dict, asked: list[tuple[str, tuple[str, ...]]]) -> dict:
     """A tool call put to each guard in turn. The first that refuses stops
     it, in that guard's own words. A guard that can't run stops it too: one
@@ -4183,7 +4273,7 @@ def event(box: Path, sent) -> dict:
         tag = hashlib.sha256(text.encode()).hexdigest()[:8]
         shelve(box, sent.get("cwd"), {"name": f"event-{name}-{tag}.json", "text": text}, "guard")  # fmt: skip
     if name == "PreToolUse":
-        return judged(sent, guards(box))
+        return own_doors_guard(sent) or judged(sent, guards(box))
     if name in ("PostToolUse", "PostToolUseFailure"):
         return judged(sent, [("hook-errors", (HOOK_ERRORS, "run", *at))])
     says = []

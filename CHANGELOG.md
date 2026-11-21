@@ -4,6 +4,11 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **The guard door refuses the person's own door.** A model's tool call
+  that runs the pipe, the `provider` command, the seal page or the seal
+  prompt is blocked by the runtime, before Willow's guards, naming the door;
+  the pipe had handed back passages with no seal, and takes `stop`,
+  `restore` and `share_send`. Reading their files is let by.
 - **The guard door refuses a seal.** A model's shell could run the
   kernel's `seal` or `decline`, which read the key themselves (Willow bug
   #91); the pin moves to Willow's `0c07be1` (#387), whose `hook-guard`

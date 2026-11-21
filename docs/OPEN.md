@@ -518,18 +518,14 @@ a time. Not built with it: a button on the seal page to stop a skill
 
 ### Could do, not asked for
 
-- **The person's own door, run by a model's shell (found 2026-11-20).**
-  The guard door lets a model's tool call run `provider read`,
-  `doors/pipe.py`, `seal_page.py` and `seal_prompt.py`: eight such
-  commands were fed to it over a made-up record, and each was allowed.
-  `provider read` hands back passages with no seal (it is the person's
-  door), and the pipe takes `stop`, `restore` and `share_send` too.
-  Willow's `hook-guard` is for the kernel's key and record; these are the
-  Provider's own doors, so the rule belongs in `runtime.guards()`: refuse
-  a tool call that runs one of them, by paths and words as `hook-guard`
-  does (a script the model writes to get round it still gets through), with
-  tests that fail without it, and a line in SECURITY.md and
-  [doors.md](doors.md).
+- ~~**The person's own door, run by a model's shell.**~~ Done 2026-11-21:
+  `runtime.own_doors_guard()`, asked before Willow's guards, blocks a tool
+  call that runs the pipe, the `provider` command, the seal page or the
+  seal prompt (as the program, past `env`, `timeout` and the like, or the
+  script an interpreter is handed), naming the door, on the sent log by
+  whom. Reading their files, and the word anywhere else, is let by. A
+  script the model writes, or `python -c`, gets past it, as past
+  `hook-guard`. `tests/test_guard.py` holds both sides.
 - **A record made with `--from` and the Provider's backup (2026-11-20).**
   Willow's `backup` is one of the 37 add-ons that crash with a traceback
   on a box reading several places (willow-memory/Willow#383, a strict
