@@ -98,9 +98,11 @@ def sent(box: Path, door: str, verb: str, got: dict) -> dict:
 def sent_log(box: Path) -> dict:
     """What has left, oldest first, and whether the log still holds: each line
     names the hash of the one before it. The last line has no later one to
-    vouch for it, so a cut or edit there doesn't show here: pin_sent keeps
-    the newest hash somewhere the log can't reach, and check_sent holds the
-    log to it (Willow's tip-pin, for this log)."""
+    vouch for it, so a cut or edit there doesn't show here. Each session's
+    close seals where the log ended with the session, under the person's
+    key, and check_sent with no pin holds the log to the last they sealed;
+    pin_sent keeps the newest hash somewhere the log can't reach, and
+    check_sent holds the log to that (Willow's tip-pin, for this log)."""
     f = state(box) / "sent.jsonl"
     lines = f.read_text().splitlines() if f.exists() else []
     rows, breaks = [], []
@@ -483,9 +485,13 @@ def pin_sent(box: Path, to: Path) -> dict:
     return {"state": "pinned", "rows": len(lines), "tip": tip, "to": str(to)}
 
 
-def check_sent(box: Path, pin: Path) -> dict:
+def check_sent(box: Path, pin: Path | None = None) -> dict:
     """The sent log against a pin: holds (perhaps with lines since), cut short,
-    or rewritten where the pin ended."""
+    or rewritten where the pin ended. With no pin, against the last session
+    the person sealed, which holds where the log ended then (Willow's
+    session-seal, `check --log`): the kernel reads their key, never this."""
+    if pin is None:
+        return sent_sealed(box)
     try:
         want = json.loads(pin.read_text())
         rows, tip = int(want["rows"]), str(want["tip"])
@@ -504,6 +510,34 @@ def check_sent(box: Path, pin: Path) -> dict:
     if rows and hashlib.sha256(lines[rows - 1].encode()).hexdigest() != tip:
         return {"state": "rewritten", "at": rows - 1}
     return {"state": "holds", "pinned": rows, "since": len(lines) - rows}
+
+
+def sent_sealed(box: Path) -> dict:
+    """The sent log against the last session the person sealed: `holds`,
+    `cut short` or `rewritten`, with session-seal's own words; `not sealed
+    yet` before any session that names where it ended is sealed."""
+    f = state(box) / "sent.jsonl"
+    if not f.is_file():
+        return {"state": "empty"}
+    got = sent_log(box)
+    if got["breaks"]:
+        return {
+            "state": "refused",
+            "code": "log_changed",
+            "why": f"the log doesn't hold at line {got['breaks'][0]}",
+        }
+    run = willow(SESSION_SEAL, "--box", str(box), "check", "--log", str(f), "--json")
+    try:
+        doc = json.loads(run.stdout)
+        (row,) = [g for g in doc["groups"] if g["name"] == "your log"][0]["rows"]
+    except (ValueError, KeyError, IndexError, TypeError):
+        why = (run.stderr or run.stdout).strip()
+        return {"state": "refused", "code": "session_failed", "why": why}
+    word = str(row["what"]).split(":")[0]
+    for w in ("holds", "cut short", "rewritten", "not sealed yet"):
+        if word.startswith(w):
+            return {"state": w, "sealed": row["where"], "said": row["what"]}
+    return {"state": "refused", "code": "session_failed", "why": row["what"]}
 
 
 INDEX_CACHE = "adapters/stdlib/index-cache/index_cache.py"
@@ -1795,10 +1829,15 @@ def close(box: Path, session=None) -> dict:
     """At a session's end, Willow's session-seal: the record's rows since the
     last bundle, as one proposal for the person to seal once (yes, these were
     my actions), and with it what they said to correct the assistant that
-    session, in their words. It only proposes; it never seals. Its bite is
-    now the record's last, so the read a model made goes with the session."""
+    session, in their words, and where the sent log ended, so the seal pins
+    the one line the log can't vouch for itself (a log that doesn't hold is
+    left out, and said). It only proposes; it never seals. Its bite is now
+    the record's last, so the read a model made goes with the session."""
     kept = corrections_of(box, session)
     with_ = ("--with", str(kept)) if kept is not None and kept.is_file() else ()
+    log, broken = state(box) / "sent.jsonl", sent_log(box)["breaks"]
+    if log.is_file() and not broken:
+        with_ += ("--log", str(log))
     run = willow(
         SESSION_SEAL, "--box", str(box), "--json", "--index", str(index(box)), *with_
     )
@@ -1816,11 +1855,14 @@ def close(box: Path, session=None) -> dict:
     if doc.get("state") != "populated":
         return {"state": "empty"}
     forget_read(box)
-    if with_:  # in the session's proposal now: kept nowhere else
+    if "--with" in with_:  # in the session's proposal now: kept nowhere else
         kept.unlink(missing_ok=True)
     rows = [r for g in doc.get("groups", []) for r in g["rows"]]
-    return {"state": "waiting", "seal": rows[0]["what"] if rows else None,
-            "rows": doc.get("said", "")}  # fmt: skip
+    got = {"state": "waiting", "seal": rows[0]["what"] if rows else None,
+           "rows": doc.get("said", "")}  # fmt: skip
+    if broken:
+        got["log"] = f"not in the seal: the log doesn't hold at line {broken[0]}"
+    return got
 
 
 def owed(box: Path) -> dict:
@@ -4362,7 +4404,9 @@ VERBS = {
         "backup": lambda box, arg, **kw: backup(box, Path(str(arg))),
         "restore": lambda box, arg, **kw: restore(box, Path(str(arg))),
         "pin": lambda box, arg, **kw: pin_sent(box, Path(str(arg))),
-        "check": lambda box, arg, **kw: check_sent(box, Path(str(arg))),
+        "check": lambda box, arg, **kw: check_sent(
+            box, Path(str(arg)) if arg else None
+        ),
         "models": lambda box, arg, **kw: models(box),
         "draft": lambda box, arg, **kw: draft(box, str(arg), None, kw.get("door", "")),
         "close": lambda box, arg, **kw: close(box, arg),
@@ -4612,6 +4656,9 @@ def status(box: Path) -> dict:
         rows.append(("a model was told or given something",
                      count(len(log["rows"]), "time")))  # fmt: skip
         rows.append(("the last time", lines[len(log["rows"]) - 1]))
+        held = sent_sealed(box)  # the log against the last session you sealed
+        rows.append(("against your last sealed session",
+                     held.get("said") or held.get("why") or held["state"]))  # fmt: skip
     group("Shared", rows)
 
     mine = tasks_known(box).values()

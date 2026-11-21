@@ -36,7 +36,7 @@ proposed back and wait for another human seal.
   `set_up.py` + `hosts.py`, `willow_pin.py` + `willow.pin.json`.
 - Already wired from Willow: approved-only, sentence-check, session-seal,
   index-cache, privacy/withhold, local-model/openai-compatible paths,
-  backup, chained sent log + pin/check.
+  backup, chained sent log + pin/check, its end sealed with each session.
 - Design is intentionally inverted vs typical MCP: model proposes → human
   seals → only then does a page leave. Pure stdlib + pinned Willow. Doors
   decide nothing (enforced by tests).

@@ -275,7 +275,7 @@ def test_a_correction_is_kept_for_the_sessions_one_seal_and_never_waits_alone(bo
     assert json.loads(bundle)["corrections"] == [
         "No, I said the frost comes in late October"
     ]
-    assert w["claim"].endswith(", and 1 correction of yours")
+    assert w["claim"].endswith(", and 1 correction of yours, and your log's 4 lines")
     assert not kept.exists()  # in the session's proposal now, and nowhere else
 
 

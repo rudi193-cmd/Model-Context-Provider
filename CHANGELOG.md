@@ -4,6 +4,15 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Your seal pins the sent log's end.** A chained log can't vouch for its
+  last line, so a cut there showed only against a pin kept by hand. Each
+  session's close now hands Willow's session-seal the log (`--log`), and
+  the one proposal you seal holds its lines and its last line's hash; the
+  claim says "and your log's N lines". `check` with no pin holds the log to
+  the last session you sealed (holds, cut short, rewritten, or not sealed
+  yet), and `status` says it under Shared. A log that doesn't hold is left
+  out of the seal, and close says so. The kernel reads your key; this never
+  does. Pinned to Willow `9446bf9`, on its branch until it merges.
 - **Setup says who can read your key.** From the file's owner and mode,
   never its bytes: the account setup runs as is the one any assistant runs
   as, so a key it can read is one a script the assistant writes can read.
