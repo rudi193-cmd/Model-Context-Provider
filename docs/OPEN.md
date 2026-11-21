@@ -773,19 +773,18 @@ and the last drift result; every judgement in it is a Willow card's.
 - Quoted speech in the `todo` report.
 - The privacy filter reading a run of four-digit numbers as a card.
 - What Kartikeya's scan of a job missed (written up above).
-- **#91's fix, to main (2026-11-20).** A model's shell could run the
-  kernel's `seal` or `decline`, which read the key themselves, and the guard
-  door let it. `hook-guard` 0.2.0's `seal` rule refuses it (any kernel,
-  any port, any box), 6 of 6 mutants killed, on Willow's
-  `ccr-9265087c-pvfpcl` with no pull request yet; the pin moves to it once
-  it lands, and the guard door has it with no change here.
+- ~~**#91's fix, to main.**~~ Done 2026-11-21: willow-memory/Willow#387
+  merged `hook-guard` 0.2.0, whose `seal` rule refuses a command that runs
+  the kernel's `seal` or `decline` (any kernel, any port, any box). The pin
+  is on `0c07be1`, and `tests/test_guard.py` holds it through the guard
+  door. A script the model writes to get round it still gets through: keep
+  the key where the account the assistant runs as can't read it.
 - **#90, a search of the key's folder.** A Grep or recursive Glob over the
   folder that holds the key gets past `hook-guard` (a strict xfail in its
   tests); the guard door inherits it.
-- **The same Willow branch's other two:** `gh-json` 0.2.0 (GitHub's REST
-  answers read as `gh --json`, a merge queue's run said as the pull request
-  it holds) and the contract test that holds every add-on to "refuse or
-  read" on a box of sources (#383). One pull request would carry all three.
+- ~~**The same Willow branch's other two.**~~ Done in #387 with it:
+  `gh-json` 0.2.0, and the contract test that holds every add-on to
+  "refuse or read" on a box of sources (#383, 37 strict xfails to fix).
 - **`starter.py copy` names `init --words`.** Its last line says "then init
   --words FILE"; since #386 it can name `kernel.py words`, which
   `set_up.py` now prints after it.

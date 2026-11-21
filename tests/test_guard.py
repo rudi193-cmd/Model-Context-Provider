@@ -44,6 +44,19 @@ def test_a_call_that_names_the_key_is_blocked_and_says_which_rule(box, tmp_path)
     assert "rule key" in run.stderr and run.stdout == ""
 
 
+def test_a_command_that_seals_or_declines_is_blocked(box):
+    """Willow's bug #91: seal and decline read the key themselves, so a
+    command that runs them names no key and writes nothing by hand. The
+    guard door has hook-guard's seal rule, on any box and any kernel."""
+    subj = "proposal:" + "0" * 64
+    for verb in ("seal", "decline"):
+        cmd = f"python3 {runtime.WILLOW / 'kernel.py'} {verb} --box {box} {subj}"
+        run = guard(box, before("Bash", command=cmd))
+        assert run.returncode == 2 and "rule seal" in run.stderr, run.stderr
+    asked = f"python3 {runtime.WILLOW / 'kernel.py'} bite --box {box} 'when do I seal the jars'"
+    assert guard(box, before("Bash", command=asked)).returncode == 0
+
+
 def test_a_write_into_the_record_is_blocked(box):
     run = guard(box, before("Write", file_path=str(box / "record.jsonl"), content="x"))
     assert run.returncode == 2 and "rule box-write" in run.stderr
