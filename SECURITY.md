@@ -23,6 +23,9 @@ welcome.
   that runs it directly. A script a model writes to get round it is past
   what a guard of words can see; keeping the key where the account the
   assistant runs as can't read it is the guarantee for that;
+- the guard door unwired by an assistant: from `~/.claude/settings.json`
+  it can be, which `set_up.py` says; installed through Claude Code's managed
+  settings (`set_up.py --write managed`) it should not be;
 - what left not on the sent log, or the log changed without `check` saying
   so against a pin.
 

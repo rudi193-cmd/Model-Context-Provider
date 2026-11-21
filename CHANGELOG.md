@@ -4,6 +4,12 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **The guard door where an assistant can't switch it off.** In
+  `~/.claude/settings.json` an assistant allowed to edit `~/.claude` could
+  unwire it. `set_up.py --write managed` writes the same hooks for Claude
+  Code's managed settings (a drop-in, `managed-settings.d/`) and prints the
+  `sudo` line that installs them; `set_up.py` says which of the two the
+  guard door is in. The Grove's one-box design, threat 3.
 - **A record made from several places is told, not shown a traceback.**
   Backup, `coming-up`, `pii-audit`, `secrets-audit`, `ref-check` and
   `timeline` refuse in plain words (`reads_one_folder`) on a record made

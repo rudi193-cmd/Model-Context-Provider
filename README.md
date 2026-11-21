@@ -88,7 +88,14 @@ By default it changes nothing of your client's. To finish one:
 
 `--write` merges the MCP door into that assistant's home settings (and for
 Cursor, the session hooks that tell you what waits). It never overwrites an
-entry by our name that already differs. To draft answers with a model on this
+entry by our name that already differs. For Claude Code, the guard door
+there sits in your own settings, which an assistant allowed to edit
+`~/.claude` could switch off; setup says so, and
+
+    python set_up.py --box BOX --write managed
+
+writes the same hooks for Claude Code's managed settings, with the one
+`sudo` line that installs them where only an administrator writes. To draft answers with a model on this
 machine (Ollama, llama.cpp, LM Studio…), add `--model
 http://127.0.0.1:11434/v1 NAME`. That writes `model.json` beside your record,
 and nothing else. A model off this machine is refused.

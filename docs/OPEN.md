@@ -518,6 +518,13 @@ a time. Not built with it: a button on the seal page to stop a skill
 
 ### Could do, not asked for
 
+- ~~**The guard door, unwired by an assistant.**~~ Done 2026-11-21, from
+  the Grove's one-box design (threat 3, "the doors can be removed"): an
+  Edit of `~/.claude/settings.json` passed every guard, and removed them
+  all. `set_up.py --write managed` writes the hooks for Claude Code's
+  managed settings with the line that installs them, and `check` names
+  where the guard door is. Not built from that design: "door missing", a
+  session whose turns come with no door called, reported loudly.
 - ~~**The person's own door, run by a model's shell.**~~ Done 2026-11-21:
   `runtime.own_doors_guard()`, asked before Willow's guards, blocks a tool
   call that runs the pipe, the `provider` command, the seal page or the

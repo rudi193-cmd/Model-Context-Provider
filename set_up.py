@@ -13,6 +13,9 @@ record, and only when you name a model.
     python set_up.py --box BOX --write cursor
     python set_up.py --box BOX --write all
     python set_up.py --box BOX --write command    your own door, as `provider`
+    python set_up.py --box BOX --write managed    Claude Code's hooks, for its
+                                                  managed settings, and the line
+                                                  that installs them
 """
 
 from __future__ import annotations
@@ -96,6 +99,14 @@ def check(box: Path) -> list[tuple[str, bool | None, str]]:
         out.append(("your words", None, "none: this record was made with no words list, "
                     "so a question in your own words finds less. Give it the starter "
                     f"list, then add lines of your own to it:\n\n    {copy}\n    {give}\n"))  # fmt: skip
+    where = guard_where(box)
+    out.append(("the guard door", True if where == "managed" else None,
+                "in Claude Code's managed settings: an assistant can't switch it off"
+                if where == "managed" else
+                "in ~/.claude/settings.json, where an assistant let edit ~/.claude could "
+                "switch it off; to make it the administrator's: python set_up.py --box "
+                f"{shlex.quote(str(box))} --write managed" if where == "user" else
+                "not in Claude Code's settings (another assistant's hooks are its own)"))  # fmt: skip
     model = runtime.state(box) / "model.json"
     out.append(("a model to draft with", True, f"named in {model}" if model.exists()
                 else "none: drafting needs a client that samples, or --model URL NAME"))  # fmt: skip
@@ -213,6 +224,78 @@ def write_claude_hooks(box: Path) -> list[str]:
     ]
 
 
+#: the Provider's own file among Claude Code's managed settings: a drop-in,
+#: so it never touches managed-settings.json or anyone else's file there
+MANAGED_NAME = "50-model-context-provider.json"
+
+
+def managed_dir() -> Path:
+    """Where Claude Code reads its managed settings on this system (its docs,
+    managed-settings): only an administrator writes there, so a hook in it is
+    one an assistant running as the person can't edit or switch off."""
+    if sys.platform == "darwin":
+        return Path("/Library/Application Support/ClaudeCode")
+    if sys.platform.startswith("win"):
+        return Path(r"C:\Program Files\ClaudeCode")
+    return Path("/etc/claude-code")
+
+
+def guard_where(box: Path) -> str:
+    """Where Claude Code is told to run this record's guard door: "managed"
+    when a managed settings file holds it, "user" when only the person's own
+    settings do, "" when neither."""
+
+    def holds(f: Path) -> bool:
+        try:
+            text = f.read_text()
+        except (OSError, UnicodeDecodeError):
+            return False
+        return "doors/guard.py" in text and str(box.resolve()) in text
+
+    d = managed_dir()
+    managed = [
+        d / "managed-settings.json",
+        *sorted((d / "managed-settings.d").glob("*.json")),
+    ]
+    if any(holds(f) for f in managed):
+        return "managed"
+    return "user" if holds(Path.home() / ".claude" / "settings.json") else ""
+
+
+def write_managed(box: Path) -> list[str]:
+    """Claude Code's hooks, the same as --write claude-code, as a file of
+    their own for its managed settings, and the line that installs it. That
+    folder is an administrator's, so this never writes there: the person
+    runs the line, with sudo. Once it is there, an assistant that can edit
+    ~/.claude can't switch the guard door off, and disableAllHooks in user or
+    project settings doesn't reach it."""
+    text = json.dumps(claude_hooks(box.resolve()), indent=2) + "\n"
+    made = Path.home() / ".claude" / "model-context-provider-managed.json"
+    made.parent.mkdir(parents=True, exist_ok=True)
+    made.write_text(text)
+    to = managed_dir() / "managed-settings.d" / MANAGED_NAME
+    if sys.platform.startswith("win"):
+        install = f'copy "{made}" "{to}"   (in a terminal run as administrator)'
+    elif sys.platform == "darwin":
+        install = (f"sudo mkdir -p {shlex.quote(str(to.parent))} && "
+                   f"sudo install -m 644 {shlex.quote(str(made))} {shlex.quote(str(to))}")  # fmt: skip
+    else:
+        install = (
+            f"sudo install -D -m 644 {shlex.quote(str(made))} {shlex.quote(str(to))}"
+        )
+    return [
+        f"wrote {made}: the hooks, for Claude Code's managed settings",
+        "Install it, in a terminal of your own (it needs your administrator password):",
+        "",
+        f"    {install}",
+        "",
+        "Then an assistant can't switch the guard door off by editing your settings.",
+        "The same hooks in ~/.claude/settings.json can stay: a hook named twice runs once.",
+        'To block every hook but managed ones too, add "allowManagedHooksOnly": true to the',
+        "file before you install it; that blocks your own other hooks as well.",
+    ]
+
+
 COMMAND = "provider"
 
 
@@ -251,6 +334,8 @@ def write(box: Path, which: str) -> list[str]:
     save the person's own door as a command."""
     if which == "command":
         return write_command(box)
+    if which == "managed":
+        return write_managed(box)
     if which == "claude-code":
         return write_claude_hooks(box)
     if which == "all":

@@ -89,6 +89,16 @@ a model runs: a script that builds the path at run time, a `$VAR` path, or a
 never sends to a hook. Nothing here hides the folder from a model that can
 run code as you; the seal page and the kernel are what hold the rest.
 
+A guard works only while it is wired. In `~/.claude/settings.json` it is
+yours to edit, so an assistant allowed to edit `~/.claude` could unwire it,
+and `disableAllHooks` there turns it off. Claude Code's managed settings are
+an administrator's: `set_up.py --write managed` writes the same hooks as a
+file of their own, `managed-settings.d/50-model-context-provider.json`, and
+prints the `sudo` line that installs it (setup never writes there itself).
+A hook there isn't turned off by user or project settings. `set_up.py` says
+which of the two this record's guard door is in. (The design is the Grove's
+one-box threat 3, "the doors can be removed", 2026-10-06.)
+
 What these hand a model is a rule's name, a session's id and folder, or a
 count. None of them hands it a word of your files: Willow's `hook-start`,
 `hook-compact` and `hook-impact`, which do, are not used.

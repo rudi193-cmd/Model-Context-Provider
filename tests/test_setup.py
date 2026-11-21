@@ -190,3 +190,54 @@ def test_a_record_with_words_is_told_it_can_add_its_own(tmp_path):
     code, out = run("--box", b)
     assert code == 0 and f"ok  your words: in use: {words}" in out
     assert "add a line of your own to it any time" in out
+
+
+def test_the_hooks_are_written_for_managed_settings_with_the_line_that_installs_them(
+    box, tmp_path, monkeypatch
+):
+    """In ~/.claude/settings.json an assistant allowed to edit ~/.claude can
+    switch the guard door off. Claude Code's managed settings are an
+    administrator's: setup writes the same hooks as a file of their own and
+    prints the line that installs them, and never writes there itself."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    managed = tmp_path / "etc-claude-code"
+    monkeypatch.setattr(setup, "managed_dir", lambda: managed)
+    lines = setup.write(box, "managed")
+    made = home / ".claude" / "model-context-provider-managed.json"
+    assert json.loads(made.read_text()) == setup.claude_hooks(box.resolve())
+    to = managed / "managed-settings.d" / setup.MANAGED_NAME
+    assert any(
+        str(to) in ln and ln.strip().startswith(("sudo", "copy")) for ln in lines
+    )
+    assert not managed.exists()  # the administrator's to write, not setup's
+
+
+def test_setup_says_where_the_guard_door_is_and_whether_it_can_be_switched_off(
+    box, tmp_path, monkeypatch
+):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    managed = tmp_path / "etc-claude-code"
+    monkeypatch.setattr(setup, "managed_dir", lambda: managed)
+
+    def row():
+        return next(r for r in setup.check(box) if r[0] == "the guard door")
+
+    assert row()[1] is None and "not in Claude Code's settings" in row()[2]
+    setup.write(box, "claude-code")  # the person's own settings
+    assert (
+        row()[1] is None
+        and "could switch it off" in row()[2]
+        and "--write managed" in row()[2]
+    )
+    (managed / "managed-settings.d").mkdir(parents=True)
+    made = home / ".claude" / "model-context-provider-managed.json"
+    setup.write(box, "managed")
+    (managed / "managed-settings.d" / setup.MANAGED_NAME).write_text(made.read_text())
+    assert row()[1] is True and "can't switch it off" in row()[2]
+    # another record's guard door there is not this one's
+    other = tmp_path / "other-box"
+    assert setup.guard_where(other) == ""
