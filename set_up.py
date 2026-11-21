@@ -99,6 +99,15 @@ def check(box: Path) -> list[tuple[str, bool | None, str]]:
         out.append(("your words", None, "none: this record was made with no words list, "
                     "so a question in your own words finds less. Give it the starter "
                     f"list, then add lines of your own to it:\n\n    {copy}\n    {give}\n"))  # fmt: skip
+    reader = key_reader(Path(cfg.get("key", "")))
+    out.append(("who can read your key", None if reader != "another account" else True,
+                "an account of its own: an assistant running as you can't read it"
+                if reader == "another account" else
+                "this account, the one any assistant you run works as, so a script it "
+                "writes can read it, whatever a guard says. Keeping it in an account of "
+                "its own, with sealing across, is designed in docs/OPEN.md, not built"
+                if reader == "this account" else
+                "can't be told here"))  # fmt: skip
     where = guard_where(box)
     out.append(("the guard door", True if where == "managed" else None,
                 "in Claude Code's managed settings: an assistant can't switch it off"
@@ -260,6 +269,23 @@ def guard_where(box: Path) -> str:
     if any(holds(f) for f in managed):
         return "managed"
     return "user" if holds(Path.home() / ".claude" / "settings.json") else ""
+
+
+def key_reader(key: Path) -> str:
+    """Who can read the key, from what the system says of the file, never
+    its bytes: "this account" when the account setup runs as can (the one an
+    assistant runs as, whatever it is told), "another account" when it can't,
+    "" when it can't be told (no file there, or no owner to ask, as on
+    Windows)."""
+    try:
+        st = key.stat()
+    except OSError:
+        return ""
+    if not hasattr(os, "getuid"):
+        return ""
+    if st.st_uid == os.getuid() or os.access(key, os.R_OK):
+        return "this account"
+    return "another account"
 
 
 def write_managed(box: Path) -> list[str]:

@@ -767,6 +767,65 @@ and the last drift result; every judgement in it is a Willow card's.
 - Whether the tunnel is set up by the person, as today, or by
   `set_up.py`, which would then be running `ssh`.
 
+### The key in an account of its own (designed 2026-11-21, not built)
+
+**Why.** Every guard here judges words: a path, a glob, a program's name.
+Code an assistant writes gets past all of them, and every card says so.
+The one guarantee words can't give is the system's own: a key in a file
+the account the assistant runs as can't read. Any assistant runs as the
+person, so that means an account of the key's own. The owner's machine
+already has this shape (the vault in an account of its own); this is that
+shape for anyone, on any system, with no name of ours in it.
+`set_up.py` now says who can read the key, from the file's owner and mode,
+never its bytes.
+
+**The Grove's word on it** (`docs/design/one-box/README.md`, "the four
+that change the design", 1): a check of which account calls keeps out
+other users and sandboxes, not the model in the person's own shell; acts
+only the person does (grant, seal) take a passkey every time, never an
+account alone. A password every time is the weaker form that every system
+has.
+
+**The steps, for when sealing can cross** (not to follow yet: today they
+would stop the seal page and the desktop prompt from sealing). The person
+names the account, `KEYHOLDER`:
+- *Linux:* `sudo useradd --system --no-create-home --shell /usr/sbin/nologin KEYHOLDER`
+- *macOS:* a role account in Users & Groups, or `sysadminctl`
+- *Windows:* a local account, and `icacls` for the file
+- then the key's folder and the key to it, 700 and 600.
+
+**Sealing across the line.** The kernel's `seal` and `decline` read the
+key, so they run as `KEYHOLDER`. Three ways for the person's click to get
+there:
+- *A.* The seal page runs as the keyholder (`sudo -u KEYHOLDER python3
+  seal_page.py --box BOX`). The page reads the box and the runtime's files,
+  so those need a group both accounts share.
+- *B.* The page stays the person's, and a click runs `sudo -u KEYHOLDER
+  kernel.py seal`. Without a terminal that is `NOPASSWD`, which the
+  assistant can use as well as the person: refused.
+- *C.* A small seal helper, run as the keyholder, that the page hands a
+  click to and that asks for a passkey (or a password, with sudoers'
+  `timestamp_timeout=0` so no earlier ticket carries it) every time. The
+  Grove's shape.
+
+Claude's lean: *C*, with a password where a passkey isn't there yet, and
+*A* as the way to try it first.
+
+**The record, shared and append-only.** The kernel writes the record as
+the person while asking and as the keyholder while sealing, so the box's
+folder takes a group both are in (setgid, so new files keep it). And
+`chattr +a` (Linux) or `chflags uappend` (macOS) on `record.jsonl` lets
+rows be added and none rewritten, by either; the chain and Willow's
+`tip-pin` already show a rewrite, this stops one. Restore and Willow's
+`removed` add rows, so they keep working; nothing here truncates it.
+
+**Open in it, the owner's:**
+- A, C, or both; and a password until passkeys, or passkeys first.
+- Whether the box's folder is the person's with a shared group, or the
+  keyholder's with the person reading it.
+- Whether `chattr +a` is a step setup prints, or only said.
+- Windows, where neither `sudo` nor `chattr` is.
+
 ### The owner's to decide (changes to Willow)
 
 - An early exit in the kernel's date reader: `on-this-day`, `coming-up`

@@ -241,3 +241,28 @@ def test_setup_says_where_the_guard_door_is_and_whether_it_can_be_switched_off(
     # another record's guard door there is not this one's
     other = tmp_path / "other-box"
     assert setup.guard_where(other) == ""
+
+
+def test_setup_says_who_can_read_the_key_without_opening_it(box, tmp_path, monkeypatch):
+    """The account setup runs as is the one any assistant runs as. A key it
+    can read is one a script the assistant writes can read, whatever a guard
+    says; only a key in an account of its own is out of reach. Told from the
+    file's owner and mode, never its bytes."""
+    key = Path(json.loads((box / "kernel.json").read_text())["key"])
+
+    def row():
+        return next(r for r in setup.check(box) if r[0] == "who can read your key")
+
+    assert setup.key_reader(key) == "this account"
+    assert row()[1] is None and "any assistant you run" in row()[2]
+    opened = []
+    real_open = Path.open
+    monkeypatch.setattr(Path, "open", lambda self, *a, **k: (opened.append(self), real_open(self, *a, **k))[1])  # fmt: skip
+    setup.key_reader(key)
+    assert key not in opened  # its owner and mode only
+    if hasattr(os, "getuid"):  # another account's: as the system would say it
+        monkeypatch.setattr(os, "getuid", lambda: key.stat().st_uid + 1)
+        monkeypatch.setattr(os, "access", lambda *a, **k: False)
+        assert setup.key_reader(key) == "another account"
+        assert row()[1] is True and "can't read it" in row()[2]
+    assert setup.key_reader(tmp_path / "no-key-here") == ""
