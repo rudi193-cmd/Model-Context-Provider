@@ -518,6 +518,27 @@ a time. Not built with it: a button on the seal page to stop a skill
 
 ### Could do, not asked for
 
+- **The person's own door, run by a model's shell (found 2026-11-20).**
+  The guard door lets a model's tool call run `provider read`,
+  `doors/pipe.py`, `seal_page.py` and `seal_prompt.py`: eight such
+  commands were fed to it over a made-up record, and each was allowed.
+  `provider read` hands back passages with no seal (it is the person's
+  door), and the pipe takes `stop`, `restore` and `share_send` too.
+  Willow's `hook-guard` is for the kernel's key and record; these are the
+  Provider's own doors, so the rule belongs in `runtime.guards()`: refuse
+  a tool call that runs one of them, by paths and words as `hook-guard`
+  does (a script the model writes to get round it still gets through), with
+  tests that fail without it, and a line in SECURITY.md and
+  [doors.md](doors.md).
+- **A record made with `--from` and the Provider's backup (2026-11-20).**
+  Willow's `backup` is one of the 37 add-ons that crash with a traceback
+  on a box reading several places (willow-memory/Willow#383, a strict
+  xfail each), and `runtime.backup()` calls it. A record made in Willow's
+  UI is one folder and isn't touched; one made by hand with `--from` is.
+  Until #383 is fixed, the runtime can say so in its own words (the record
+  reads several places; Willow's backup reads one) instead of passing the
+  traceback through, with a test on such a record.
+
 - The check, faster still: Willow's `test-impact` (only the tests a change
   can reach, first) and `ci-memo` are written around Willow's own layout
   and were not used; `slow-tests` reads the timing file the check now
@@ -752,6 +773,28 @@ and the last drift result; every judgement in it is a Willow card's.
 - Quoted speech in the `todo` report.
 - The privacy filter reading a run of four-digit numbers as a card.
 - What Kartikeya's scan of a job missed (written up above).
+- **#91's fix, to main (2026-11-20).** A model's shell could run the
+  kernel's `seal` or `decline`, which read the key themselves, and the guard
+  door let it. `hook-guard` 0.2.0's `seal` rule refuses it (any kernel,
+  any port, any box), 6 of 6 mutants killed, on Willow's
+  `ccr-9265087c-pvfpcl` with no pull request yet; the pin moves to it once
+  it lands, and the guard door has it with no change here.
+- **#90, a search of the key's folder.** A Grep or recursive Glob over the
+  folder that holds the key gets past `hook-guard` (a strict xfail in its
+  tests); the guard door inherits it.
+- **The same Willow branch's other two:** `gh-json` 0.2.0 (GitHub's REST
+  answers read as `gh --json`, a merge queue's run said as the pull request
+  it holds) and the contract test that holds every add-on to "refuse or
+  read" on a box of sources (#383). One pull request would carry all three.
+- **`starter.py copy` names `init --words`.** Its last line says "then init
+  --words FILE"; since #386 it can name `kernel.py words`, which
+  `set_up.py` now prints after it.
+- **A "nothing hosted" check.** Run the base assistant
+  ([base-jarvis.md](base-jarvis.md)) with the network off and only a model
+  on this machine, and write down what works and what breaks: the kernel,
+  the seal page, the person's door and `local-model` should all hold; the
+  MCP door needs a client, and the voice loop is half ideas. The answer to
+  "what if hosted models get dear or go", as a test rather than a claim.
 
 ### The owner's own
 
