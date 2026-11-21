@@ -784,8 +784,11 @@ and the last drift result; every judgement in it is a Willow card's.
   `ccr-9265087c-pvfpcl` (`6310940`, `hook-guard` 0.2.1), not on main yet:
   a Grep over the key's folder or one above it, and a recursive Glob there
   that could name the key, are refused; a search whose own filter leaves
-  the key out is let by. The Provider's guard and hook tests pass on it.
-  The pin moves when it lands.
+  the key out is let by. Its shell twin is fixed beside it (`ce79466`): a
+  glob the shell expands to the key (`cat` of a star in its folder) and a
+  recursive read of its folder or one above it (`grep -r`, `rg`, `cp -r`,
+  `rsync -a`, `zip -r`, `tar` making an archive). The Provider's guard,
+  hook and session tests pass on both. The pin moves when they land.
 - ~~**The same Willow branch's other two.**~~ Done in #387 with it:
   `gh-json` 0.2.0, and the contract test that holds every add-on to
   "refuse or read" on a box of sources (#383, 37 strict xfails to fix).
