@@ -153,3 +153,22 @@ def test_a_propose_after_reading_notes_scopes_no_earlier_read(box):
     runtime.call(box, "notes", door="mcp")
     got = runtime.call(box, "propose", door="mcp")
     assert (got["state"], got["code"]) == ("refused", "nothing_to_scope")
+
+
+def test_a_note_is_no_longer_than_is_read_and_so_many_wait_at_most(box, monkeypatch):
+    """A model never let in could hand in notes of any size, any number of
+    them, each kept in the record's proposals and waiting on the seal page."""
+    long = runtime.call(box, "capture", "x" * (runtime.NOTE_MOST + 1), door="mcp")
+    assert long["code"] == "note_too_long" and not runtime.waiting(box).get("waiting")
+    assert (
+        runtime.call(box, "capture", "x" * runtime.NOTE_MOST, door="mcp")["state"]
+        == "waiting"
+    )
+    monkeypatch.setattr(runtime, "NOTES_WAITING_MOST", 2)
+    second = runtime.call(box, "capture", "A second note.", door="mcp")
+    full = runtime.call(box, "capture", "A third note.", door="mcp")
+    assert full["code"] == "notes_waiting"
+    seal(box, second["seal"])  # the person looks at one: there is room again
+    assert (
+        runtime.call(box, "capture", "A third note.", door="mcp")["state"] == "waiting"
+    )

@@ -97,7 +97,7 @@ def main(argv: list[str]) -> int:
             return 0
         event = event_of(host, sent)
         if event in ("SessionEnd", "sessionEnd"):
-            runtime.call(box, "close", door="session")
+            runtime.call(box, "close", sent.get("session_id"), door="session")
         elif event in ("SessionStart", "sessionStart"):
             show(host, told(runtime.call(box, "owed", door="session"), host))
         elif event == "afterMCPExecution":

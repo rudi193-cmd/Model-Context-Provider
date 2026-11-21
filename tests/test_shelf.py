@@ -184,3 +184,22 @@ def test_the_mcp_door_shelves_under_the_folder_the_client_started_it_in(box, tmp
     other = tmp_path / "other"
     other.mkdir()
     assert mcp(box, other, tool(1, "shelf", {"action": "list"}))[0]["items"] == []
+
+
+def test_a_shelf_holds_so_many_things_or_so_much_and_no_more(
+    box, tmp_path, monkeypatch
+):
+    """A model never let in could fill the disk a megabyte at a time."""
+    where = str(tmp_path / "project")
+    add = lambda name, text: runtime.call(  # noqa: E731
+        box, "shelf_add", {"name": name, "text": text}, door="mcp", where=where
+    )
+    monkeypatch.setattr(runtime, "SHELF_ITEMS_MOST", 2)
+    assert add("a.md", "one")["state"] == add("b.md", "two")["state"] == "shelved"
+    assert add("c.md", "three")["code"] == "shelf_full"
+    assert add("a.md", "one") == {"state": "shelved", "name": "a.md", "same": True}
+    monkeypatch.setattr(runtime, "SHELF_ITEMS_MOST", 200)
+    monkeypatch.setattr(runtime, "SHELF_BYTES_MOST", 10)
+    assert add("d.md", "more than ten bytes")["code"] == "shelf_full"
+    folder, _ = runtime.shelf_at(box, where)
+    assert sorted(p.name for p in folder.iterdir()) == ["a.md", "b.md"]

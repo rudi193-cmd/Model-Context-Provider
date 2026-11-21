@@ -37,14 +37,19 @@ assistant is asked when it comes.
    on the person.
 3. **The person seals it,** with their key. Nothing else can.
 4. **The page leaves.** The model gets one page: the sealed passages, under
-   ids it can't guess. Names the person listed, and numbers, emails and keys,
-   are withheld. The page leaves only whole; if a sealed passage has changed
-   since, nothing leaves.
+   ids it can't guess. Names the person listed, emails, keys and passwords,
+   and the numbers [Willow's `privacy`](https://github.com/willow-memory/Willow/blob/main/adapters/stdlib/privacy/README.md)
+   knows by their kind (phones, cards, bank and ID numbers, a code that
+   opens something) are withheld. A number it can't tell apart from any
+   other is not, so read a page before you seal it. The page leaves only
+   whole; if a sealed passage has changed since, nothing leaves.
 5. **The model answers** in one sentence, citing the page's ids. Willow's
-   sentence-check holds it there: every cite was on the page, every passage
-   is cited, and the sentence adds nothing the page lacks. A struck sentence
-   goes nowhere.
-6. **The answer waits** for the person's seal, like everything else.
+   sentence-check holds it there: it cites at least one passage, every cite
+   was on the page, and it adds nothing the passages it cites lack. A
+   struck sentence goes nowhere.
+6. **The answer waits** for the person's seal, like everything else. The
+   seal page shows beside it each passage of the page it left out, so a
+   sentence that misleads by what it leaves out is seen before it is kept.
 
 Every step that reached the model is written down, by hash, on a chained log
 beside the person's record.
@@ -56,8 +61,13 @@ You need Python 3.9 or newer and a Willow checkout at the commit
 this runs (the kernel and each add-on it uses) by its SHA-256, and nothing runs
 on a Willow whose files differ: `python3 willow_pin.py check` says which.
 Nothing else in Willow matters to it. Make your record in Willow's UI: pick
-your folders, type your own words into the words step, seal it, and press
-**Start it**. Then:
+your folders, keep the starter words list ticked in the words step and add
+your own, seal it, and press **Start it**. A question in your own words
+finds less without a words list; the UI ticks the starter list when your
+stack holds it (`python ui/assemble.py add starter-words --to STACK`, in
+Willow), and `set_up.py --stack` says so before your record is made. A
+record made without one can be given one later (`kernel.py words`), and
+`set_up.py` prints the two lines that do it. Then:
 
     python set_up.py --stack PATH/TO/YOUR/STACK
 
@@ -119,6 +129,7 @@ one JSON request a line, which is how the rest of these pages write it
 | Notes, tasks, shelves, what piles up beside your record, and importing from elsewhere | [docs/keeping.md](docs/keeping.md) |
 | What it runs on, what stays on the machine, what has been seen working, and where the design comes from | [docs/background.md](docs/background.md) |
 | What was asked, what was built and what is left | [docs/OPEN.md](docs/OPEN.md) |
+| Everyone's base assistant: the layers, what fills each, and what is left to build | [docs/base-jarvis.md](docs/base-jarvis.md) |
 | What changed, and when | [CHANGELOG.md](CHANGELOG.md) |
 | Every file, and what it is | [FILES.md](FILES.md) |
 | Design notes | [docs/NOTES.md](docs/NOTES.md) |

@@ -106,8 +106,11 @@ h2 { font-size: 1.1rem; margin: 0 0 .25rem; }
 p { margin: .4rem 0; max-width: 46rem; }
 .soft, .kind { color: var(--soft); font-size: .9rem; }
 .kind { text-transform: uppercase; letter-spacing: .06em; font-size: .75rem; }
+/* a seal's id or a long path in a card's prose breaks rather than widening
+   the page: on a phone it scrolled sideways (seen 2026-11-20) */
 .card { background: var(--card); border: 1px solid var(--line);
-  border-radius: .5rem; padding: 1rem 1.25rem; margin: 1rem 0; }
+  border-radius: .5rem; padding: 1rem 1.25rem; margin: 1rem 0;
+  overflow-wrap: anywhere; }
 .note { border-left: .25rem solid var(--go); }
 .note.refused { border-left-color: var(--no); }
 pre, blockquote { background: var(--paper); border: 1px solid var(--line);
@@ -326,6 +329,34 @@ def checked(kept) -> str:
         head + "<ul>" + "".join(f"<li>{esc(x)}</li>" for x in lines) + "</ul>"
         '<p class="soft">This checks words and numbers against the page. It '
         "doesn’t check that the sentence is true, or what it means.</p>"
+        + left_out(kept)
+    )
+
+
+def left_out(kept: dict) -> str:
+    """What was on the sealed page and isn't in the sentence. A sentence may
+    cite only some of its page (the owner's ruling, 2026-11-19), so what it
+    leaves out is shown beside it: by file and the passage's id, never its
+    words, since the record of the checks keeps none. A sentence kept before
+    that ruling has no list, and cited its whole page."""
+    left = kept.get("left_out")
+    if not isinstance(left, list):
+        return ""
+    if not left:
+        return "<p>It cites every passage on the page you sealed.</p>"
+    rows = "".join(
+        f"<li>{esc(str(b.get('file') or 'a passage'))} "
+        f'<span class="soft">({esc(str(b.get("id", "")))})</span></li>'
+        for b in left
+        if isinstance(b, dict)
+    )
+    of = kept.get("passages")
+    total = f" of the {of} on the page" if isinstance(of, int) else ""
+    return (
+        f"<p><b>Left out: {len(left)}{total}</b></p><ul>{rows}</ul>"
+        '<p class="soft">The sentence says nothing of these. A sentence can '
+        "mislead by what it leaves out, so read them in your files before "
+        "you keep it.</p>"
     )
 
 
@@ -373,14 +404,26 @@ def card(box: Path, token: str, w: dict) -> str:
     data = str(prop.get("data", w.get("words", "")))
     if kind == "session":
         try:
-            came = json.loads(data).get("came_of", {})
+            bundle = json.loads(data)
+            came = bundle.get("came_of", {})
+            said = [str(t) for t in bundle.get("corrections", []) if isinstance(t, str)]
         except (ValueError, AttributeError):
-            came = {}
+            came, said = {}, []
         did = ", ".join(f"{n} × {k}" for k, n in sorted(came.items()))
         body = (
             '<p class="kind">A session</p>'
             f"<h2>{esc(w.get('claim') or 'A session’s actions')}</h2>"
             + (f"<p>What was done: {esc(did)}.</p>" if did else "")
+            + (
+                "<p><b>What you said to correct the assistant</b></p><ul>"
+                + "".join(f"<li>{esc(t)}</li>" for t in said)
+                + "</ul>"
+                + '<p class="soft">Each was caught by its words. Sealing keeps '
+                "them with the session; one that wasn’t a correction is kept "
+                "as it was said, and goes nowhere else.</p>"
+                if said
+                else ""
+            )
             + '<p class="soft">Sealing says these actions were yours. It lets no '
             "page leave: a page leaves only on its own seal.</p>"
         )

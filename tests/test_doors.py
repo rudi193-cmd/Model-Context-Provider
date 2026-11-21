@@ -181,3 +181,14 @@ def test_the_pipe_takes_one_request_by_words_and_answers_for_a_person(box):
     assert run.stdout.strip() and "Traceback" not in run.stderr
     # it is still the pipe: the person's door, and no verb it hasn't got
     assert said(box, "skill_add").returncode == 2
+
+
+def test_a_batch_or_a_bare_value_is_answered_and_a_notification_is_not(box):
+    """MCP has had no batches since 2025-06-18; a client that sends one, or
+    JSON that is no request, is told so rather than left waiting."""
+    batch = [tool(1, "context", question="frost")]
+    note = {"jsonrpc": "2.0", "method": "notifications/initialized"}
+    got = mcp(box, batch, 7, note, {"jsonrpc": "2.0", "id": 5, "method": "tools/list"})
+    assert [r.get("id") for r in got] == [None, None, 5]
+    assert [r["error"]["code"] for r in got[:2]] == [-32600, -32600]
+    assert "tools" in got[2]["result"]

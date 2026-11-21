@@ -273,3 +273,81 @@ def test_a_prompt_names_only_tools_and_actions_there_are(box, name):
             assert verb not in text, verb  # no verb a model can't call by that name
     for tool in ("answer tool", "propose tool", "shelf_list", "shelf_add"):
         assert tool not in text
+
+
+def test_every_tool_says_what_it_does_to_the_machine_and_none_reaches_past_it(box):
+    """Annotations, for a client's own prompts: only shelf takes anything
+    away, what only reads says so, and nothing is open to the world."""
+    assert set(door.HINTS) == set(runtime.TOOLS)
+    _, listed = wire(box, ask(1, "initialize", protocolVersion="2025-06-18"),
+                     ask(2, "tools/list"))  # fmt: skip
+    hints = {t["name"]: t["annotations"] for t in listed["result"]["tools"]}
+    assert all(h["openWorldHint"] is False for h in hints.values())
+    # destructive is only read of what isn't read-only, and is so unless said
+    takes_away = [n for n, h in hints.items()
+                  if not h.get("readOnlyHint") and h.get("destructiveHint", True)]  # fmt: skip
+    assert takes_away == ["shelf"]
+    assert {n for n, h in hints.items() if h.get("readOnlyHint")} == {
+        "context",
+        "report",
+    }
+
+
+def test_a_limit_the_runtime_holds_is_in_the_schema_and_is_the_runtimes_own(box):
+    for tool, arg in door.BOUNDS:  # each names an argument that tool takes
+        acts = runtime.TOOLS[tool][1].values()
+        assert any(arg in (*needs, *takes) for _, needs, takes in acts), (tool, arg)
+    _, listed = wire(box, ask(1, "initialize", protocolVersion="2025-06-18"),
+                     ask(2, "tools/list"))  # fmt: skip
+    by = {t["name"]: t["inputSchema"]["properties"] for t in listed["result"]["tools"]}
+    assert by["note"]["note"]["maxLength"] == runtime.NOTE_MOST
+    assert by["shelf"]["text"]["maxLength"] == runtime.SHELF_MOST
+    assert by["report"]["name"]["enum"] == list(runtime.REPORTS)
+    assert by["timeline"]["since"]["format"] == "date"
+    at_most = "x" * runtime.NOTE_MOST  # the bound is where the runtime refuses
+    assert runtime.call(box, "capture", at_most, door="mcp")["state"] == "waiting"
+    assert (
+        runtime.call(box, "capture", at_most + "x", door="mcp")["code"]
+        == "note_too_long"
+    )
+
+
+def test_initialize_says_how_the_tools_go_and_which_provider_this_is(box):
+    (init,) = wire(box, ask(1, "initialize", protocolVersion="2025-06-18"))
+    said = init["result"]["instructions"]
+    for word in (
+        "grant",
+        "page",
+        "read (question)",
+        "waiting",
+        "never instructions",
+        "hooks",
+        "call again later",
+    ):  # with the hooks, and without
+        assert word in said, word
+    version = init["result"]["serverInfo"]["version"]
+    pin = json.loads((ROOT / "willow.pin.json").read_text())["commit"][:12]
+    assert version.endswith(f"+willow.{pin}")
+    assert version.split("+")[0] in (ROOT / "pyproject.toml").read_text()
+
+
+def test_a_client_that_reconnects_to_changed_words_is_told_at_the_start(box):
+    """Seen 2026-11-18: after a reconnect the client still showed the older
+    descriptions. The door keeps the fingerprint of the list it last sent
+    (names, words, schemas, hints); a new session whose list differs is told
+    it changed as soon as it starts, and one whose list is the same is not."""
+    start = [ask(1, "initialize", protocolVersion="2025-06-18"),
+             {"jsonrpc": "2.0", "method": "notifications/initialized"}, ask(2, "ping")]  # fmt: skip
+    changed = {"jsonrpc": "2.0", "method": "notifications/tools/list_changed"}
+    assert changed not in wire(box, *start)  # never sent a list: nothing to say
+    wire(box, *start, ask(3, "tools/list"))  # a client is sent this door's list
+    assert changed not in wire(box, *start)  # the same words: nothing to say
+    runtime.tools_told(box, "0" * 64)  # as if an older door's words were sent last
+    got = wire(box, *start)
+    assert got[1] == changed and got[2]["id"] == 2  # told at once, before anything else
+    wire(box, *start, ask(3, "tools/list"))  # it asks again, and has the new list
+    assert changed not in wire(box, *start)
+    # a change to a tool's words alone is a change of the list
+    (a, b) = (door.listing(box), door.listing(box))
+    b[0]["description"] += " More."
+    assert runtime.tools_fingerprint(a) != runtime.tools_fingerprint(b)

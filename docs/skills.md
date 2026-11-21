@@ -29,8 +29,10 @@ change under you:
   fingerprint of its words. A model asks for one by its name on that list
   (`skill`, with `file`) and is given it only while its words are the ones
   listed. Change, add or remove a file and the folder is no longer what you
-  named. A link, a hidden file, a key, a file that isn't text, and
-  anything outside the folder are never listed; a folder with more than
+  named. A link, a hidden file, a key (by its kind, `.key`, `.pem`,
+  `.p12` or `.pfx`, or by a private key's words, as `id_ed25519` holds),
+  a file that isn't text, and anything outside the folder are never
+  listed, and a key is never named as a skill of its own either; a folder with more than
   200 files, or one that holds your record, is refused. Naming the
   `SKILL.md` itself is still a skill of that one file.
 - **Under [a session's yes](session.md)** a skill you named is given as it reads

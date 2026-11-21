@@ -234,6 +234,9 @@ def backup(box: Path, to: Path) -> dict:
     tasks_dir = src / "tasks"  # and the tasks' bookkeeping
     if tasks_dir.is_dir():
         files += sorted(p for p in tasks_dir.iterdir() if p.is_file())
+    said_dir = src / "corrections"  # and a session's corrections, until it ends
+    if said_dir.is_dir():
+        files += sorted(p for p in said_dir.iterdir() if p.is_file())
     files = [f for f in files if kept_name(f.relative_to(src).as_posix())
              and not f.name.startswith("share.id")]  # fmt: skip
     names = {f: f.relative_to(src).as_posix() for f in files}
@@ -263,7 +266,9 @@ def backup(box: Path, to: Path) -> dict:
 def kept_name(n: str) -> bool:
     """Whether a name is one the runtime keeps beside the box: a file's own
     name with no folder, or a shelf's card (shelf/KEY.json) or one thing on a
-    shelf (shelf/KEY/NAME), or the tasks' bookkeeping (tasks/state.json). Never a path that climbs or names nothing."""
+    shelf (shelf/KEY/NAME), or the tasks' bookkeeping (tasks/state.json), or
+    a session's corrections waiting for its seal (corrections/KEY.json).
+    Never a path that climbs or names nothing."""
     parts = n.split("/")
     if any(p in ("", ".", "..") or "\\" in p or Path(p).name != p for p in parts):
         return False
@@ -271,6 +276,7 @@ def kept_name(n: str) -> bool:
         len(parts) == 1
         or (parts[0] == "shelf" and len(parts) in (2, 3))
         or (parts[0] == "tasks" and len(parts) == 2)
+        or (parts[0] == "corrections" and len(parts) == 2)
     )
 
 
@@ -757,10 +763,11 @@ def draft(box: Path, question: str, ask=None, door: str = "") -> dict:
 PLAIN = {
     "record_broken": ("Your record wouldn't open.",
                       "Run: python kernel.py verify --box {box} (it says what's wrong)."),
-    "nothing_to_scope": ("There's nothing to share yet: no question has found anything in your files.",
+    "nothing_to_scope": ("There's nothing to share yet: the last question found nothing in your files, "
+                         "or something else was asked of them since.",
                          "Ask a question your files answer, then propose it."),
     "not_sealed": ("Nothing is sealed for this, so nothing was shared.",
-                   "Look at what waits on you (waiting) and seal the one you mean to share."),
+                   "Look at what waits on you (provider waiting, or the seal page) and seal the one you mean to share."),
     "not_whole": ("Something you sealed has changed in your files since, so nothing was shared.",
                   "Ask the question again in other words, propose it, and seal it again."),
     "scrub_failed": ("The step that hides names and numbers couldn't run, so nothing was shared.",
@@ -777,6 +784,8 @@ PLAIN = {
                      "Check that WILLOW points at your Willow folder."),
     "answer_refused": ("Your record wouldn't take the answer.",
                        "Try the answer again; nothing was written."),
+    "no_cite": ("The sentence cited nothing on the page, so it wasn't handed in.",
+                "Ask for it again: a sentence cites at least one passage on its page."),
     "no_model": ("There's no model to ask.",
                  ('Name one on this machine in model.json beside your record: '
                   '{{"url": "http://127.0.0.1:11434/v1", "model": "NAME"}}.')),
@@ -810,7 +819,7 @@ PLAIN = {
     "not_pin": ("That file isn't a pin.",
                 "Point check at the file pin wrote."),
     "not_waiting": ("That isn't something waiting on you.",
-                    "See what waits on you (waiting): each shows the seal to name."),
+                    "See what waits on you (provider waiting, or the seal page): each shows the seal to name."),
     "willow_unpinned": ("Your Willow isn't the one this was built on, so nothing was done.",
                         "Run: python3 willow_pin.py check (it names what differs), then put "
                         "Willow at the commit it names, or point WILLOW at a copy that is."),
@@ -824,6 +833,12 @@ PLAIN = {
                         "Say it in other words: an empty note isn't kept, and the same note is only handed in once."),
     "shelf_refused": ("That couldn't be put on the shelf.",
                       "Give it a plain file name (letters, digits, dots and dashes, at most 80) and some text, under a million characters."),
+    "note_too_long": ("That note is longer than you'd read before keeping it, so it wasn't handed in.",
+                      "Hand in a shorter note: 20,000 characters at most. A long piece of work goes on the project's shelf."),
+    "notes_waiting": ("Fifty notes already wait on you, so no more are handed in until you've looked at those.",
+                      "Look at what waits on you (provider waiting, or the seal page), and seal or decline the notes there."),
+    "shelf_full": ("This project's shelf is full, so nothing more was put on it.",
+                   "Take things off it: provider stored shelf lists them, and provider remove or provider archive takes them away. A shelf holds 200 things or 50 MB."),
     "not_on_shelf": ("There's nothing by that name on this project's shelf.",
                      "See what is there (shelf_list): each shows the name to ask for."),
     "no_report": ("That isn't a report this makes.",
@@ -837,7 +852,7 @@ PLAIN = {
     "no_prompt": ("That prompt can't be started.",
                   "The prompts are plate (what's on your plate), ask (a question for your files), question_me (be questioned about your notes) and wrap_up (keep what a session found)."),
     "no_skill": ("There's no skill by that name.",
-                 "See the skills you named (skills), or name one: skill_add with the path of its file."),
+                 "See the skills you named (provider skills), or name one: provider skill_add path=FILE."),
     "skill_refused": ("That file couldn't be named as a skill.",
                       "Point at a text file of instructions outside your record, and give it one plain name (letters, digits, dots and dashes)."),
     "skill_too_long": ("That skill is too long to read before you give it, so it wasn't named.",
@@ -867,13 +882,13 @@ PLAIN = {
     "task_not_held": ("This session hasn't claimed that task, so it wasn't marked done.",
                       "Claim it first (task_claim), then mark it done with what you found."),
     "tool_off": ("That tool is turned off for this record, so nothing was done.",
-                 "The person chooses which tools a model is offered: tools, on their own door, lists them and turns one on."),
+                 "You choose which tools a model is offered: provider tools lists them, and provider tools on=GROUP turns one on."),
     "tool_refused": ("That tool wasn't called in a way it takes, so nothing was done.",
                      "The reason it gave names the action or the argument that was missing: call it again with that."),
     "tools_refused": ("That isn't a group of tools, so nothing was changed.",
-                      "See the groups and which are on (tools), then name the ones to turn on or off."),
+                      "See the groups and which are on (provider tools, or the seal page's tools page), then name the ones to turn on or off."),
     "remove_refused": ("Nothing was removed.",
-                       "See what is kept (stored), then say which kind and which of it: the names, everything older than a day, or all of it. An archive goes in a new file outside your record and your folder."),
+                       "See what is kept (provider stored), then say which kind and which of it: the names, everything older than a day, or all of it. An archive goes in a new file outside your record and your folder."),
     "timeline_refused": ("That timeline couldn't be made, so nothing was written.",
                          "Say what it is about in a few words (a name, a place, a thing). If you named a file, it must be a new one outside your folder and your record."),
     "feed_refused": ("That feed couldn't be written.",
@@ -881,9 +896,9 @@ PLAIN = {
     "share_refused": ("That couldn't be shared, so nothing was packed and nothing left.",
                       "The reason it gave says what to fix. Only sentences you sealed can go in a package (they show as a model's sentence on your seal page), for someone you named."),
     "no_share_id": ("You have no identity for sharing yet, so nothing was packed or received.",
-                    "Make one, once: share_id. It gives you a key to hand to people; it is not your seal key."),
+                    "Make one, once: provider share_id. It gives you a key to hand to people; it is not your seal key."),
     "no_such_person": ("Nobody by that name has been named to send to.",
-                       "The person names people on their own door: share_person with a name and the key that person gave them."),
+                       "Name them first: provider share_person name=NAME key=KEY, with the key they gave you."),
     "no_grant": ("This session hasn't been let into your files, so nothing ran and nothing was given.",
                  "Say yes to it on your seal page (it shows as a session asking to read your files); it lasts until the session ends."),
     "job_refused": ("That job couldn't be run.",
@@ -893,7 +908,7 @@ PLAIN = {
     "job_too_long": ("That job printed more than can be given whole, so nothing was given.",
                      "Ask for less: a count, or the first lines (head)."),
     "notes_too_long": ("The notes you sealed are too long to give whole, so nothing was given.",
-                       "Read them yourself (captured); nothing is cut short."),
+                       "Read them yourself (provider captured); nothing is cut short."),
 }  # fmt: skip
 
 
@@ -907,13 +922,17 @@ FOR_MODEL = {
                "that. What you are given under a grant is not a sealed page.",
     "not_scope": "Get the page again (the page tool, action leave) and answer that.",
     "answer_refused": "Try the answer again; nothing was written.",
-    "nothing_to_scope": "Read first (the page tool, action read, with a question), "
-                        "then propose.",
+    "no_cite": "Cite the passage the sentence comes from, by its id in brackets "
+               "like [a1b2c3d4e5f6]: at least one on the page you were given.",
+    "nothing_to_scope": "Read again (the page tool, action read, with a question "
+                        "their files hold), then propose straight after.",
     "no_verb": "This door has these tools: {verbs}.",
     "capture_refused": "Say it in other words: an empty note isn't kept, and the "
                        "same note is only handed in once.",
     "shelf_refused": "Give it a plain file name (letters, digits, dots and dashes, "
                      "at most 80) and some text, under a million characters.",
+    "note_too_long": "Hand in a shorter note: 20,000 characters at most. A long "
+                     "piece of work goes on the project's shelf (the shelf tool).",
     "not_on_shelf": "List the shelf (the shelf tool, action list) and use a name "
                     "from there.",
     "no_report": "Use one of these names exactly, in small letters: todo, coming-up, "
@@ -974,7 +993,55 @@ FACES = {"pipe": "person", "mcp": "model", "hook": "host", "guard": "host",
 SENTENCE_CHECK = "adapters/stdlib/sentence-check/sentence_check.py"
 
 
+def tools_fingerprint(listing: list) -> str:
+    """One hash of a tools list as a model's client is sent it: names,
+    words, schemas and hints, so a change to any of them is a change."""
+    return hashlib.sha256(json.dumps(listing, sort_keys=True).encode()).hexdigest()
+
+
+def tools_told(box: Path, fingerprint: str | None = None) -> str:
+    """The fingerprint of the tools list a model's client of this record was
+    last sent, kept beside it; given one, it is kept instead. A client that
+    reconnects may show the list it had before, so a door that finds the
+    list changed since tells it so at the start."""
+    f = state(box) / "tools-told.json"
+    if fingerprint is not None:
+        f.write_text(json.dumps({"fingerprint": fingerprint}))
+        return fingerprint
+    try:
+        got = json.loads(f.read_text()).get("fingerprint", "")
+    except (OSError, ValueError, AttributeError):
+        return ""
+    return got if isinstance(got, str) else ""
+
+
+def version() -> str:
+    """This runtime's version and the Willow it is pinned to, as a door
+    names itself: so a model, or a report of what went wrong, says exactly
+    which it talked to (0.1.0+willow.4c1ab7cc6112)."""
+    here = Path(__file__).resolve().parent
+    said = re.search(
+        r'^version = "([^"]+)"', (here / "pyproject.toml").read_text(), re.M
+    )
+    try:
+        commit = json.loads((here / "willow.pin.json").read_text())["commit"][:12]
+    except (OSError, ValueError, KeyError):
+        commit = "unpinned"
+    return f"{said.group(1) if said else '0'}+willow.{commit}"
+
+
 PRIVACY = "adapters/stdlib/privacy/privacy.py"
+
+#: files that are keys by their kind, whatever they hold
+KEY_SUFFIXES = (".key", ".pem", ".p12", ".pfx")
+
+
+def is_key(p: Path, text: str = "") -> bool:
+    """A key, by its name (.key, .pem, .p12, .pfx) or by its words (a
+    private key's armour): never named as a skill, never listed in one."""
+    return p.suffix.lower() in KEY_SUFFIXES or "PRIVATE KEY-----" in text
+
+
 SPLIT = "\n\x1emcp-split\x1e\n"
 
 
@@ -987,17 +1054,32 @@ def names(box: Path) -> list[str]:
     return [n.strip() for n in f.read_text().splitlines() if n.strip()]
 
 
-def withhold(box: Path, texts: list[str]) -> list[str]:
-    """Texts as they may leave: Willow's privacy scrub (numbers, emails, keys),
-    then each name the person listed, as [withheld: name]. One pass for all,
-    so a page and what it is compared with are withheld the same way."""
+def scrub(texts: list[str]) -> list[str]:
+    """Willow's privacy scrub over texts joined by SPLIT, split again."""
     run = subprocess.run(
         [sys.executable, PRIVACY, "scrub"], cwd=WILLOW, input=SPLIT.join(texts),
         capture_output=True, text=True, check=False,
     )  # fmt: skip
     if run.returncode != 0:
         raise RuntimeError("privacy scrub failed: " + run.stderr.strip()[:200])
-    out = run.stdout.removesuffix("\n").split(SPLIT)
+    return run.stdout.removesuffix("\n").split(SPLIT)
+
+
+def withhold(box: Path, texts: list[str]) -> list[str]:
+    """Texts as they may leave: Willow's privacy scrub (the numbers its card
+    names, emails, keys), then each name the person listed, as
+    [withheld: name]. One pass for all, so a page and what it is compared
+    with are withheld the same way. A pattern that runs across the split (a
+    key's BEGIN with no END runs to the end of what it is given) would hand
+    back fewer texts, and every one after it would be paired with the wrong
+    passage: then each text is scrubbed alone, and if even one of those
+    doesn't come back as one, nothing leaves."""
+    out = scrub(texts)
+    if len(out) != len(texts):
+        out = [scrub([t]) for t in texts]
+        if any(len(o) != 1 for o in out):
+            raise RuntimeError("privacy scrub failed: a text didn't come back whole")
+        out = [o[0] for o in out]
     for name in names(box):
         pat = re.compile(r"(?<!\w)" + re.escape(name) + r"(?!\w)", re.IGNORECASE)
         out = [pat.sub("[withheld: name]", s) for s in out]
@@ -1320,7 +1402,7 @@ def skill_words(box: Path, path) -> tuple[str | None, str]:
     key = cfg.get("key")
     if (
         p.is_relative_to(box.resolve())
-        or p.suffix == ".key"
+        or is_key(p)
         or (isinstance(key, str) and p == Path(key).expanduser().resolve())
     ):
         return None, "that file is the box's own, or a key"
@@ -1330,6 +1412,8 @@ def skill_words(box: Path, path) -> tuple[str | None, str]:
         return None, f"{p} isn't a text file that can be read"
     if not text.strip() or "\x00" in text:
         return None, f"{p} holds no words"
+    if is_key(p, text):
+        return None, "that file is the box's own, or a key"
     try:
         (text,) = withhold(box, [text])
     except RuntimeError as why:
@@ -1356,7 +1440,7 @@ def skill_files(box: Path, folder: Path) -> dict | None:
             or not p.is_file()
             or not p.resolve().is_relative_to(root)
             or any(part.startswith(".") for part in rel.parts)
-            or p.suffix == ".key"
+            or is_key(p)
             or p.resolve() == key
             or (len(rel.parts) == 1 and p.name.lower() == "skill.md")
         ):
@@ -1366,6 +1450,8 @@ def skill_files(box: Path, folder: Path) -> dict | None:
         except (OSError, UnicodeDecodeError):
             continue
         if not text.strip() or "\x00" in text or len(text) > SKILL_MOST:
+            continue
+        if is_key(p, text):
             continue
         found[rel.as_posix()] = text
         if len(found) > SKILL_FILES:
@@ -1540,12 +1626,36 @@ def boxes_of(page: str) -> list[dict]:
     return [{"id": b["id"], "text": "\n".join(b["lines"])} for b in boxes]
 
 
+#: a cite, as Willow's sentence-check reads one: a word in square brackets
+CITE = re.compile(r"\[(\w+)\]")
+
+
+def files_of(page: str) -> dict[str, str]:
+    """Each passage on a served page, by its id, and the file it is from:
+    where it is, never what it says."""
+    out, file = {}, ""
+    for line in page.splitlines():
+        if line.startswith("## "):
+            file = line[3:].strip()
+        elif line.startswith("- `") and line.endswith("human-sealed"):
+            out[line.split("`")[1]] = file
+    return out
+
+
 def answer(box: Path, sentence: str) -> dict:
     """The model's way back: one sentence about the page it was given. Code
-    holds it to that page (Willow's sentence-check: every cite served, every
-    box cited, nothing the boxes lack); a sentence that stands is proposed
+    holds it to that page (Willow's sentence-check: every cite served,
+    nothing the passages it cites lack); a sentence that stands is proposed
     through the kernel and waits for the person's seal. The model never
-    writes, and a struck sentence goes nowhere."""
+    writes, and a struck sentence goes nowhere.
+
+    It cites at least one passage on the page, and need not cite them all
+    (the owner's ruling, 2026-11-19): the ones it cites are sentence-check's
+    boxes, every check held over them, and the rest are its earlier boxes,
+    whose words count only if cited. What it left out is kept beside the
+    record, by id and file and never by words, and the seal page shows it
+    beside the sentence, so a sentence that misleads by what it leaves out
+    is seen before it is kept."""
     page = state(box) / "last-page.md"
     if not page.exists():
         return {
@@ -1560,16 +1670,29 @@ def answer(box: Path, sentence: str) -> dict:
             "code": "no_page",
             "why": "what was last given to you is not a page the person sealed",
         }
+    cited = set(CITE.findall(sentence))
+    used = [b for b in boxes if b["id"] in cited]
+    if not used:
+        return {"state": "refused", "code": "no_cite",
+                "why": "the sentence cites no passage on the page"}  # fmt: skip
+    left = [b for b in boxes if b["id"] not in cited]
     with tempfile.TemporaryDirectory() as d:
-        f = Path(d) / "boxes.json"
-        f.write_text(json.dumps(boxes))
-        run = willow(
-            SENTENCE_CHECK, "--sentence", sentence, "--boxes", str(f), "--json"
-        )
+        f, rest = Path(d) / "boxes.json", Path(d) / "earlier.json"
+        f.write_text(json.dumps(used))
+        argv = ["--sentence", sentence, "--boxes", str(f), "--json"]
+        if left:
+            rest.write_text(json.dumps(left))
+            argv += ["--earlier", str(rest)]
+        run = willow(SENTENCE_CHECK, *argv)
     if run.returncode not in (0, 42):
         return {"state": "refused", "code": "check_failed", "why": run.stderr.strip()}
     report = json.loads(run.stdout)
     checks = {r["where"]: r["what"] for g in report["groups"] for r in g["rows"]}
+    # held by construction over the passages it cites: what it says of the
+    # page is the list of what was left out, not this
+    checks.pop("every box cited", None)
+    where = files_of(page.read_text())
+    left_out = [{"id": b["id"], "file": where.get(b["id"], "")} for b in left]
     if run.returncode == 42:
         return {"state": "struck", "checks": checks}
     # the page is a whole scope the person sealed (sealed_page let it leave
@@ -1605,22 +1728,64 @@ def answer(box: Path, sentence: str) -> dict:
     if subject:  # the guarantee the person is shown: kept, a hash of the page, no words
         kept = checks_kept(box)
         kept[subject] = {"page": page_hash,
-                         "checks": [{"name": k, "said": v} for k, v in checks.items()]}  # fmt: skip
+                         "checks": [{"name": k, "said": v} for k, v in checks.items()],
+                         "left_out": left_out, "passages": len(boxes)}  # fmt: skip
         (state(box) / "checks.json").write_text(json.dumps(kept, indent=1))
-    return {"state": "waiting", "seal": subject, "checks": checks, "path": prop["path"]}
+    return {"state": "waiting", "seal": subject, "checks": checks, "path": prop["path"],
+            "left_out": [b["id"] for b in left]}  # fmt: skip
 
 
 SESSION_SEAL = "adapters/stdlib/session-seal/session_seal.py"
 
 
-def close(box: Path) -> dict:
+#: corrections a session keeps for its one seal: more than this and the
+#: rest aren't kept, so the seal page holds no more than a person reads
+CORRECTIONS_MOST = 50
+
+
+def corrections_of(box: Path, session) -> Path | None:
+    """Where a session's corrections are kept until it ends, beside the box."""
+    if not isinstance(session, str) or not session.strip():
+        return None
+    key = hashlib.sha256(session.strip().encode()).hexdigest()[:16]
+    return state(box) / "corrections" / f"{key}.json"
+
+
+def correction_kept(box: Path, session, said) -> None:
+    """A correction the person typed, kept for its session's one seal: in
+    their words, once each, CORRECTIONS_MOST at most. Nothing goes on the
+    record, and nothing waits on its own."""
+    f = corrections_of(box, session)
+    text = str(said or "").strip()[:SAID_MOST]
+    if f is None or not text:
+        return
+    try:
+        kept = json.loads(f.read_text()) if f.is_file() else []
+    except ValueError:
+        kept = []
+    if text in kept or len(kept) >= CORRECTIONS_MOST:
+        return
+    f.parent.mkdir(exist_ok=True)
+    f.write_text(json.dumps([*kept, text]))
+
+
+#: the most of one correction kept: session-seal's own most
+SAID_MOST = 2_000
+
+
+def close(box: Path, session=None) -> dict:
     """At a session's end, Willow's session-seal: the record's rows since the
     last bundle, as one proposal for the person to seal once (yes, these were
-    my actions). It only proposes; it never seals. Its bite is now the
-    record's last, so the read a model made goes with the session."""
-    run = willow(SESSION_SEAL, "--box", str(box), "--json", "--index", str(index(box)))
+    my actions), and with it what they said to correct the assistant that
+    session, in their words. It only proposes; it never seals. Its bite is
+    now the record's last, so the read a model made goes with the session."""
+    kept = corrections_of(box, session)
+    with_ = ("--with", str(kept)) if kept is not None and kept.is_file() else ()
+    run = willow(
+        SESSION_SEAL, "--box", str(box), "--json", "--index", str(index(box)), *with_
+    )
     if run.returncode == 2 and not run.stdout:  # a session-seal without --index
-        run = willow(SESSION_SEAL, "--box", str(box), "--json")
+        run = willow(SESSION_SEAL, "--box", str(box), "--json", *with_)
     try:
         doc = json.loads(run.stdout)
     except ValueError:
@@ -1633,6 +1798,8 @@ def close(box: Path) -> dict:
     if doc.get("state") != "populated":
         return {"state": "empty"}
     forget_read(box)
+    if with_:  # in the session's proposal now: kept nowhere else
+        kept.unlink(missing_ok=True)
     rows = [r for g in doc.get("groups", []) for r in g["rows"]]
     return {"state": "waiting", "seal": rows[0]["what"] if rows else None,
             "rows": doc.get("said", "")}  # fmt: skip
@@ -1771,6 +1938,13 @@ def holds_open(box: Path) -> str:
             "assistant never does.")  # fmt: skip
 
 
+#: a note is read by the person before they keep it: no longer than that
+NOTE_MOST = 20_000
+#: notes handed in that may wait on the seal at once; then none, until the
+#: person has looked at those, so a seal page is never more than they get through
+NOTES_WAITING_MOST = 50
+
+
 def capture(box: Path, note, kind: str = "note") -> dict:
     """One thing to keep, handed in for the person's seal: a note, a
     finding, what a host sent. It is proposed through the kernel under a
@@ -1783,6 +1957,14 @@ def capture(box: Path, note, kind: str = "note") -> dict:
     if not text:
         return {"state": "refused", "code": "capture_refused",
                 "why": "there was nothing to keep"}  # fmt: skip
+    if len(text) > NOTE_MOST:
+        return {"state": "refused", "code": "note_too_long",
+                "why": f"more than {NOTE_MOST} characters"}  # fmt: skip
+    owed = [w for w in waiting(box).get("waiting", [])
+            if str(w.get("path", "")).startswith("captured/")]  # fmt: skip
+    if len(owed) >= NOTES_WAITING_MOST:
+        return {"state": "refused", "code": "notes_waiting",
+                "why": f"{len(owed)} handed in already wait on the seal"}  # fmt: skip
     kind = re.sub(r"[^a-z0-9]+", "-", str(kind).lower()).strip("-") or "note"
     digest = hashlib.sha256(text.encode()).hexdigest()[:12]
     asked = bite(box, f"captured {kind} {digest}")
@@ -2063,6 +2245,9 @@ def capturing(box: Path) -> set[str]:
 #: a name on a shelf: one plain file name, never a path
 SHELF_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
 SHELF_MOST = 1_000_000
+#: a project's shelf, whole: so many things, or so many bytes, then no more
+SHELF_ITEMS_MOST = 200
+SHELF_BYTES_MOST = 50_000_000
 
 
 def shelf_at(box: Path, where) -> tuple[Path, Path] | None:
@@ -2136,6 +2321,11 @@ def shelve(box: Path, where, arg, door: str = "") -> dict:
             return {"state": "shelved", "name": kept, "same": True}
         n += 1
         kept = f"{Path(name).stem}.{n}{Path(name).suffix}"
+    there = [q for q in folder.iterdir() if q.is_file()]
+    size = sum(q.stat().st_size for q in there) + len(text.encode())
+    if len(there) >= SHELF_ITEMS_MOST or size > SHELF_BYTES_MOST:
+        return {"state": "refused", "code": "shelf_full",
+                "why": f"{len(there)} things, {size} bytes with this one"}  # fmt: skip
     with open(folder / kept, "x") as f:
         f.write(text)
     doc["items"][kept] = {
@@ -2749,6 +2939,18 @@ def context_granted(box: Path, question: str) -> dict:
     """Under a grant: what the files hold on these words, withheld, with
     where each passage is from. No page is proposed and nothing waits."""
     got = read(box, question)
+    if got.get("state") == "sealed":
+        # the kernel answers a question the person sealed a page for with
+        # that seal, and serves no passage: give the page, as leave would,
+        # or say it was stopped, never the bare seal
+        by = got.get("by")
+        if by in scopes(box):
+            page = sealed_page(box, by)
+            if page["state"] == "left":
+                (state(box) / "last-page.md").write_text(page["page"])
+                return {**page, "by": "seal"}
+            return page  # stopped, or not whole: said, and nothing leaves
+        return {"state": "populated"}
     served = got.get("served") if isinstance(got, dict) else None
     if got.get("state") == "refused" or not served:
         return (
@@ -3999,8 +4201,16 @@ def event(box: Path, sent) -> dict:
             says.append("Model Context Provider: the person has let this session read "
                         "from their files while it works in this folder.")  # fmt: skip
     if name == "UserPromptSubmit":
-        run = hooked(sent, HOOK_FEEDBACK, "run", *at)
-        if run.returncode != 0:
+        # a correction of the person's is kept for the session's one seal,
+        # not handed in on its own (the owner's word, 2026-11-20)
+        mine = state(box) / "corrections.txt"
+        words = ("--words", str(mine)) if mine.is_file() else ()
+        run = hooked(sent, HOOK_FEEDBACK, "match", *words)
+        if run.returncode == 42:
+            said = next((sent[k] for k in ("prompt", "user_prompt", "text")
+                         if isinstance(sent.get(k), str) and sent[k].strip()), "")  # fmt: skip
+            correction_kept(box, sent.get("session_id"), said)
+        elif run.returncode != 0:
             return {"state": "refused", "code": "guard_failed",
                     "why": f"hook-feedback: {run.stderr.strip()[-300:]}"}  # fmt: skip
     if name in ("Stop", "SessionStart", "UserPromptSubmit"):
@@ -4045,7 +4255,7 @@ VERBS = {
         "check": lambda box, arg, **kw: check_sent(box, Path(str(arg))),
         "models": lambda box, arg, **kw: models(box),
         "draft": lambda box, arg, **kw: draft(box, str(arg), None, kw.get("door", "")),
-        "close": lambda box, arg, **kw: close(box),
+        "close": lambda box, arg, **kw: close(box, arg),
         "owed": lambda box, arg, **kw: owed(box),
         "report": lambda box, arg, **kw: report(box, arg),
         # naming a skill is the person's alone: a model never chooses a file

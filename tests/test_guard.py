@@ -195,15 +195,45 @@ def prompt(box, text, session="s1"):
     )  # fmt: skip
 
 
-def test_a_correction_is_proposed_for_the_persons_seal_and_never_sealed(box):
+def test_a_correction_is_kept_for_the_sessions_one_seal_and_never_waits_alone(box):
+    """The owner's word, 2026-11-20: a correction the person types is sealed
+    with its session, once, not a card each. It goes on no row, waits on
+    nothing by itself, and at the session's end is in its one proposal."""
     assert prompt(box, "when does the first frost come").returncode == 0
-    assert rows(box, "hook-feedback") == []  # an ordinary ask is no correction
-    run = prompt(box, "No, I said the frost comes in late October")
-    assert run.returncode == 0
-    (row,) = rows(box, "hook-feedback")
-    owed = runtime.waiting(box)["waiting"]
-    assert [w["seal"] for w in owed] == [row["subject"]]
-    assert owed[0]["path"].startswith("feedback/")
+    for said in (
+        "No, I said the frost comes in late October",
+        "No thanks, that's fine",  # polite: no correction
+        "No, I said the frost comes in late October",
+    ):  # once each
+        assert prompt(box, said).returncode == 0
+    assert rows(box, "hook-feedback") == [] and runtime.waiting(box)["state"] == "empty"
+    kept = runtime.corrections_of(box, "s1")
+    assert json.loads(kept.read_text()) == [
+        "No, I said the frost comes in late October"
+    ]
+    got = runtime.call(box, "close", "s1", door="session")
+    assert got["state"] == "waiting"
+    (w,) = runtime.waiting(box)["waiting"]
+    bundle = json.loads((box / "proposals" / f"{w['seal'][9:]}.json").read_text())[
+        "data"
+    ]
+    assert json.loads(bundle)["corrections"] == [
+        "No, I said the frost comes in late October"
+    ]
+    assert w["claim"].endswith(", and 1 correction of yours")
+    assert not kept.exists()  # in the session's proposal now, and nowhere else
+
+
+def test_a_session_keeps_so_many_corrections_and_no_more(box, monkeypatch):
+    monkeypatch.setattr(runtime, "CORRECTIONS_MOST", 2)
+    for n in range(4):
+        runtime.correction_kept(box, "s9", f"no, the {n} one")
+    runtime.correction_kept(box, "", "no")  # no session: kept nowhere
+    assert json.loads(runtime.corrections_of(box, "s9").read_text()) == [
+        "no, the 0 one",
+        "no, the 1 one",
+    ]
+    assert runtime.corrections_of(box, "") is None
 
 
 def test_the_read_for_a_prompt_is_the_one_a_propose_then_scopes(box):
@@ -286,3 +316,29 @@ def test_a_sibling_that_only_starts_with_the_same_name_is_not_protected(box):
 def test_guards_hand_hook_guard_the_runtimes_folder(box):
     asked = dict(runtime.guards(box))["hook-guard"]
     assert asked[-2:] == ("--also", str(runtime.state(box)))
+
+
+def test_a_command_run_on_the_record_by_another_is_blocked(box):
+    """Seen 2026-11-20: find -delete, find -exec rm and git -C clean named the
+    record in plain sight and went through. Willow's hook-guard, at the pinned
+    commit, now reads them; find alone and git status still pass."""
+    for command in (f"find {box} -name '*.jsonl' -delete",
+                    f"find {box} -type f -exec rm {{}} +",
+                    f"git -C {box} clean -fdx", f"tar -xf /tmp/x.tar -C {box}",
+                    f"unzip -o /tmp/x.zip -d {box}"):  # fmt: skip
+        got = guard(box, before("Bash", command=command))
+        assert got.returncode == 2 and "box-write" in got.stderr, command
+    for command in (f"find {box} -name '*.jsonl'", f"git -C {box} status"):
+        assert guard(box, before("Bash", command=command)).returncode == 0, command
+
+
+def test_the_sessions_card_lists_its_corrections_escaped(box):
+    import seal_page
+
+    prompt(box, "when does the first frost come")
+    prompt(box, "no, the <b>other</b> bed")
+    runtime.call(box, "close", "s1", door="session")
+    (w,) = runtime.waiting(box)["waiting"]
+    card = seal_page.card(box, "tok", w)
+    assert "What you said to correct the assistant" in card
+    assert "no, the &lt;b&gt;other&lt;/b&gt; bed" in card and "<b>other</b>" not in card

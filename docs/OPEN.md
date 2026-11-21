@@ -6,7 +6,7 @@ since grown into the project's working list: what the owner threw in
 along the way, what was found when each line was held to the code, and
 the owner's rulings. A box is ticked when the thing is built here. A line
 starting **Note** was added afterwards: what was found, and what it still
-needs. Last held to the code on 2026-11-18. What is still open is
+needs. Last held to the code on 2026-11-19. What is still open is
 gathered at the end, under "Open now".
 
 ## Handoff: Model-Context-Provider (MCP → Provider)
@@ -463,10 +463,46 @@ working goes on the second list unless the owner says otherwise.
 
 ### Owed
 
-Nothing, as of 2026-11-18. Still under "Not yet seen in a real client"
+Nothing, as of 2026-11-19. Still under "Not yet seen in a real client"
 above, for whenever the owner is at the keys: the desktop dialog, a
 folder skill, `share_forward` and a correction, a job that travels,
 `stored`/`remove`/`archive`, and the `mail` and `sms` importers.
+
+Tried 2026-11-19, through the doors in a cloud container over a made-up
+record, never sealing, so not yet in a real client:
+- a folder skill: a key file (`id_ed25519`) was listed and given, and hid
+  the file after it; both fixed (below);
+- `stored`, `remove` and `archive`: each hole on the record, the archive's
+  own fingerprint kept, a second remove and a path out of the kind refused;
+- the `mail` and `sms` importers: the mirrors as their cards say, an
+  attachment named and never read, emails and phone numbers withheld on
+  the page; "Gate code is 4471" was not, which is Willow's `privacy`
+  (willow-memory/Willow#380, the pin moved with it).
+Not tried there: the desktop dialog (no desktop), `share_forward` and a
+correction (they need sealed sentences), and a job (kart's sandbox needs
+`bwrap`, which the container had not).
+
+Done 2026-11-19, each from that session, with tests that fail without it:
+- `withhold` hands back every text in its place: an unterminated key in
+  one passage took the separators after it, so later passages came back
+  under other passages' places, or not at all.
+- A key, by its kind or by a private key's words, is never listed in a
+  skill nor named as one.
+- What a model hands in has an end: a note at most 20,000 characters, at
+  most 50 waiting at once, a project's shelf at most 200 things or 50 MB
+  (40 MB had gone in, in seconds, from a session never let in).
+- A JSON-RPC batch, or JSON that is no object, is answered `invalid
+  request` rather than left without a reply.
+- A model's client is told more before it calls anything: `instructions`
+  at initialize (with the hooks and without), annotations on each tool,
+  the runtime's limits in each schema, and a version with the pinned
+  Willow commit.
+- A refusal names what the person types (`provider waiting`, the seal
+  page), and speaks to them on their own door.
+- `nothing_to_scope` says the last question found nothing, or something
+  else was asked since.
+- The strict answer's cite rule, on the owner's ruling (below).
+- The README says which numbers are withheld, not all of them.
 
 Done 2026-11-18: `share` was tried between the owner's real record and a
 second one made for the test (an identity each, each named on the other, a
@@ -481,6 +517,27 @@ a time. Not built with it: a button on the seal page to stop a skill
 (`{"stop": "NAME"}` on the pipe does it).
 
 ### Could do, not asked for
+
+- **The person's own door, run by a model's shell (found 2026-11-20).**
+  The guard door lets a model's tool call run `provider read`,
+  `doors/pipe.py`, `seal_page.py` and `seal_prompt.py`: eight such
+  commands were fed to it over a made-up record, and each was allowed.
+  `provider read` hands back passages with no seal (it is the person's
+  door), and the pipe takes `stop`, `restore` and `share_send` too.
+  Willow's `hook-guard` is for the kernel's key and record; these are the
+  Provider's own doors, so the rule belongs in `runtime.guards()`: refuse
+  a tool call that runs one of them, by paths and words as `hook-guard`
+  does (a script the model writes to get round it still gets through), with
+  tests that fail without it, and a line in SECURITY.md and
+  [doors.md](doors.md).
+- **A record made with `--from` and the Provider's backup (2026-11-20).**
+  Willow's `backup` is one of the 37 add-ons that crash with a traceback
+  on a box reading several places (willow-memory/Willow#383, a strict
+  xfail each), and `runtime.backup()` calls it. A record made in Willow's
+  UI is one folder and isn't touched; one made by hand with `--from` is.
+  Until #383 is fixed, the runtime can say so in its own words (the record
+  reads several places; Willow's backup reads one) instead of passing the
+  traceback through, with a test on such a record.
 
 - The check, faster still: Willow's `test-impact` (only the tests a change
   can reach, first) and `ci-memo` are written around Willow's own layout
@@ -502,20 +559,29 @@ a time. Not built with it: a button on the seal page to stop a skill
     yet writes the whole timeline to a file (150 KB here) and names it.
     Each asking leaves a file in `made/`.
   - `report` names are held to their exact case (`Todo` is refused).
+    (The names are in the report tool's schema since 2026-11-19, so a
+    model is told them before it asks; `Todo` is still refused.)
   - `minutes` is over the most shared at once on the real folder, and a
     report has no parts as a timeline has, so a session let in gets none
     of it.
   - A timeline counts front-matter lines (`metadata:`, `node_type:`) as
     lines about the matter. Willow's `timeline`, by passage.
-  - After a reconnect the client still showed the older descriptions of
-    `report`, `context` and `skill`. Seen once; whether the door should
-    send the list-changed notice when its own words change is not looked
-    into.
+  - (Fixed 2026-11-19: after a reconnect the client still showed the
+    older descriptions of `report`, `context` and `skill`. The door told a
+    client the list changed only when a tool's name did, and only within
+    one run. It now keeps the fingerprint of the whole list it last sent,
+    names, words, schemas and hints, and a new session whose list differs
+    is told so at once.)
 
-- A strict answer must cite every passage on its page, which can force a
-  clause that has nothing to do with the question (seen 2026-11-18). To
-  let a model answer from some of the passages loosens a check: the
-  owner's to rule on. The description now says what the check holds.
+- ~~A strict answer must cite every passage on its page~~, which could
+  force a clause that has nothing to do with the question (seen
+  2026-11-18).
+  - **Ruled 2026-11-19, by the owner:** a sentence cites at least one
+    passage on its page, and need not cite them all. Every other check
+    stands over the passages it cites (each cite on the page, nothing they
+    lack); the others are sentence-check's earlier boxes, whose words
+    count only when cited. With it, as asked: the seal page lists beside
+    the sentence each passage it left out, by file and id, never words.
 
 - Fewer rows on the record still: a read-only way to ask the kernel what
   is sealed and what waits (a Willow add-on), and a switch for which hooks
@@ -527,6 +593,179 @@ a time. Not built with it: a button on the seal page to stop a skill
 - Willow's `rss-out` can write inside the record's folder; the runtime
   refuses that, the add-on itself does not.
 
+- **The seal page, read as the person on a phone (2026-11-20).** From its
+  own HTML rendered over a throwaway record, at 390 pixels, in headless
+  Chromium. Several break the plain-words rule the refusals are held to
+  (no `bite`, `kernel`, `proposal:`):
+  1. A session's card says what was done in the kernel's words: "2 × bite:
+     empty, 4 × bite: served, 1 × boot, 4 × out, 5 × proposal: pass, 1 ×
+     seal". In the person's: questions asked of their files and how many
+     found something, things given to a model, things handed in, sealed.
+  2. A model's sentence's card ends on "the page of proposal:" and 64 hex
+     digits, "(page sha256 …); sentence-check held it". The checks above
+     it say what held; it could name the question the page was sealed for.
+  3. A page to share shows the page's own markup: `## car.md`, `car.md:1`
+     and its code fences. The file as a heading and the passage as a quote.
+  4. No count at the top, and the cards in the order they came: a session
+     asking to read, the one with most at stake, can be anywhere. A line
+     saying how many wait, and grants first.
+  5. A note's card is headed "A suggestion" and titled "a note to keep".
+  6. Each card ends in two to four grey paragraphs, so on a phone its
+     buttons are far from what they decide. The detail could fold into
+     "Exactly what you'd be sealing", one line left above the buttons.
+  1, 2, 5 and the count are wording; 3, 4's order and 6 are layout, to be
+  seen as a mock-up first. None changes what a seal does.
+
+- **The model's side, read as a model in a whole session (2026-11-20).**
+  The MCP door driven from initialize to the shelf over a throwaway record,
+  a page and a session's yes sealed with the test key between calls. A
+  refusal carries `say` and `next`; most of what stalls is in replies that
+  aren't refusals:
+  1. A struck answer gives no way forward: `"nothing the boxes lack":
+     "failed: comes is no box's"`, with no `say` or `next`. "Box" is
+     sentence-check's word, never the model's, and the word was on the
+     page, in the passage the sentence didn't cite. It could say so:
+     "comes isn't in the passage you cited; it is in 5015f34a7102". With
+     the ruling that a sentence may cite part of its page, that is the
+     next step.
+  2. A reply that waits (`propose`, `grant`, `note keep`) gives a 64-hex
+     seal id and nothing to tell the person. It could carry a `next` as a
+     refusal does: what waits, for which question, on their seal page.
+  3. The sealed page comes as markup (ids in backticks beside
+     "human-sealed", passages in code fences) that the model must take
+     apart to cite. The same reply could carry the passages as data: id,
+     file, text.
+  4. `context` not let in says only `populated`, with no next step, where
+     `timeline`'s refusal says to ask with `grant`.
+  5. Under a yes, "what is left to do in the garden" gave the frost line,
+     not the line marked to do: the kernel's rank, by design. Nothing
+     tells a model `report todo` is for that; the tools' words could.
+  1 and 2 matter most.
+
+- **The broad fix for both lists, and other ways to see it (2026-11-20).**
+  Asked of Claude after the two lists above; the owner is working on the
+  fix from another angle, so these are views to weigh, not a plan.
+  - **One translation at the edge.** Both lists are the inside leaking
+    out: `bite`, `box`, `proposal:` and a hash, `came_of`, a page's
+    markup. Refusals don't leak because they pass through `PLAIN` and
+    `test_plain` holds every code to plain words. Everything else never
+    did. Every state, not only a refusal, could carry `say` and `next`
+    for its reader (model and person), held by a test the same way; name
+    things by what they are about (the question, the folder), not by an
+    id, from what is kept beside the record since the record keeps no
+    question's words; prose for the reader and data for a machine (a
+    page's passages as id, file, text); what is at stake first, the
+    detail folded under "Exactly what you'd be sealing".
+  - **The person's jobs, not the system's verbs.** List the few things the
+    person comes to do (let an assistant work on these notes; what did it
+    see this week; take that back) and count the steps each takes now. It
+    asks whether a reply should be seen at all, not how it reads.
+  - **Decisions, not screens.** Each card is a decision: show what the
+    person needs to make it well (what leaves, to whom, for how long, and
+    whether it can be undone) and nothing else. A grant's card says
+    "until the session ends" but not what has been read so far.
+  - **The model as the interface.** Most people won't open the seal page;
+    they hear of it from their assistant. So a reply to a model is what it
+    should say to the person: write each as that sentence. A waiting reply
+    with a seal id fails at once.
+  - **Dead ends, and getting out of them.** Every reply where the reader
+    can't act next without knowing more (a bare `sealed`, a struck
+    answer, `populated`), held by a test as `test_plain` holds refusals.
+  - **Names at birth.** A scope, a grant or a note gets only a hash when
+    it is made. A handle given then (the question, the folder, a note's
+    first words), kept beside the record, and most of the display needs
+    no translating.
+  - **What the protocol already offers.** MCP has elicitation (a client
+    asks the person natively) and resource subscriptions (a client is
+    told something changed): a yes asked and settled in the assistant the
+    person already uses, the page for review. Elicitation was left out
+    because a hook can answer it, which is the right worry, so it needs
+    care.
+  - **Measure it, as Willow's studies do.** Freeze a few real tasks, have
+    a few models and the person do them cold, count steps, dead ends and
+    wrong turns, change one thing, run again: the only view that says
+    whether a fix helped rather than read better.
+  Claude's pairing: the translation layer with the model as the
+  interface (it settles who each sentence is for, so the two lists become
+  one), then measuring it.
+
+### A model on the person's own rig (designed 2026-11-21, not built)
+
+**Why.** People run very large models on rigs of their own: a machine
+with the GPUs in another room, reached over the home network, with the
+person's laptop running the Provider. `on_this_machine()` takes only
+`localhost` and loopback addresses, so a rig at `192.168.1.20` is refused
+like a cloud server, though it is the person's own hardware.
+[background.md](background.md) names "someone else's server" as not yet,
+and not this third case. It counts more as hosted models get dearer: the
+Grove's build order (the moat is context, the model last and smallest) is
+the side of that bet this project is already on.
+
+**What "only this machine" stood for.** Two questions, answered by one
+address check:
+- *Is this the model the person chose and tested?* Willow's cards answer
+  this by what a model is, not where it runs.
+- *Can anyone else read the page on its way?* The cards don't answer
+  this; the path does.
+
+**What Willow already has.** Each is a card, used as it is:
+
+| Card | What it gives a rig |
+|---|---|
+| `weights-card` | a card from the weights file's own header: architecture, quantization, context length, licence and SHA-256; run on the rig |
+| `weights-pin` | on the rig, in front of its server (`weights_pin.py --card … && llama-server -m …`): weights that differ from their card never run |
+| `model-card` | the model behind each suggestion named on the record: weights hash, where it runs, licence |
+| `model-exam` | any model scored against the answers the person already sealed, before they trust it; it reaches the endpoint they configure |
+| `model-drift` | frozen questions asked again now and then, flagging answers that change while the name and card stay the same: a model swapped on the rig |
+| `model-shelf`, `model-fit`, `model-quantized` | what a machine has, whether a model fits, and the smallest quantization that still gets the box's own questions right |
+| `openai-compatible` | an endpoint of the person's choosing, its card saying where it reaches |
+
+**What none of them gives.** The laptop can't see the rig's weights:
+`weights-pin` runs there, so the laptop has the rig's word for the hash,
+not proof. And Ollama, llama.cpp and vLLM usually serve plain HTTP, so on
+a shared network anyone else on it can read a sealed page as it passes,
+and another box could take the rig's address.
+
+**The way that works today, with no code: a tunnel.**
+
+    ssh -N -L 11434:localhost:11434 me@rig
+
+The Provider then asks `http://127.0.0.1:11434/v1`, which is loopback, so
+it is allowed. The wire is encrypted, and SSH's host key says it is the
+rig. Owed for it: a paragraph in the README, `set_up.py --model`'s refusal
+of an address off this machine saying "a model on another machine of
+yours: tunnel it", and a try end to end.
+
+**The way to build: "my rig", sealed.**
+1. *On the rig:* `weights-card` writes the card, and `weights-pin` stands
+   in front of the server.
+2. *On the laptop:* the person runs `model-exam` against their own sealed
+   answers, through the path in step 3.
+3. *Named once, sealed:* the rig goes into `model.json` as a proposal
+   through the kernel, like a session's grant, holding the card's SHA-256,
+   the exam's score, and the path: an SSH tunnel, or HTTPS with the rig's
+   certificate pinned by its fingerprint. Plain HTTP off this machine
+   stays refused.
+4. *Every draft:* the page goes only by that path; the sent log says "to
+   your rig at …"; withholding is as it is now; the record names the model
+   by `model-card`.
+5. *Now and then:* `model-drift` asks its frozen questions; a changed
+   answer stops the rig until the person looks, and looking is a seal.
+
+A cloud address stays refused: the step to someone else's server is not
+taken here. The Provider's own code is a check against the sealed rig
+and the last drift result; every judgement in it is a Willow card's.
+
+**Open in it, the owner's:**
+- Whether naming a rig is one seal or two (the rig, then each model on
+  it).
+- What "now and then" is for `model-drift`, and whether a missed check
+  stops the rig or only says so.
+- Whether `model-exam`'s score has a floor below which a rig isn't
+  offered, or only shows.
+- Whether the tunnel is set up by the person, as today, or by
+  `set_up.py`, which would then be running `ssh`.
+
 ### The owner's to decide (changes to Willow)
 
 - An early exit in the kernel's date reader: `on-this-day`, `coming-up`
@@ -534,9 +773,45 @@ a time. Not built with it: a button on the seal page to stop a skill
 - Quoted speech in the `todo` report.
 - The privacy filter reading a run of four-digit numbers as a card.
 - What Kartikeya's scan of a job missed (written up above).
+- **#91's fix, to main (2026-11-20).** A model's shell could run the
+  kernel's `seal` or `decline`, which read the key themselves, and the guard
+  door let it. `hook-guard` 0.2.0's `seal` rule refuses it (any kernel,
+  any port, any box), 6 of 6 mutants killed, on Willow's
+  `ccr-9265087c-pvfpcl` with no pull request yet; the pin moves to it once
+  it lands, and the guard door has it with no change here.
+- **#90, a search of the key's folder.** A Grep or recursive Glob over the
+  folder that holds the key gets past `hook-guard` (a strict xfail in its
+  tests); the guard door inherits it.
+- **The same Willow branch's other two:** `gh-json` 0.2.0 (GitHub's REST
+  answers read as `gh --json`, a merge queue's run said as the pull request
+  it holds) and the contract test that holds every add-on to "refuse or
+  read" on a box of sources (#383). One pull request would carry all three.
+- **`starter.py copy` names `init --words`.** Its last line says "then init
+  --words FILE"; since #386 it can name `kernel.py words`, which
+  `set_up.py` now prints after it.
+- **A "nothing hosted" check.** Run the base assistant
+  ([base-jarvis.md](base-jarvis.md)) with the network off and only a model
+  on this machine, and write down what works and what breaks: the kernel,
+  the seal page, the person's door and `local-model` should all hold; the
+  MCP door needs a client, and the voice loop is half ideas. The answer to
+  "what if hosted models get dear or go", as a test rather than a claim.
 
 ### The owner's own
 
 Name socratic-fork as a folder; an `ask-here` file to turn the dialog on;
-a `deny.txt` for `hook-shell`; a copy of `share.id` kept somewhere safe;
-the Willow commits pushed when the time comes.
+a `deny.txt` for `hook-shell`; a copy of `share.id` kept somewhere safe.
+Willow's commits are pushed: willow-memory/Willow#380 (the game-box flake,
+`removed`'s mutants, `strip` showing why, `privacy`'s codes, `hook-guard`'s
+find, git, tar and unzip, `hook-feedback`'s words list, `session-seal
+--with`, the UI's words example) merged on 2026-11-20 as 6714ea5, and the
+pin is on that commit of main. Its one red was `strip (3.14)` timing out
+on shard 3, whose `test_cores.py` the timings file prices at 35 s against
+139 s; `times.py write --run latest` refreshes it, and needs gh. A kernel
+command to give a record its words list after it is made is the owner's,
+under way; `set_up.py`'s notice for a record with none names the next
+record until then. It landed on 2026-11-21 as willow-memory/Willow#386
+(`abf3b0b`): `words --box DIR --words FILE` in `kernel.py` and all five
+ports, held by `vectors/compare.py`'s session, `box-health` and
+`record-history` reading its row, and `known-gaps`' freeze 17. The pin is
+on that commit, and `set_up.py`'s "your words: none" prints the two lines
+that give a record the starter list.

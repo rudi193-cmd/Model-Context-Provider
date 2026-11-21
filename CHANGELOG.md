@@ -4,6 +4,152 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A record with no words list is told how to give it one.** Willow's
+  `kernel.py words` (willow-memory/Willow#386) lets a record take its list
+  after it was made; `set_up.py`'s "your words: none" prints the two lines
+  that do it, with the record's own paths (`starter.py copy`, then
+  `kernel.py words`), and the stack notice and README no longer say a
+  record takes its list only when it is made. The pin is on `abf3b0b`.
+- **A model on the person's own rig, designed.** `docs/OPEN.md`: a rig
+  on the home network is refused today like a cloud server. The way that
+  works now (an SSH tunnel, so the Provider asks loopback), and the way to
+  build: the rig named once and sealed, by Willow's cards (`weights-card`
+  and `weights-pin` on the rig, `model-exam` on the person's sealed
+  answers, `model-card` on the record, `model-drift` now and then), over a
+  tunnel or pinned TLS. Not built.
+- **The base Jarvis page, corrected and widened.** The base is the
+  Grove, as the owner decided on 2026-09-01 (quoted from the Grove's
+  phone-surface notes); with the rules it inherits (no inside names reach
+  the person, a conversation, an age gate, small models each on a slice)
+  and the gaps none of the four piles answers: a lost key, other people's
+  words, a household, the phone's plaintext.
+- **A base Jarvis, written down.** `docs/base-jarvis.md`: everyone's base
+  assistant as the Grove's five layers (voice, desk, tools, memory,
+  trust), what already fills each across Willow, this Provider, Die-Namic
+  and the Grove, the rule it inherits (record choices, never people), what
+  is left to build, and what Willow's forge gave when asked (hand built).
+- **The seal page fits a phone.** A model's sentence quotes its page's
+  seal, a 70-character id with no break, and at a phone's width the page
+  ran 137 pixels too wide and scrolled sideways. A card's text now breaks a
+  word that can't fit. Seen by rendering the page's own HTML, with its own
+  headers, in headless Chromium: never served, nothing clicked; the policy
+  let no script run and nothing load but its stylesheet.
+- **A session's corrections go in the backup.** They wait beside the
+  record until the session ends, in `corrections/`, which `backup` and
+  `restore` didn't carry; now they do, held to the same names.
+- **Under a session's yes, a question you sealed a page for gives that
+  page.** The kernel answers a sealed question with its seal and serves no
+  passage, and under a yes `context` passed that on as a bare
+  `{"state": "sealed"}`: nothing a model could use, and no word that the
+  page was stopped when it was. It now gives the page, as `leave` does, and
+  a page you stopped is refused as `stopped`.
+- **The pin is on Willow's main.** willow-memory/Willow#380 merged as
+  6714ea5; the pin names that commit, and no pinned file differs from the
+  branch commit it named before.
+- **A record is pointed at a words list before it is made.** A record
+  takes its words list only when it is made, and Willow's UI ticks the
+  starter list only when the stack holds `starter-words`; nothing here
+  said so, and `set_up.py` called "your words: none" ok. Now `set_up.py
+  --stack` on a stack with no record yet and no `starter-words` gives the
+  one command that adds it, a record with no words is a notice (`--`) that
+  says what it costs and stops nothing, a record with words is told it
+  can add its own lines any time, and the README's setup says to keep the
+  starter list ticked.
+- **Corrections are sealed with their session, once.** Each correction the
+  person typed was a card of its own on the seal page, past any cap, and
+  "No thanks, that's fine" or "no worries" counted as one while "nope,
+  not that" didn't. On the owner's word: a correction is known by Willow's
+  `hook-feedback` words list (`match`, which writes nothing; a list of
+  your own in `BOX.runtime/corrections.txt`), kept beside the record for
+  its session, 50 at most and once each, and handed to `session-seal
+  --with` at the session's end, so it is in the session's one proposal.
+  The session's card lists them. The pin moves to Willow's
+  `hook-feedback` 0.1.1 and `session-seal` 0.3.1 (#380).
+- **The guard reads a command run on the record by another.** Probed with
+  34 direct calls, the guard door refused 33; `find BOX -delete` went
+  through, and so did `find -exec rm`, `git -C BOX clean`, `tar -C BOX` and
+  `unzip -d BOX`. The pin moves to Willow's `hook-guard` 0.1.2
+  (willow-memory/Willow#380), which reads each; `find`, `git status`,
+  `tar -t` and `unzip -l` still pass.
+- **A page can't close its own frame.** The prompt hook frames a sealed
+  page in `<sealed-page>` tags. A page holding those tags itself (a note,
+  or another person's email brought in with `mail`) closed the frame
+  early, so what followed looked to stand outside it. The frame's name
+  inside a page now has its hyphen made a non-breaking one: it reads the
+  same, and the frame closes once, at its end.
+- **A client that reconnects is told the list changed.** After a
+  reconnect a client could still show older tool descriptions: the door
+  sent `list_changed` only when a tool's name changed, and only within one
+  run. It now keeps, beside the record, the fingerprint of the whole list
+  it last sent (names, words, schemas, hints); a new session whose list
+  differs is told at once, and a change within a session to any of those
+  is told as a name's was.
+- **A sentence cites the passages it comes from, and what it left out is
+  shown.** On the owner's ruling (2026-11-19), a strict answer cites at
+  least one passage on its page and need not cite them all: citing every
+  one forced clauses that had nothing to do with the question. The
+  passages it cites are sentence-check's boxes, every check held over
+  them; the rest are its earlier boxes, whose words count only when cited,
+  so a word from a passage it leaves out still strikes it. A sentence that
+  cites nothing on its page is refused (`no_cite`). Kept with its checks,
+  by id and file and never words, is what it left out, and the seal page
+  shows it beside the sentence ("Left out: 1 of the 2 on the page").
+- **A refusal names what you type.** Its next step named a verb on your
+  door in brackets, as `(waiting)` or `(stored)`, which a model passed on
+  as "Tell the person: look at what waits on you (waiting)". Each now names
+  the command, `provider waiting`, and the seal page where it does the
+  same. Three that spoke of you as "the person" on your own door (a tool
+  turned off, no identity to share with, nobody by that name) now speak to
+  you, with the words to type: `provider tools on=GROUP`, `provider
+  share_id`, `provider share_person name=NAME key=KEY`.
+- **A model's client is told more before it calls anything.** The door's
+  `initialize` said nothing of how its tools go together, and named itself
+  version `0`. Now it gives `instructions` (the two ways in, that sealing
+  is the person's, and that with the Provider's hooks what they seal
+  comes into a later turn by itself, while without them a model calls
+  again; how to read `read (question)`), and its version with
+  the Willow commit it is pinned to. Each tool carries MCP's annotations
+  (none reaches past this machine; only the shelf takes anything away;
+  `context` and `report` only read), and its schema holds the runtime's
+  own limits: a note's length, a shelf or skill name's pattern, the report
+  names, a date's form. The nine everyday tools are 6,172 characters, under
+  the 7,000 they are held to.
+- **What a model hands in has an end.** A model never let in could write
+  without limit beside the person's record: a note of any size, any number
+  of them (each kept in the record's proposals, each waiting on the seal
+  page), and a shelf of any number of things a megabyte each. 40 MB went in
+  seconds. Now a note is at most 20,000 characters (`note_too_long`), at
+  most 50 wait at once (`notes_waiting`), and a project's shelf holds 200
+  things or 50 MB (`shelf_full`); each refusal is plain, with its next step.
+- **A batch is answered.** A JSON-RPC batch, or a line that is JSON but no
+  object, had no reply, so a client waited on it for ever. It is now told
+  `invalid request` (MCP has had no batches since 2025-06-18).
+- **A code that opens something is withheld.** The pin moves to Willow's
+  `privacy` 0.1.1 (willow-memory/Willow#380): a gate, door or alarm code, a
+  passcode, a PIN or a combination, 3 to 10 digits after what it opens,
+  the label kept (`Gate code is [withheld: code]`). Two files differ, its
+  code and its card; the card says what it still misses, a few digits with
+  nothing before them saying what they open.
+- **Withholding hands back every text, in its place.** `withhold` scrubs
+  many texts in one pass, joined by a separator. Willow's pattern for a
+  private key runs to its END, or to the end of what it is given when
+  there is none, so a key cut short took the separators after it: with a
+  whole key further on, each text after it came back as the one two places
+  later (a passage under another's place on a session's page) and the
+  last ones were gone. Seen in a folder skill whose `id_ed25519` hid the
+  file after it. When fewer texts come back than went in, each is now
+  scrubbed alone; if one still doesn't come back whole, nothing leaves.
+- **A key is never listed in a skill.** A folder skill skipped only a
+  `.key` file and the box's own key, so `id_ed25519` was listed and given
+  (its words withheld by the scrub). Now a key by its kind (`.key`,
+  `.pem`, `.p12`, `.pfx`) or by a private key's words is never listed, nor
+  named as a skill of its own.
+- **Nothing to share says why it can be.** `nothing_to_scope` told the
+  person "no question has found anything in your files", even straight
+  after a read that found something and a second that found nothing. It
+  now says the last question found nothing, or something else was asked of
+  them since; a model's door says to read again with a question their files
+  hold, then propose straight after.
 - **Both repos have a pull request.** Willow's commits this was built on
   are willow-memory/Willow#379. Its rule is one version step for each
   add-on a pull request changes, so `kart` (stepped to 0.1.7 a commit at a

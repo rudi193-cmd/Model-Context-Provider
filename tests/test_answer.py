@@ -6,6 +6,7 @@ import json
 from test_leave import seal
 
 import runtime
+import seal_page
 
 Q = "when does the first frost come"
 
@@ -39,11 +40,23 @@ def test_a_sentence_that_adds_to_the_page_is_struck_and_goes_nowhere(box):
     assert (box / "record.jsonl").read_text() == before
 
 
-def test_a_cite_the_model_was_never_given_is_struck(box):
-    handed(box)
+def test_a_cite_the_model_was_never_given_never_stands(box):
+    """Alone, it cites nothing on the page and is refused; beside a cite that
+    is on the page, every cite was served fails and it is struck. Either way
+    nothing is proposed."""
+    sid = handed(box)
+    rows = len((box / "record.jsonl").read_text().splitlines())
     got = runtime.call(box, "answer", "The first frost comes in late October [zzz].",
                        door="mcp")  # fmt: skip
+    assert (got["state"], got["code"]) == ("refused", "no_cite")
+    got = runtime.call(box, "answer", f"The first frost comes in late October [{sid}] [zzz].",
+                       door="mcp")  # fmt: skip
     assert got["state"] == "struck"
+    assert got["checks"]["every cite was served"].startswith("failed")
+    proposed = [
+        json.loads(r) for r in (box / "record.jsonl").read_text().splitlines()[rows:]
+    ]
+    assert not [r for r in proposed if r["kind"] == "proposal"]
 
 
 def test_an_answer_before_anything_left_is_refused(box):
@@ -87,3 +100,60 @@ def test_the_answer_names_the_scope_it_was_given(box):
     (w,) = runtime.call(box, "waiting", door="pipe")["waiting"]
     scopes = json.loads((runtime.state(box) / "scopes.json").read_text())
     assert w["seal"] == got["seal"] and next(iter(scopes)) in w["claim"]
+
+
+def two(box):
+    """A page of two passages on one question, sealed and given: their ids,
+    the garden's first."""
+    (box.parent / "pile" / "beds.md").write_text(
+        "Cover the beds with straw before the first frost comes in late October.\n"
+    )
+    runtime.call(box, "read", Q, door="mcp")
+    seal(box, runtime.call(box, "propose", door="mcp")["seal"])
+    page = runtime.call(box, "leave", door="mcp")["page"]
+    ids = {runtime.files_of(page)[b["id"]]: b["id"] for b in runtime.boxes_of(page)}
+    assert set(ids) == {"garden.md", "beds.md"}, page
+    return ids["garden.md"], ids["beds.md"]
+
+
+def test_a_sentence_may_cite_part_of_its_page_and_what_it_left_out_is_shown(box):
+    """The owner's ruling, 2026-11-19: at least one passage, not all of them.
+    What it left out is kept by id and file, and the seal page shows it."""
+    garden, beds = two(box)
+    got = runtime.call(box, "answer", f"The first frost comes in late October [{garden}].",
+                       door="mcp")  # fmt: skip
+    assert got["state"] == "waiting" and got["left_out"] == [beds], got
+    assert "every box cited" not in got["checks"]
+    kept = runtime.checks_kept(box)[got["seal"]]
+    assert (
+        kept["left_out"] == [{"id": beds, "file": "beds.md"}] and kept["passages"] == 2
+    )
+    assert "straw" not in json.dumps(kept)  # by where, never by words
+    shown = seal_page.left_out(kept)
+    assert "Left out: 1 of the 2 on the page" in shown and "beds.md" in shown
+    assert "every passage" in seal_page.left_out({**kept, "left_out": []})
+
+
+def test_words_of_a_passage_it_does_not_cite_still_strike_it(box):
+    garden, beds = two(box)
+    got = runtime.call(box, "answer", f"Cover the beds with straw in late October [{garden}].",
+                       door="mcp")  # fmt: skip
+    assert got["state"] == "struck"
+    assert got["checks"]["nothing the boxes lack"].startswith("failed")
+    both = runtime.call(box, "answer",
+                        f"Cover the beds with straw before the first frost [{garden}] [{beds}].",
+                        door="mcp")  # fmt: skip
+    assert both["state"] == "waiting" and both["left_out"] == []
+
+
+def test_a_sentence_that_cites_nothing_on_the_page_is_refused(box):
+    garden, _ = two(box)
+    for sentence in ("The first frost comes in late October.",
+                     "The first frost comes in late October [ffffffffffff]."):  # fmt: skip
+        got = runtime.call(box, "answer", sentence, door="mcp")
+        assert (got["state"], got["code"]) == ("refused", "no_cite"), sentence
+    stray = runtime.call(box, "answer",
+                         f"The first frost comes in late October [{garden}] [ffffffffffff].",
+                         door="mcp")  # fmt: skip
+    assert stray["state"] == "struck"
+    assert stray["checks"]["every cite was served"].startswith("failed")

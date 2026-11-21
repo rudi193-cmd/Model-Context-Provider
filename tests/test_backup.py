@@ -124,3 +124,20 @@ def test_a_model_cannot_restore(box, tmp_path_factory):
     zip_from, _ = lost(box, tmp_path_factory)
     got = runtime.call(box, "restore", str(zip_from), door="mcp")
     assert got["state"] == "refused" and got["code"] == "no_verb"
+
+
+def test_a_sessions_corrections_go_in_the_backup_and_come_back(box, tmp_path_factory):
+    """A session's corrections wait beside the record until it ends; a backup
+    taken before then carries them, and a restore puts them back."""
+    runtime.correction_kept(box, "s1", "no, the other bed")
+    kept = runtime.corrections_of(box, "s1")
+    usb = tmp_path_factory.mktemp("usb")
+    made = runtime.call(box, "backup", str(usb), door="pipe")
+    assert f"corrections/{kept.name}" in made["files"], made
+    was = kept.read_bytes()
+    kept.unlink()
+    got = runtime.call(box, "restore", str(usb / made["runtime"]), door="pipe")
+    assert f"corrections/{kept.name}" in got["files"] and kept.read_bytes() == was
+    assert runtime.kept_name(f"corrections/{kept.name}")
+    for bad in ("corrections/a/b.json", "corrections/../x", "corrections/"):
+        assert not runtime.kept_name(bad), bad

@@ -64,7 +64,7 @@ fixed rule and never a reading of what the assistant meant:
 | | blocked if it edits a file the assistant hasn't read this session, or that changed since | `hook-read-first` |
 | | blocked if the same command already failed twice this session the same way | `hook-errors` |
 | after a command | a failure is kept on your record by the command's hash and exit code, never its words | `hook-errors` |
-| at a prompt | a correction ("no", "wrong", "I said") is proposed, and waits on your seal like anything else | `hook-feedback` |
+| at a prompt | a correction ("no", "wrong", "nope", "I said", by `hook-feedback`'s words list; never "no thanks" or "no worries") is kept beside your record for the session, 50 at most, and goes nowhere else; at the session's end it is sealed with the session, once, its words on the session's card. Your own words list goes in `BOX.runtime/corrections.txt` | `hook-feedback` (`match`), `session-seal` (`--with`) |
 | at a turn's end | where the session ended is kept: its id and folder | `hook-handoff` |
 | at the next session's start in that same folder, or its first prompt | the model is told that, once: "session S ended in FOLDER". A session in another folder isn't told: one record hears every project's sessions, and each picks up its own | `hook-handoff` |
 | at a session's start, and before a summary | the model is told how many things wait on your seal: a count, and nothing of what they are | the runtime |
@@ -80,7 +80,9 @@ such file that guard isn't asked.
 
 That guard stops a careless or direct tool call: a Write or Edit of a file
 in the box or in `BOX.runtime`, or a command that redirects into it or runs
-`rm`, `mv`, `cp`, `tee`, `sed -i` and the like on it. It does not stop code
+`rm`, `mv`, `cp`, `tee`, `sed -i` and the like on it, `find` with `-delete`
+or `-exec rm` from it, `git -C` on it with `clean`, `checkout` or `reset`,
+and `tar` or `unzip` unpacking into it. It does not stop code
 a model runs: a script that builds the path at run time, a `$VAR` path, or a
 `cd` earlier in the same command gets through, and so would a call the host
 never sends to a hook. Nothing here hides the folder from a model that can
@@ -142,6 +144,21 @@ verbs are grouped into tools: one for the shelf, with an action, where
 there were four. The verbs are unchanged underneath; each action is one of
 them, decided and written down exactly as before, and your shared page
 still names what was done by its verb.
+
+What else the door tells a model's client, before any tool is called:
+
+- **How the tools go together**, once, at the start (MCP's
+  `instructions`): the two ways in, that sealing is yours, and how to read
+  an action's arguments in a description.
+- **What each tool does to your machine** (MCP's annotations): which only
+  read, that only the shelf's `remove` takes anything away, and that none
+  reaches past this machine. A client can ask you less often for a tool
+  that only reads.
+- **The limits, in each tool's schema**: a note's 20,000 characters, a
+  shelf name's letters, the report names, a date's form. A model keeps
+  inside them instead of finding them by being refused.
+- **Which Provider it is**: its version and the Willow commit it is pinned
+  to, as `0.1.0+willow.4c1ab7cc6112`.
 
 | Tool | Actions | Group | On |
 |---|---|---|---|

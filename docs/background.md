@@ -62,7 +62,7 @@ named in `model.json`.
 | the kernel: `bite`, `propose`, `seal`, the record | reading, proposing, and the person's seal |
 | `approved-only` | the sealed scope as one page, by name, only whole |
 | `sentence-check` | holding the model's sentence to its page |
-| `privacy` | withholding numbers, emails and keys |
+| `privacy` | withholding the numbers its card names by kind (phones, cards, bank and ID numbers, codes), emails, keys and passwords |
 | `backup`, `local-model` | the record's backup, and finding models on this machine |
 | `session-seal` | one seal over a session's actions |
 | `index-cache`, `claude-code`'s `bite` | a bite answered from an index of the folder |
