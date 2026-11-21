@@ -6,7 +6,7 @@ since grown into the project's working list: what the owner threw in
 along the way, what was found when each line was held to the code, and
 the owner's rulings. A box is ticked when the thing is built here. A line
 starting **Note** was added afterwards: what was found, and what it still
-needs. Last held to the code on 2026-11-19. What is still open is
+needs. Last held to the code on 2026-11-21. What is still open is
 gathered at the end, under "Open now".
 
 ## Handoff: Model-Context-Provider (MCP → Provider)
@@ -101,8 +101,9 @@ pattern:
   - **Note:** built as `report on-this-day`, the same way as todo. Its
     sibling `coming-up` (dates in the next 14 days) wasn't in the list and
     is built too, as `report coming-up`; it loads Willow's `pieces` add-on
-    from beside it, so both are pinned. It reads the box's main folder
-    only, not extra sources. Not yet tried in a real session.
+    from beside it, so both are pinned. On a record made from several
+    places (`init --from`) it says, in plain words, that it reads one folder
+    (`reads_one_folder`, Willow #383). Not yet tried in a real session.
 - [x] **timeline**
   - **Note:** built 2026-11-18 as `timeline` on both doors: the person's
     writes the file whole; a session they let in has it made for them and
@@ -213,8 +214,8 @@ pattern:
 - [x] Keep pure-stdlib + pin discipline
   - **Note:** held, with one stated exception: a job needs the `kartikeya`
     package and `bwrap`, on a Python the person names beside the record;
-    without them `job` is refused and everything else runs. The pin is at
-    Willow `e4f50ac5`, on the branch of willow-memory/Willow#379.
+    without them `job` is refused and everything else runs. The pin is on
+    Willow's main at `0c07be1` (#387), held by `willow_pin.py check`.
 
 ### Open design questions
 
@@ -265,7 +266,7 @@ pattern:
   hook-errors, hook-handoff, hook-feedback, and a count of what waits at a
   session's start and before a summary. Seen in a real Claude Code session.
 - [x] **A fix in Willow:** hook-errors 0.1.2 reads a failed command's exit
-  code from Claude Code's `error`. Committed on this machine; not pushed.
+  code from Claude Code's `error`. On Willow's main since #379.
 - [x] **The check runs here** (`check.py`, and a git hook that holds `main`).
 
 ## Thrown in along the way (the owner's, 2026-11-17 and 18)
@@ -344,7 +345,7 @@ so none is lost. A box is ticked when it is built.
   are built and run here, and the check is the gate.
   - **Note:** the fifteen Willow commits this pin stands on (the hook
     add-ons, `todo`, `people`, `hook-guard`, `kart`, `timeline`, `removed`) are
-    willow-memory/Willow#379, opened 2026-11-18.
+    willow-memory/Willow#379, opened 2026-11-18 and merged 2026-11-19.
 - [ ] **Quoted speech in the todo report.** About a dozen of the 91 lines
   are the owner quoted saying "I need to…" in a past session, not tasks.
   - **Needs:** the owner's yes; it is a change to Willow's `todo`, and it
@@ -412,9 +413,11 @@ so none is lost. A box is ticked when it is built.
   model runs: a path built at run time (`$VAR`, a substitution, a script it
   writes), a `cd` earlier in the command, and `mv -t DIR src` still get
   through. Kart's sandbox is the real fix, and `job` now runs there; the
-  assistant's own shell tool does not.
-- [ ] Push the Willow commits, or the GitHub workflow can't find the pinned
-  commit.
+  assistant's own shell tool does not. The system's own answer, a key and
+  files the assistant's account can't touch, is designed below ("The key in
+  an account of its own").
+- [x] Push the Willow commits, or the GitHub workflow can't find the pinned
+  commit. Done: every commit the pin names is on Willow's main.
 - [ ] `hook-shell` is off until there is a `deny.txt` beside the record.
 - [ ] A correction ("No, …") hasn't been tried in a real session.
 - [x] The guard covers the box, not `BOX.runtime` (`stopped.json`,
@@ -945,9 +948,10 @@ rows be added and none rewritten, by either; the chain and Willow's
 - ~~**The same Willow branch's other two.**~~ Done in #387 with it:
   `gh-json` 0.2.0, and the contract test that holds every add-on to
   "refuse or read" on a box of sources (#383, 37 strict xfails to fix).
-- **`starter.py copy` names `init --words`.** Its last line says "then init
-  --words FILE"; since #386 it can name `kernel.py words`, which
-  `set_up.py` now prints after it.
+- **`starter.py copy` names `init --words`.** Fixed on Willow's
+  `ccr-9265087c-pvfpcl` (`9ee4693`, `starter-words` 0.1.1), not on main
+  yet: the copy names `kernel.py words` for a record already made, beside
+  `init --words` for a new one.
 - **A "nothing hosted" check.** Run the base assistant
   ([base-jarvis.md](base-jarvis.md)) with the network off and only a model
   on this machine, and write down what works and what breaks: the kernel,
@@ -967,8 +971,7 @@ pin is on that commit of main. Its one red was `strip (3.14)` timing out
 on shard 3, whose `test_cores.py` the timings file prices at 35 s against
 139 s; `times.py write --run latest` refreshes it, and needs gh. A kernel
 command to give a record its words list after it is made is the owner's,
-under way; `set_up.py`'s notice for a record with none names the next
-record until then. It landed on 2026-11-21 as willow-memory/Willow#386
+under way. It landed on 2026-11-21 as willow-memory/Willow#386
 (`abf3b0b`): `words --box DIR --words FILE` in `kernel.py` and all five
 ports, held by `vectors/compare.py`'s session, `box-health` and
 `record-history` reading its row, and `known-gaps`' freeze 17. The pin is
