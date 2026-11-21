@@ -108,6 +108,15 @@ def check(box: Path) -> list[tuple[str, bool | None, str]]:
                 "its own, with sealing across, is designed in docs/OPEN.md, not built"
                 if reader == "this account" else
                 "can't be told here"))  # fmt: skip
+    writer = code_writer()
+    out.append(("who can change this code", None if writer != "another account" else True,
+                "an account of its own: an assistant running as you can't change the doors"
+                if writer == "another account" else
+                f"this account, so an assistant running as you could change the doors in "
+                f"{HERE} by a command, the guard door too. Installed where only an "
+                "administrator can write is designed in docs/OPEN.md, not built"
+                if writer == "this account" else
+                "can't be told here"))  # fmt: skip
     where = guard_where(box)
     out.append(("the guard door", True if where == "managed" else None,
                 "in Claude Code's managed settings: an assistant can't switch it off"
@@ -285,6 +294,32 @@ def key_reader(key: Path) -> str:
         return ""
     if st.st_uid == os.getuid() or os.access(key, os.R_OK):
         return "this account"
+    return "another account"
+
+
+#: what runs when a door does: the runtime, the doors, and the pin that holds
+#: Willow to the bytes it was built on (so Willow's own files need no more)
+CODE = ("*.py", "doors/*.py", "willow.pin.json")
+
+
+def code_writer(root: Path | None = None) -> str:
+    """Who can change the code that runs when a door does, from what the
+    system says of each file and folder, never their bytes: "this account"
+    when the account setup runs as can change any of them (the one an
+    assistant runs as, so it could change the guard itself, by a command the
+    guard can't read as an edit), "another account" when it can change none,
+    "" when it can't be told (as on Windows)."""
+    if not hasattr(os, "getuid"):
+        return ""
+    root = HERE if root is None else root
+    paths = [root, root / "doors", *(f for g in CODE for f in sorted(root.glob(g)))]
+    for f in paths:
+        try:
+            st = f.stat()
+        except OSError:
+            continue
+        if st.st_uid == os.getuid() or os.access(f, os.W_OK):
+            return "this account"
     return "another account"
 
 

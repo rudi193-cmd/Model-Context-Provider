@@ -13,6 +13,13 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   yet), and `status` says it under Shared. A log that doesn't hold is left
   out of the seal, and close says so. The kernel reads your key; this never
   does. Pinned to Willow `9446bf9`, on its branch until it merges.
+- **Setup says who can change this code.** Managed settings stop an
+  assistant unwiring the guard door, not changing it: the hook runs the
+  door from the Provider's folder, and a command that edits it names no
+  file the guard holds. From each file's and folder's owner and mode,
+  never their bytes. Installing it where only an administrator writes is
+  designed in `docs/OPEN.md`, not built; unlike the key, it needs nothing
+  to cross accounts at run time.
 - **Setup says who can read your key.** From the file's owner and mode,
   never its bytes: the account setup runs as is the one any assistant runs
   as, so a key it can read is one a script the assistant writes can read.

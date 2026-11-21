@@ -266,3 +266,36 @@ def test_setup_says_who_can_read_the_key_without_opening_it(box, tmp_path, monke
         assert setup.key_reader(key) == "another account"
         assert row()[1] is True and "can't read it" in row()[2]
     assert setup.key_reader(tmp_path / "no-key-here") == ""
+
+
+def test_setup_says_who_can_change_the_code_the_doors_run(box, tmp_path, monkeypatch):
+    """An assistant running as the account that owns this code could change
+    the guard door itself, by a command the guard reads as no edit. Told
+    from each file's owner and mode, never its bytes; only code no file or
+    folder of which this account can write is out of its reach."""
+
+    def row():
+        return next(r for r in setup.check(box) if r[0] == "who can change this code")
+
+    assert setup.code_writer() == "this account"
+    assert row()[1] is None and "the guard door too" in row()[2]
+    code = tmp_path / "code"
+    (code / "doors").mkdir(parents=True)
+    for f in ("runtime.py", "doors/guard.py", "willow.pin.json"):
+        (code / f).write_text("")
+    if hasattr(os, "getuid"):  # another account's: as the system would say it
+        mine = code.stat().st_uid
+        writable = set()
+        monkeypatch.setattr(os, "getuid", lambda: mine + 1)
+        monkeypatch.setattr(os, "access", lambda p, mode, **k: Path(p) in writable)
+        assert setup.code_writer(code) == "another account"
+        for f in (
+            code / "doors" / "guard.py",
+            code / "doors",
+            code / "willow.pin.json",
+        ):
+            writable.add(f)  # any one of them is enough
+            assert setup.code_writer(code) == "this account", f
+            writable.clear()
+        monkeypatch.setattr(setup, "HERE", code)
+        assert row()[1] is True and "can't change the doors" in row()[2]

@@ -913,7 +913,40 @@ rows be added and none rewritten, by either; the chain and Willow's
 `tip-pin` already show a rewrite, this stops one. Restore and Willow's
 `removed` add rows, so they keep working; nothing here truncates it.
 
+**The code, the same way: installed where only an administrator writes.**
+Managed settings keep an assistant from unwiring the guard door, but not
+from changing it: the hook runs `doors/guard.py` from the Provider's
+folder, and that folder is the person's. `sed -i` on `runtime.py` or a door
+is a command whose words name no file the guard holds (the key, the
+record, `BOX.runtime`), so it is let by, and an Edit is held only until a
+Read. Willow's files need nothing more: the pin refuses a Willow whose
+files differ, so a changed Willow stops the runtime rather than getting
+past it. But the pin is in the Provider's folder too. `set_up.py` now
+says who can change this code ("who can change this code"), from each
+file's and folder's owner and mode, never their bytes.
+
+The steps, when built (the person names where):
+- *Linux:* `sudo install -d -o root -g root -m 755 /opt/model-context-provider`,
+  then a copy of the Provider in it, owned by root, 644 and 755; the same
+  for the Willow it is pinned to, beside it.
+- *macOS:* the same under `/Library/Application Support/`, owned by root.
+- *Windows:* under `C:\Program Files\`, which only an administrator writes.
+- then `set_up.py --write` run from that copy, so the hooks, the MCP
+  configuration and the managed settings all name it, never the person's
+  own checkout.
+
+**Unlike the key, nothing crosses at run time.** The doors are read and run
+as the person, and the runtime writes only beside the box (`BOX.runtime`)
+and in the person's client settings, never in its own folder; Python skips
+its `__pycache__` where it can't write. Only changing the code takes the
+administrator: updating it, and `willow_pin.py repin`, which is on purpose.
+So it doesn't wait on sealing across, and `set_up.py` could print the lines
+now, as `--write managed` does. The tests and `check.py` stay in the
+person's own checkout, which is where changes are made.
+
 **Open in it, the owner's:**
+- Whether `set_up.py` prints the code's install lines now, ahead of the
+  key's, and where by default.
 - A, C, D, or more than one; and a password until passkeys, or passkeys first.
 - For D: a key pair in the kernel, and how, with the standard library
   holding no Ed25519 (a port of it in the kernel's own code, or a signature
