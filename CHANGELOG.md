@@ -4,6 +4,12 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A record with no words list is told how to give it one.** Willow's
+  `kernel.py words` (willow-memory/Willow#386) lets a record take its list
+  after it was made; `set_up.py`'s "your words: none" prints the two lines
+  that do it, with the record's own paths (`starter.py copy`, then
+  `kernel.py words`), and the stack notice and README no longer say a
+  record takes its list only when it is made. The pin is on `abf3b0b`.
 - **A model on the person's own rig, designed.** `docs/OPEN.md`: a rig
   on the home network is refused today like a cloud server. The way that
   works now (an SSH tunnel, so the Provider asks loopback), and the way to

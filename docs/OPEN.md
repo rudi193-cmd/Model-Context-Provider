@@ -766,8 +766,9 @@ on shard 3, whose `test_cores.py` the timings file prices at 35 s against
 139 s; `times.py write --run latest` refreshes it, and needs gh. A kernel
 command to give a record its words list after it is made is the owner's,
 under way; `set_up.py`'s notice for a record with none names the next
-record until then. As of 2026-11-21 it is on Willow's
-`addons/latent-kept-space`, not main: `words --box DIR --words FILE` in
-`kernel.py` and all five ports, held by `vectors/compare.py`'s session,
-`box-health` and `record-history` reading its row, and `known-gaps`'
-freeze 17. When it lands, the notice names it and the pin moves.
+record until then. It landed on 2026-11-21 as willow-memory/Willow#386
+(`abf3b0b`): `words --box DIR --words FILE` in `kernel.py` and all five
+ports, held by `vectors/compare.py`'s session, `box-health` and
+`record-history` reading its row, and `known-gaps`' freeze 17. The pin is
+on that commit, and `set_up.py`'s "your words: none" prints the two lines
+that give a record the starter list.

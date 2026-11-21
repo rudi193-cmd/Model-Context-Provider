@@ -69,6 +69,7 @@ ADD_ONS = (
     "share",  # kart loads it: a job that came in a package, a result sent back
     "sms",  # an importer: loads only the kernel
     "stale-answers",  # digest loads it; it loads pieces
+    "starter-words",  # set_up prints its copy, for a record with no words list
     "test-shards",  # check.py asks it how to cut the tests into parts
     "timeline",  # loads only the kernel
     "todo",  # batch-ask's scan loads it

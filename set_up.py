@@ -37,6 +37,8 @@ def boxes(stack: Path) -> list[Path]:
 
 #: Willow's base list of what a person's words mean in their files
 STARTER = "starter-words"
+#: its copy of the starter list, made readable by its owner alone, as the kernel asks
+STARTER_COPY = "adapters/stdlib/starter-words/starter.py"
 
 
 def stack_has_starter(stack: Path) -> bool | None:
@@ -57,9 +59,10 @@ def no_words_yet(stack: Path) -> str:
                       "add", STARTER, "--to", str(stack)])  # fmt: skip
     return (
         "Your stack has no starter-words, so the words step starts with no "
-        "words list ticked. A record takes its list only when it is made, "
-        "and a question in your own words finds less without one. Add it "
-        f"first, then keep it ticked in the words step:\n\n    {add}\n"
+        "words list ticked, and a question in your own words finds less "
+        "without one. Add it first, then keep it ticked in the words step "
+        "(a record made without one can be given one later, with "
+        f"kernel.py words):\n\n    {add}\n"
     )
 
 
@@ -85,10 +88,14 @@ def check(box: Path) -> list[tuple[str, bool | None, str]]:
         out.append(("your words", True, f"in use: {cfg['words']}; add a line of your own "
                     "to it any time (your word = what your files call it, another)"))  # fmt: skip
     else:
+        mine = box.parent / "my-words.txt"
+        copy = shlex.join([sys.executable, str(runtime.WILLOW / STARTER_COPY), "copy",
+                           "--to", str(mine)])  # fmt: skip
+        give = shlex.join([sys.executable, str(runtime.WILLOW / "kernel.py"), "words",
+                           "--box", str(box), "--words", str(mine)])  # fmt: skip
         out.append(("your words", None, "none: this record was made with no words list, "
-                    "so a question in your own words finds less. A record takes its list "
-                    "only when it is made: for the next one, put starter-words in your "
-                    "stack and keep it ticked in the words step"))  # fmt: skip
+                    "so a question in your own words finds less. Give it the starter "
+                    f"list, then add lines of your own to it:\n\n    {copy}\n    {give}\n"))  # fmt: skip
     model = runtime.state(box) / "model.json"
     out.append(("a model to draft with", True, f"named in {model}" if model.exists()
                 else "none: drafting needs a client that samples, or --model URL NAME"))  # fmt: skip

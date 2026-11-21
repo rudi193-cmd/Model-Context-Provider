@@ -151,8 +151,8 @@ def test_write_command_saves_the_persons_door_and_never_writes_over_another(
 
 
 def test_a_stack_without_the_starter_words_is_told_before_its_record_is_made(tmp_path):
-    """A record takes its words list only when it is made, and Willow's UI
-    ticks the starter list only when the stack holds it."""
+    """Willow's UI ticks the starter list only when the stack holds it; a
+    record made without one can be given one later, and is told how."""
     stack = tmp_path / "stack"
     (stack / "mine").mkdir(parents=True)
     (stack / "STACK.json").write_text(json.dumps({"addons": ["approved-only"]}))
@@ -171,6 +171,10 @@ def test_a_record_with_no_words_is_said_so_and_setup_still_finishes(box):
     assert code == 0, out
     assert "--  your words: none: this record was made with no words list" in out
     assert "ok  your words" not in out
+    # and the two lines that give it one, the record's own path in each
+    mine = box.parent / "my-words.txt"
+    assert f"starter-words/starter.py copy --to {mine}" in out
+    assert f"kernel.py words --box {box} --words {mine}" in out
 
 
 def test_a_record_with_words_is_told_it_can_add_its_own(tmp_path):
