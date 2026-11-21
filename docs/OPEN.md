@@ -773,9 +773,12 @@ and the last drift result; every judgement in it is a Willow card's.
   is on `0c07be1`, and `tests/test_guard.py` holds it through the guard
   door. A script the model writes to get round it still gets through: keep
   the key where the account the assistant runs as can't read it.
-- **#90, a search of the key's folder.** A Grep or recursive Glob over the
-  folder that holds the key gets past `hook-guard` (a strict xfail in its
-  tests); the guard door inherits it.
+- **#90, a search of the key's folder.** Fixed on Willow's
+  `ccr-9265087c-pvfpcl` (`6310940`, `hook-guard` 0.2.1), not on main yet:
+  a Grep over the key's folder or one above it, and a recursive Glob there
+  that could name the key, are refused; a search whose own filter leaves
+  the key out is let by. The Provider's guard and hook tests pass on it.
+  The pin moves when it lands.
 - ~~**The same Willow branch's other two.**~~ Done in #387 with it:
   `gh-json` 0.2.0, and the contract test that holds every add-on to
   "refuse or read" on a box of sources (#383, 37 strict xfails to fix).
