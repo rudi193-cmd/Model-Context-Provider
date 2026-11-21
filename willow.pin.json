@@ -1,7 +1,7 @@
 {
   "_what": "The Willow this runtime was built on: its commit, and every file of what runs, by SHA-256. willow_pin.py refuses a checkout whose files differ; repin is the one way to move it.",
   "willow": "https://github.com/willow-memory/Willow",
-  "commit": "9446bf987ec999fc2496568d7989e8b0260e6f3d",
+  "commit": "bfb6714ff3eae0085111c54539ab9374a6a7b8e0",
   "add_ons": [
     "approved-only",
     "backup",
@@ -104,8 +104,8 @@
     "adapters/stdlib/notes/notes.py": "d4e86ebc5fcc4d96cace1eca09672fc0b5172bb5757084caa466a4041e881d87",
     "adapters/stdlib/on-this-day/README.md": "24dca329eb7773444c3578f265c6579c93bbf128100368d5f978b249e4446c9f",
     "adapters/stdlib/on-this-day/on_this_day.py": "408cfed8d0bca9fee96958390aead03580ccef7892708bd58885358721515500",
-    "adapters/stdlib/openai-compatible/README.md": "1b0a2d57c9eb51895b464fbcaa1880ee9a78d4a17126eee03566203a23f915fe",
-    "adapters/stdlib/openai-compatible/openai_compatible.py": "65ee0577d711a2aba036eaaadc0269c9748d87b6e3d4a39b42863a5d6c254c9d",
+    "adapters/stdlib/openai-compatible/README.md": "c24ff8eb22a7b77565aca7e749f20c0eaad7efe58483409fb37585c2067b2a85",
+    "adapters/stdlib/openai-compatible/openai_compatible.py": "1916e7ca3ed035abe0e92182112b8b64634e192f005abd66285c7ae918f0198c",
     "adapters/stdlib/people/README.md": "8dba307bcb04082aa6dc57460c0f9100dde56306bec4fe368c0fa422b771d4fd",
     "adapters/stdlib/people/people.py": "cef121f17447416e54882491b9333514c5dfa784ed3c75bcf0ea8961b1aed621",
     "adapters/stdlib/pieces/README.md": "e7d8ee0c37d201a26dc3c2df744b43d6e6c9f84f3aeed9c263ee3bf63e3aafbd",
