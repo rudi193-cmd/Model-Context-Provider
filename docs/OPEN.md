@@ -668,6 +668,83 @@ a time. Not built with it: a button on the seal page to stop a skill
   interface (it settles who each sentence is for, so the two lists become
   one), then measuring it.
 
+### A model on the person's own rig (designed 2026-11-21, not built)
+
+**Why.** People run very large models on rigs of their own: a machine
+with the GPUs in another room, reached over the home network, with the
+person's laptop running the Provider. `on_this_machine()` takes only
+`localhost` and loopback addresses, so a rig at `192.168.1.20` is refused
+like a cloud server, though it is the person's own hardware.
+[background.md](background.md) names "someone else's server" as not yet,
+and not this third case. It counts more as hosted models get dearer: the
+Grove's build order (the moat is context, the model last and smallest) is
+the side of that bet this project is already on.
+
+**What "only this machine" stood for.** Two questions, answered by one
+address check:
+- *Is this the model the person chose and tested?* Willow's cards answer
+  this by what a model is, not where it runs.
+- *Can anyone else read the page on its way?* The cards don't answer
+  this; the path does.
+
+**What Willow already has.** Each is a card, used as it is:
+
+| Card | What it gives a rig |
+|---|---|
+| `weights-card` | a card from the weights file's own header: architecture, quantization, context length, licence and SHA-256; run on the rig |
+| `weights-pin` | on the rig, in front of its server (`weights_pin.py --card … && llama-server -m …`): weights that differ from their card never run |
+| `model-card` | the model behind each suggestion named on the record: weights hash, where it runs, licence |
+| `model-exam` | any model scored against the answers the person already sealed, before they trust it; it reaches the endpoint they configure |
+| `model-drift` | frozen questions asked again now and then, flagging answers that change while the name and card stay the same: a model swapped on the rig |
+| `model-shelf`, `model-fit`, `model-quantized` | what a machine has, whether a model fits, and the smallest quantization that still gets the box's own questions right |
+| `openai-compatible` | an endpoint of the person's choosing, its card saying where it reaches |
+
+**What none of them gives.** The laptop can't see the rig's weights:
+`weights-pin` runs there, so the laptop has the rig's word for the hash,
+not proof. And Ollama, llama.cpp and vLLM usually serve plain HTTP, so on
+a shared network anyone else on it can read a sealed page as it passes,
+and another box could take the rig's address.
+
+**The way that works today, with no code: a tunnel.**
+
+    ssh -N -L 11434:localhost:11434 me@rig
+
+The Provider then asks `http://127.0.0.1:11434/v1`, which is loopback, so
+it is allowed. The wire is encrypted, and SSH's host key says it is the
+rig. Owed for it: a paragraph in the README, `set_up.py --model`'s refusal
+of an address off this machine saying "a model on another machine of
+yours: tunnel it", and a try end to end.
+
+**The way to build: "my rig", sealed.**
+1. *On the rig:* `weights-card` writes the card, and `weights-pin` stands
+   in front of the server.
+2. *On the laptop:* the person runs `model-exam` against their own sealed
+   answers, through the path in step 3.
+3. *Named once, sealed:* the rig goes into `model.json` as a proposal
+   through the kernel, like a session's grant, holding the card's SHA-256,
+   the exam's score, and the path: an SSH tunnel, or HTTPS with the rig's
+   certificate pinned by its fingerprint. Plain HTTP off this machine
+   stays refused.
+4. *Every draft:* the page goes only by that path; the sent log says "to
+   your rig at …"; withholding is as it is now; the record names the model
+   by `model-card`.
+5. *Now and then:* `model-drift` asks its frozen questions; a changed
+   answer stops the rig until the person looks, and looking is a seal.
+
+A cloud address stays refused: the step to someone else's server is not
+taken here. The Provider's own code is a check against the sealed rig
+and the last drift result; every judgement in it is a Willow card's.
+
+**Open in it, the owner's:**
+- Whether naming a rig is one seal or two (the rig, then each model on
+  it).
+- What "now and then" is for `model-drift`, and whether a missed check
+  stops the rig or only says so.
+- Whether `model-exam`'s score has a floor below which a rig isn't
+  offered, or only shows.
+- Whether the tunnel is set up by the person, as today, or by
+  `set_up.py`, which would then be running `ssh`.
+
 ### The owner's to decide (changes to Willow)
 
 - An early exit in the kernel's date reader: `on-this-day`, `coming-up`
@@ -689,4 +766,8 @@ on shard 3, whose `test_cores.py` the timings file prices at 35 s against
 139 s; `times.py write --run latest` refreshes it, and needs gh. A kernel
 command to give a record its words list after it is made is the owner's,
 under way; `set_up.py`'s notice for a record with none names the next
-record until then.
+record until then. As of 2026-11-21 it is on Willow's
+`addons/latent-kept-space`, not main: `words --box DIR --words FILE` in
+`kernel.py` and all five ports, held by `vectors/compare.py`'s session,
+`box-health` and `record-history` reading its row, and `known-gaps`'
+freeze 17. When it lands, the notice names it and the pin moves.

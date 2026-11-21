@@ -4,6 +4,13 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A model on the person's own rig, designed.** `docs/OPEN.md`: a rig
+  on the home network is refused today like a cloud server. The way that
+  works now (an SSH tunnel, so the Provider asks loopback), and the way to
+  build: the rig named once and sealed, by Willow's cards (`weights-card`
+  and `weights-pin` on the rig, `model-exam` on the person's sealed
+  answers, `model-card` on the record, `model-drift` now and then), over a
+  tunnel or pinned TLS. Not built.
 - **The base Jarvis page, corrected and widened.** The base is the
   Grove, as the owner decided on 2026-09-01 (quoted from the Grove's
   phone-surface notes); with the rules it inherits (no inside names reach
