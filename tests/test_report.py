@@ -400,3 +400,25 @@ def test_the_secrets_audit_gives_a_place_a_kind_and_never_the_value(leaky):
     for kind in ("a password typed with its label", "a key or token", "a card number"):
         assert f"## {kind}" in text
     assert "wifi.txt:2  value not shown" in text and "deploy.md:1" in text
+
+
+def test_a_record_of_several_places_is_told_a_report_reads_one_folder(tmp_path):
+    """A record made with init --from reads its files where they are; Willow's
+    reports that read one folder are refused by the kernel there (Willow
+    #383), and the person is told so in words, never shown the traceback."""
+    a, b = tmp_path / "a", tmp_path / "b"
+    a.mkdir()
+    b.mkdir()
+    (a / "notes.md").write_text("2026-12-01 dentist appointment\n")
+    (b / "garden.md").write_text("Tomatoes want sun.\n")
+    box = tmp_path / "box"
+    made = runtime.willow("kernel.py", "init", "--box", str(box), "--from", f"a={a}",
+                          "--from", f"b={b}", "--key", str(tmp_path / "k.key"))  # fmt: skip
+    assert made.returncode == 0, made.stderr
+    for got in (runtime.call(box, "report", "coming-up", door="pipe"),
+                runtime.call(box, "report", "pii-audit", door="mcp"),
+                runtime.call(box, "timeline", "dentist", door="pipe")):  # fmt: skip
+        assert got["state"] == "refused" and got["code"] == "reads_one_folder", got
+        assert "Traceback" not in json.dumps(got), got
+    # a report that reads the record's passages is made as on any record
+    assert runtime.call(box, "report", "todo", door="pipe")["state"] != "refused"

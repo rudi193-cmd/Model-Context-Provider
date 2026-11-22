@@ -24,8 +24,12 @@ doesn't know is treated as facing a model.
   because nothing read leaves.
 - **The person's words list.** It helps the kernel find their files from
   their own words ("inspection" finds "MOT"). It is never sent.
-- **The sent log**, chained line to line. `pin` writes its end somewhere the
-  runtime can't reach, and `check` holds the log to it. `shared` reads it
+- **The sent log**, chained line to line. Its last line has no later one to
+  vouch for it, so each session's close puts where it ended in the one
+  proposal you seal (Willow's session-seal, `--log`), and `check` with no
+  pin holds the log to the last session you sealed. `pin` still writes its
+  end somewhere the runtime can't reach, and `check PIN` holds the log to
+  that. `shared` reads it
   back as "garden.md:1, to the AI assistant, at 08:22".
 - **Where each passage lives**, kept beside the record so the log can be
   read as places.
@@ -81,6 +85,10 @@ this ([willow-memory/Willow#373](https://github.com/willow-memory/Willow/pull/37
 - **Sealing away from the box.** The seal page is on this machine only; a
   phone is not built. Nor is a seal through the client (MCP elicitation):
   that form would sit on a model's door. [NOTES.md](NOTES.md) has both.
+- **A record made from several places** (Willow's `init --from`): backup,
+  `coming-up`, the two audits, `ref-check` and `timeline` say they read one
+  folder and are not run, until Willow's add-ons read every place
+  (willow-memory/Willow#383). A record made in Willow's UI is one folder.
 - **Models off this machine** are refused. Sending even a sealed page to
   someone else's server is a bigger step, and would be the person's
   explicit line in `model.json`.

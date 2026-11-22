@@ -4,6 +4,72 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A guard that can't answer is a No.** Claude Code took a hook that
+  crashed, timed out or printed nonsense as leave to go on, so one bad
+  edit to `doors/guard.py` switched the guard off. Its PreToolUse entry
+  now carries `onFailure: "block"` (Claude Code 2.1.295 and later), and
+  `set_up.py` says whether the wired one has it. Only there: the prompt
+  hook's failure would block every prompt.
+- **Managed settings hold by the system, not by words.** `--write managed`
+  adds Claude Code's sandbox (`enabled`, `failIfUnavailable`,
+  `allowUnsandboxedCommands: false`), refusing every shell command a read
+  of the key and a write to the record, `BOX.runtime`, the Provider's
+  folder and Willow's, however the path is built; and managed deny rules
+  for the file tools, which the sandbox doesn't cover, on the same paths.
+  It says what it changes for every project before you install it, and
+  that the file must be readable (644). Not on Windows itself (no
+  sandbox: the deny rules only); refused on WSL, where `/etc/claude-code`
+  is the person's to write.
+- **OPEN.md held to the research.** Four research runs and the boxes:
+  the Grove's passkey with a content-hashed challenge named as the
+  target; option D's caveats (per-request mode only; a prompt doesn't
+  show what it signs); Willow's own `share/ed25519.py` and its rotation
+  chain, already there; one Ed25519 check for every port; and the rig's
+  tunnel shadowing, host-key and threat model.
+- **Your seal pins the sent log's end.** A chained log can't vouch for its
+  last line, so a cut there showed only against a pin kept by hand. Each
+  session's close now hands Willow's session-seal the log (`--log`), and
+  the one proposal you seal holds its lines and its last line's hash; the
+  claim says "and your log's N lines". `check` with no pin holds the log to
+  the last session you sealed (holds, cut short, rewritten, or not sealed
+  yet), and `status` says it under Shared. A log that doesn't hold is left
+  out of the seal, and close says so. The kernel reads your key; this never
+  does. Pinned to Willow `9446bf9`, on its branch until it merges.
+- **Setup says who can change this code.** Managed settings stop an
+  assistant unwiring the guard door, not changing it: the hook runs the
+  door from the Provider's folder, and a command that edits it names no
+  file the guard holds. From each file's and folder's owner and mode,
+  never their bytes. Installing it where only an administrator writes is
+  designed in `docs/OPEN.md`, not built; unlike the key, it needs nothing
+  to cross accounts at run time.
+- **Setup says who can read your key.** From the file's owner and mode,
+  never its bytes: the account setup runs as is the one any assistant runs
+  as, so a key it can read is one a script the assistant writes can read.
+  The key in an account of its own, with sealing across it, is designed in
+  `docs/OPEN.md`, not built, with a fourth way: the key in a password
+  manager behind its ask-every-time switch, which waits on a key pair in
+  the kernel. Each port's library, and the cost measured: Ed25519 checks
+  at 2.3 to 4.2 ms a seal in pure Python, a non-issue for questions once
+  `bite` checks only its own question's seals.
+- **The guard door where an assistant can't switch it off.** In
+  `~/.claude/settings.json` an assistant allowed to edit `~/.claude` could
+  unwire it. `set_up.py --write managed` writes the same hooks for Claude
+  Code's managed settings (a drop-in, `managed-settings.d/`) and prints the
+  `sudo` line that installs them; `set_up.py` says which of the two the
+  guard door is in. The Grove's one-box design, threat 3.
+- **A record made from several places is told, not shown a traceback.**
+  Backup, `coming-up`, `pii-audit`, `secrets-audit`, `ref-check` and
+  `timeline` refuse in plain words (`reads_one_folder`) on a record made
+  with `init --from`, whose Willow add-ons read one folder (Willow #383).
+- **The guard door refuses the person's own door.** A model's tool call
+  that runs the pipe, the `provider` command, the seal page or the seal
+  prompt is blocked by the runtime, before Willow's guards, naming the door;
+  the pipe had handed back passages with no seal, and takes `stop`,
+  `restore` and `share_send`. Reading their files is let by.
+- **The guard door refuses a seal.** A model's shell could run the
+  kernel's `seal` or `decline`, which read the key themselves (Willow bug
+  #91); the pin moves to Willow's `0c07be1` (#387), whose `hook-guard`
+  refuses it, and `tests/test_guard.py` holds that through the guard door.
 - **A record with no words list is told how to give it one.** Willow's
   `kernel.py words` (willow-memory/Willow#386) lets a record take its list
   after it was made; `set_up.py`'s "your words: none" prints the two lines

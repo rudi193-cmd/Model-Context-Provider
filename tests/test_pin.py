@@ -79,3 +79,44 @@ def test_what_is_not_a_pin_is_refused(box, tmp_path_factory):
     bad = tmp_path_factory.mktemp("usb") / "pin.json"
     bad.write_text("not a pin")
     assert check(box, bad)["state"] == "refused"
+
+
+def sealed_check(box):
+    return runtime.call(box, "check", door="pipe")
+
+
+def test_each_session_seals_where_the_log_ended_and_check_holds_it_to_that(box):
+    """No pin to keep by hand: a session's close puts where the sent log
+    ended in the one proposal, so the person's seal pins its last line, and
+    check with no pin holds the log to the last session they sealed."""
+    from test_leave import seal
+
+    told(box, 2)
+    assert sealed_check(box)["state"] == "not sealed yet"
+    got = runtime.call(box, "close", door="pipe")
+    assert got["state"] == "waiting" and "log" not in got
+    (w,) = [w for w in runtime.waiting(box)["waiting"] if w["seal"] == got["seal"]]
+    assert w["claim"].endswith(", and your log's 2 lines")
+    assert sealed_check(box)["state"] == "not sealed yet"  # waiting is no one's word
+    seal(box, got["seal"])
+    assert sealed_check(box)["state"] == "holds"
+    told(box, 1)
+    assert sealed_check(box)["said"] == "holds: 1 lines since"
+    f = runtime.state(box) / "sent.jsonl"
+    f.write_text("\n".join(lines(box)[:1]) + "\n")
+    assert (
+        runtime.call(box, "sent", door="pipe")["breaks"] == []
+    )  # the chain can't see it
+    assert sealed_check(box)["state"] == "cut short"
+
+
+def test_a_log_that_doesnt_hold_is_left_out_of_the_seal_and_said(box):
+    told(box, 2)
+    ls = lines(box)
+    (runtime.state(box) / "sent.jsonl").write_text("\n".join([ls[1], ls[0]]) + "\n")
+    got = runtime.call(box, "close", door="pipe")
+    assert got["state"] == "waiting"
+    assert got["log"] == "not in the seal: the log doesn't hold at line 0"
+    (w,) = [w for w in runtime.waiting(box)["waiting"] if w["seal"] == got["seal"]]
+    assert "your log" not in w["claim"]
+    assert sealed_check(box)["code"] == "log_changed"

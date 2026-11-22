@@ -190,3 +190,185 @@ def test_a_record_with_words_is_told_it_can_add_its_own(tmp_path):
     code, out = run("--box", b)
     assert code == 0 and f"ok  your words: in use: {words}" in out
     assert "add a line of your own to it any time" in out
+
+
+def test_the_hooks_are_written_for_managed_settings_with_the_line_that_installs_them(
+    box, tmp_path, monkeypatch
+):
+    """In ~/.claude/settings.json an assistant allowed to edit ~/.claude can
+    switch the guard door off. Claude Code's managed settings are an
+    administrator's: setup writes the same hooks as a file of their own and
+    prints the line that installs them, and never writes there itself."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    managed = tmp_path / "etc-claude-code"
+    monkeypatch.setattr(setup, "managed_dir", lambda: managed)
+    lines = setup.write(box, "managed")
+    made = home / ".claude" / "model-context-provider-managed.json"
+    assert json.loads(made.read_text()) == setup.managed(box)
+    to = managed / "managed-settings.d" / setup.MANAGED_NAME
+    assert any(
+        str(to) in ln and ln.strip().startswith(("sudo", "copy")) for ln in lines
+    )
+    assert not managed.exists()  # the administrator's to write, not setup's
+
+
+def test_setup_says_where_the_guard_door_is_and_whether_it_can_be_switched_off(
+    box, tmp_path, monkeypatch
+):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    managed = tmp_path / "etc-claude-code"
+    monkeypatch.setattr(setup, "managed_dir", lambda: managed)
+
+    def row():
+        return next(r for r in setup.check(box) if r[0] == "the guard door")
+
+    assert row()[1] is None and "not in Claude Code's settings" in row()[2]
+    setup.write(box, "claude-code")  # the person's own settings
+    assert (
+        row()[1] is None
+        and "could switch it off" in row()[2]
+        and "--write managed" in row()[2]
+    )
+    (managed / "managed-settings.d").mkdir(parents=True)
+    made = home / ".claude" / "model-context-provider-managed.json"
+    setup.write(box, "managed")
+    (managed / "managed-settings.d" / setup.MANAGED_NAME).write_text(made.read_text())
+    assert row()[1] is True and "can't switch it off" in row()[2]
+    # another record's guard door there is not this one's
+    other = tmp_path / "other-box"
+    assert setup.guard_where(other) == ""
+
+
+def test_setup_says_who_can_read_the_key_without_opening_it(box, tmp_path, monkeypatch):
+    """The account setup runs as is the one any assistant runs as. A key it
+    can read is one a script the assistant writes can read, whatever a guard
+    says; only a key in an account of its own is out of reach. Told from the
+    file's owner and mode, never its bytes."""
+    key = Path(json.loads((box / "kernel.json").read_text())["key"])
+
+    def row():
+        return next(r for r in setup.check(box) if r[0] == "who can read your key")
+
+    assert setup.key_reader(key) == "this account"
+    assert row()[1] is None and "any assistant you run" in row()[2]
+    opened = []
+    real_open = Path.open
+    monkeypatch.setattr(Path, "open", lambda self, *a, **k: (opened.append(self), real_open(self, *a, **k))[1])  # fmt: skip
+    setup.key_reader(key)
+    assert key not in opened  # its owner and mode only
+    if hasattr(os, "getuid"):  # another account's: as the system would say it
+        monkeypatch.setattr(os, "getuid", lambda: key.stat().st_uid + 1)
+        monkeypatch.setattr(os, "access", lambda *a, **k: False)
+        assert setup.key_reader(key) == "another account"
+        assert row()[1] is True and "can't read it" in row()[2]
+    assert setup.key_reader(tmp_path / "no-key-here") == ""
+
+
+def test_setup_says_who_can_change_the_code_the_doors_run(box, tmp_path, monkeypatch):
+    """An assistant running as the account that owns this code could change
+    the guard door itself, by a command the guard reads as no edit. Told
+    from each file's owner and mode, never its bytes; only code no file or
+    folder of which this account can write is out of its reach."""
+
+    def row():
+        return next(r for r in setup.check(box) if r[0] == "who can change this code")
+
+    assert setup.code_writer() == "this account"
+    assert row()[1] is None and "the guard door too" in row()[2]
+    code = tmp_path / "code"
+    (code / "doors").mkdir(parents=True)
+    for f in ("runtime.py", "doors/guard.py", "willow.pin.json"):
+        (code / f).write_text("")
+    if hasattr(os, "getuid"):  # another account's: as the system would say it
+        mine = code.stat().st_uid
+        writable = set()
+        monkeypatch.setattr(os, "getuid", lambda: mine + 1)
+        monkeypatch.setattr(os, "access", lambda p, mode, **k: Path(p) in writable)
+        assert setup.code_writer(code) == "another account"
+        for f in (
+            code / "doors" / "guard.py",
+            code / "doors",
+            code / "willow.pin.json",
+        ):
+            writable.add(f)  # any one of them is enough
+            assert setup.code_writer(code) == "this account", f
+            writable.clear()
+        monkeypatch.setattr(setup, "HERE", code)
+        assert row()[1] is True and "can't change the doors" in row()[2]
+
+
+def test_the_guard_refuses_a_call_when_it_cant_answer(box, tmp_path, monkeypatch):
+    """Claude Code takes a hook that crashed, timed out or printed nonsense as
+    leave to go on, so one bad edit to the guard switched it off. Before a
+    tool runs, the guard is written to refuse then; the prompt hook isn't,
+    or a crash would stop every prompt; and setup says which it is."""
+    hooks = setup.claude_hooks(box.resolve())["hooks"]
+    (pre,) = [h for e in hooks["PreToolUse"] for h in e["hooks"]]
+    assert "doors/guard.py" in pre["command"] and pre["onFailure"] == "block"
+    for event in ("UserPromptSubmit", "SessionStart", "Stop", "PostToolUse"):
+        assert all("onFailure" not in h for e in hooks[event] for h in e["hooks"])
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr(setup, "managed_dir", lambda: tmp_path / "etc-claude-code")
+
+    def row():
+        return next(
+            (r for r in setup.check(box) if r[0] == "a guard that can't answer"), None
+        )
+
+    assert row() is None  # no guard door wired: nothing to say of it
+    setup.write(box, "claude-code")
+    assert setup.guard_closed(box) and row()[1] is True
+    f = home / ".claude" / "settings.json"
+    doc = json.loads(f.read_text())
+    for e in doc["hooks"]["PreToolUse"]:
+        for h in e["hooks"]:
+            h.pop("onFailure", None)  # a settings file written before this
+    f.write_text(json.dumps(doc))
+    assert not setup.guard_closed(box)
+    assert row()[1] is None and "lets the call through" in row()[2]
+    assert "--write claude-code" in row()[2]
+
+
+def test_managed_settings_hold_the_key_and_code_by_the_system_not_by_words(
+    box, tmp_path
+):
+    """What no guard of words could do: the sandbox refuses every shell
+    command a read of the key and a write to the record, the runtime's
+    files and the code, whatever its words, and no command may leave it;
+    the file tools, outside the sandbox, are held by deny rules, absolute
+    paths written as Claude Code reads them (a double slash)."""
+    doc = setup.managed(box)
+    key = Path(json.loads((box / "kernel.json").read_text())["key"]).resolve()
+    kept = [box.resolve(), setup.runtime.state(box).resolve(), setup.HERE,
+            setup.runtime.WILLOW.resolve()]  # fmt: skip
+    assert doc["hooks"] == setup.claude_hooks(box.resolve())["hooks"]
+    deny = doc["permissions"]["deny"]
+    assert f"Read(/{key})" in deny and deny[0].startswith("Read(//")
+    assert all(f"Edit(/{d}/**)" in deny for d in kept)
+    if sys.platform.startswith("win"):
+        assert "sandbox" not in doc  # Claude Code has none on Windows itself
+        return
+    sb = doc["sandbox"]
+    assert sb["enabled"] and sb["failIfUnavailable"]
+    assert sb["allowUnsandboxedCommands"] is False
+    assert sb["filesystem"]["denyRead"] == [str(key)]
+    assert set(sb["filesystem"]["denyWrite"]) == {str(key), *map(str, kept)}
+    assert not any(p.startswith("//") for p in sb["filesystem"]["denyWrite"])
+
+
+def test_on_wsl_managed_settings_are_refused_since_they_hold_nothing(
+    box, tmp_path, monkeypatch
+):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr(setup, "on_wsl", lambda: True)
+    (line,) = setup.write(box, "managed")
+    assert line.startswith("refused:") and "wslInheritsWindowsSettings" in line
+    assert not (home / ".claude" / "model-context-provider-managed.json").exists()

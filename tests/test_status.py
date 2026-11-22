@@ -58,6 +58,7 @@ def test_what_was_shared_kept_and_shelved_is_said(box, tmp_path):
     assert shared["pages"] == "1 sealed"
     assert shared["a model was told or given something"] == "5 times"
     assert "put on its project's shelf" in shared["the last time"]
+    assert shared["against your last sealed session"] == "not sealed yet"
     assert rows(got, "Kept") == {"notes you sealed": "1"}
     assert rows(got, "Shelves") == {str(tmp_path / "proj"): "1 thing"}
 

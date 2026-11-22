@@ -6,7 +6,7 @@ since grown into the project's working list: what the owner threw in
 along the way, what was found when each line was held to the code, and
 the owner's rulings. A box is ticked when the thing is built here. A line
 starting **Note** was added afterwards: what was found, and what it still
-needs. Last held to the code on 2026-11-19. What is still open is
+needs. Last held to the code on 2026-11-21. What is still open is
 gathered at the end, under "Open now".
 
 ## Handoff: Model-Context-Provider (MCP → Provider)
@@ -36,7 +36,7 @@ proposed back and wait for another human seal.
   `set_up.py` + `hosts.py`, `willow_pin.py` + `willow.pin.json`.
 - Already wired from Willow: approved-only, sentence-check, session-seal,
   index-cache, privacy/withhold, local-model/openai-compatible paths,
-  backup, chained sent log + pin/check.
+  backup, chained sent log + pin/check, its end sealed with each session.
 - Design is intentionally inverted vs typical MCP: model proposes → human
   seals → only then does a page leave. Pure stdlib + pinned Willow. Doors
   decide nothing (enforced by tests).
@@ -101,8 +101,9 @@ pattern:
   - **Note:** built as `report on-this-day`, the same way as todo. Its
     sibling `coming-up` (dates in the next 14 days) wasn't in the list and
     is built too, as `report coming-up`; it loads Willow's `pieces` add-on
-    from beside it, so both are pinned. It reads the box's main folder
-    only, not extra sources. Not yet tried in a real session.
+    from beside it, so both are pinned. On a record made from several
+    places (`init --from`) it says, in plain words, that it reads one folder
+    (`reads_one_folder`, Willow #383). Not yet tried in a real session.
 - [x] **timeline**
   - **Note:** built 2026-11-18 as `timeline` on both doors: the person's
     writes the file whole; a session they let in has it made for them and
@@ -213,8 +214,8 @@ pattern:
 - [x] Keep pure-stdlib + pin discipline
   - **Note:** held, with one stated exception: a job needs the `kartikeya`
     package and `bwrap`, on a Python the person names beside the record;
-    without them `job` is refused and everything else runs. The pin is at
-    Willow `e4f50ac5`, on the branch of willow-memory/Willow#379.
+    without them `job` is refused and everything else runs. The pin is on
+    Willow's main at `0c07be1` (#387), held by `willow_pin.py check`.
 
 ### Open design questions
 
@@ -265,7 +266,7 @@ pattern:
   hook-errors, hook-handoff, hook-feedback, and a count of what waits at a
   session's start and before a summary. Seen in a real Claude Code session.
 - [x] **A fix in Willow:** hook-errors 0.1.2 reads a failed command's exit
-  code from Claude Code's `error`. Committed on this machine; not pushed.
+  code from Claude Code's `error`. On Willow's main since #379.
 - [x] **The check runs here** (`check.py`, and a git hook that holds `main`).
 
 ## Thrown in along the way (the owner's, 2026-11-17 and 18)
@@ -344,7 +345,7 @@ so none is lost. A box is ticked when it is built.
   are built and run here, and the check is the gate.
   - **Note:** the fifteen Willow commits this pin stands on (the hook
     add-ons, `todo`, `people`, `hook-guard`, `kart`, `timeline`, `removed`) are
-    willow-memory/Willow#379, opened 2026-11-18.
+    willow-memory/Willow#379, opened 2026-11-18 and merged 2026-11-19.
 - [ ] **Quoted speech in the todo report.** About a dozen of the 91 lines
   are the owner quoted saying "I need to…" in a past session, not tasks.
   - **Needs:** the owner's yes; it is a change to Willow's `todo`, and it
@@ -412,9 +413,11 @@ so none is lost. A box is ticked when it is built.
   model runs: a path built at run time (`$VAR`, a substitution, a script it
   writes), a `cd` earlier in the command, and `mv -t DIR src` still get
   through. Kart's sandbox is the real fix, and `job` now runs there; the
-  assistant's own shell tool does not.
-- [ ] Push the Willow commits, or the GitHub workflow can't find the pinned
-  commit.
+  assistant's own shell tool does not. The system's own answer, a key and
+  files the assistant's account can't touch, is designed below ("The key in
+  an account of its own").
+- [x] Push the Willow commits, or the GitHub workflow can't find the pinned
+  commit. Done: every commit the pin names is on Willow's main.
 - [ ] `hook-shell` is off until there is a `deny.txt` beside the record.
 - [ ] A correction ("No, …") hasn't been tried in a real session.
 - [x] The guard covers the box, not `BOX.runtime` (`stopped.json`,
@@ -518,27 +521,28 @@ a time. Not built with it: a button on the seal page to stop a skill
 
 ### Could do, not asked for
 
-- **The person's own door, run by a model's shell (found 2026-11-20).**
-  The guard door lets a model's tool call run `provider read`,
-  `doors/pipe.py`, `seal_page.py` and `seal_prompt.py`: eight such
-  commands were fed to it over a made-up record, and each was allowed.
-  `provider read` hands back passages with no seal (it is the person's
-  door), and the pipe takes `stop`, `restore` and `share_send` too.
-  Willow's `hook-guard` is for the kernel's key and record; these are the
-  Provider's own doors, so the rule belongs in `runtime.guards()`: refuse
-  a tool call that runs one of them, by paths and words as `hook-guard`
-  does (a script the model writes to get round it still gets through), with
-  tests that fail without it, and a line in SECURITY.md and
-  [doors.md](doors.md).
-- **A record made with `--from` and the Provider's backup (2026-11-20).**
-  Willow's `backup` is one of the 37 add-ons that crash with a traceback
-  on a box reading several places (willow-memory/Willow#383, a strict
-  xfail each), and `runtime.backup()` calls it. A record made in Willow's
-  UI is one folder and isn't touched; one made by hand with `--from` is.
-  Until #383 is fixed, the runtime can say so in its own words (the record
-  reads several places; Willow's backup reads one) instead of passing the
-  traceback through, with a test on such a record.
-
+- ~~**The guard door, unwired by an assistant.**~~ Done 2026-11-21, from
+  the Grove's one-box design (threat 3, "the doors can be removed"): an
+  Edit of `~/.claude/settings.json` passed every guard, and removed them
+  all. `set_up.py --write managed` writes the hooks for Claude Code's
+  managed settings with the line that installs them, and `check` names
+  where the guard door is. Not built from that design: "door missing", a
+  session whose turns come with no door called, reported loudly.
+- ~~**The person's own door, run by a model's shell.**~~ Done 2026-11-21:
+  `runtime.own_doors_guard()`, asked before Willow's guards, blocks a tool
+  call that runs the pipe, the `provider` command, the seal page or the
+  seal prompt (as the program, past `env`, `timeout` and the like, or the
+  script an interpreter is handed), naming the door, on the sent log by
+  whom. Reading their files, and the word anywhere else, is let by. A
+  script the model writes, or `python -c`, gets past it, as past
+  `hook-guard`. `tests/test_guard.py` holds both sides.
+- ~~**A record made with `--from` and the Provider's backup.**~~ Done
+  2026-11-21, and wider than backup: on a record of two sources, backup,
+  `coming-up`, `pii-audit`, `secrets-audit`, `ref-check` and `timeline`
+  each passed a scrap of Willow's traceback to the person. `one_folder()`
+  reads the kernel's own refusal (CONST-VI-9) in what the add-on said and
+  answers `reads_one_folder` in plain words; no list of add-ons is kept,
+  so each one Willow fixes under #383 simply starts working.
 - The check, faster still: Willow's `test-impact` (only the tests a change
   can reach, first) and `ci-memo` are written around Willow's own layout
   and were not used; `slow-tests` reads the timing file the check now
@@ -732,9 +736,24 @@ and another box could take the rig's address.
 
 The Provider then asks `http://127.0.0.1:11434/v1`, which is loopback, so
 it is allowed. The wire is encrypted, and SSH's host key says it is the
-rig. Owed for it: a paragraph in the README, `set_up.py --model`'s refusal
-of an address off this machine saying "a model on another machine of
-yours: tunnel it", and a try end to end.
+rig, once its fingerprint has been checked the first time (before that it
+is the first answer's word). Owed for it: a paragraph in the README,
+`set_up.py --model`'s refusal of an address off this machine saying "a
+model on another machine of yours: tunnel it", and a try end to end.
+
+**Two holes in the tunnel as written** (found 2026-11-21, by research and
+the boxes):
+- *Shadowing.* Anything already listening on that loopback port (a local
+  Ollama on 11434 is the usual one) passes `on_this_machine`, and a
+  tunnel that failed to bind says so only in the terminal that ran it:
+  the page goes to the wrong server, which is still this machine. So the
+  tunnel takes `-o ExitOnForwardFailure=yes` and a port nothing else uses
+  (`-L 21434:localhost:11434`), and the check at each draft is the
+  sealed weights hash against what the server says it serves (Ollama's
+  `/api/show` names the blob by its SHA-256), not the address.
+- *The host key.* `-o StrictHostKeyChecking=yes` with a known-hosts file
+  of the rig's alone, its fingerprint read once off the rig's own screen;
+  the fingerprint is what step 3 seals.
 
 **The way to build: "my rig", sealed.**
 1. *On the rig:* `weights-card` writes the card, and `weights-pin` stands
@@ -743,14 +762,38 @@ yours: tunnel it", and a try end to end.
    answers, through the path in step 3.
 3. *Named once, sealed:* the rig goes into `model.json` as a proposal
    through the kernel, like a session's grant, holding the card's SHA-256,
-   the exam's score, and the path: an SSH tunnel, or HTTPS with the rig's
-   certificate pinned by its fingerprint. Plain HTTP off this machine
-   stays refused.
+   the exam's score, and the path: an SSH tunnel with the rig's host-key
+   fingerprint, or HTTPS with the rig's certificate pinned by its SHA-256.
+   Python's standard library pins one cleanly: that certificate as the
+   only trust anchor (`load_verify_locations`), or the peer certificate's
+   SHA-256 compared after the handshake, which proves the rig holds its
+   key. The seal names the certificate, not an address, so a Tailscale
+   `100.64/10` or an IPv6 address needs no rule of its own. Plain HTTP off
+   this machine stays refused, and so do redirects. A pinned certificate
+   proves the rig to the laptop, not the laptop to the rig: the server
+   takes an API key (`llama-server` and vLLM have `--api-key`) or mTLS,
+   and Ollama, which has neither, stays behind the tunnel.
 4. *Every draft:* the page goes only by that path; the sent log says "to
    your rig at …"; withholding is as it is now; the record names the model
    by `model-card`.
 5. *Now and then:* `model-drift` asks its frozen questions; a changed
    answer stops the rig until the person looks, and looking is a seal.
+   Temperature 0 is not deterministic (batch size, cache state, a runtime
+   or driver update move it, and a seed does nothing at temperature 0), so
+   each question is asked more than once at freezing, the rig's own noise
+   measured, and only a change past it counts. The frozen file names the
+   runtime and its version, the template and the context length
+   (`num_ctx`), since an Ollama Modelfile changes all three over the same
+   weights.
+
+**What this proves, and what it doesn't.** The path keeps the page from
+anyone else on the network and from a box that took the rig's address.
+The hash and drift catch a swapped or changed model by accident. A rig
+that lies is out of reach: it reports a hash it chose and answers a drift
+question it recognises, and nothing proves the weights served at home
+(confidential computing on a data-centre GPU attests the GPU, not the
+weights, and no consumer card has it). That is the person's own machine;
+saying so is the design.
 
 A cloud address stays refused: the step to someone else's server is not
 taken here. The Provider's own code is a check against the sealed rig
@@ -765,6 +808,266 @@ and the last drift result; every judgement in it is a Willow card's.
   offered, or only shows.
 - Whether the tunnel is set up by the person, as today, or by
   `set_up.py`, which would then be running `ssh`.
+- Whether the Grove's D10 (no Tailscale Funnel or cloudflared,
+  `one-box/README.md:223`) covers a private tailnet, which isn't public
+  ingress; until then the tunnel and a pinned certificate are the paths.
+- Willow's `openai-compatible`, `model-exam` and `model-drift` cards say
+  temperature 0 with a fixed seed says the same thing twice. Not always:
+  theirs to correct.
+
+### The key in an account of its own (designed 2026-11-21, not built)
+
+**Why.** Every guard here judges words: a path, a glob, a program's name.
+Code an assistant writes gets past all of them, and every card says so.
+The one guarantee words can't give is the system's own: a key in a file
+the account the assistant runs as can't read. Any assistant runs as the
+person, so that means an account of the key's own. The owner's machine
+already has this shape (the vault in an account of its own); this is that
+shape for anyone, on any system, with no name of ours in it.
+`set_up.py` now says who can read the key, from the file's owner and mode,
+never its bytes.
+
+**The Grove's word on it** (`docs/design/one-box/README.md`, "the four
+that change the design", 1): a check of which account calls keeps out
+other users and sandboxes, not the model in the person's own shell; acts
+only the person does (grant, seal) take a passkey every time, never an
+account alone. A password every time is the weaker form that every system
+has. And it goes further than the ways below: the click itself is a
+**WebAuthn passkey** (`one-box/README.md:243`), its challenge the SHA-256
+of what is approved and a nonce, with user verification required, so it
+takes a touch or a PIN that no process on the machine can make; the
+challenge hashing the content means a Yes covers those bytes and no
+others (`:560`, for an outbound grant). That is the target; A to D are
+the ways to it, or around it until it is built.
+
+**Much of it without a second account: Claude Code's sandbox** (its docs,
+sandboxing, checked 2026-11-21). From managed settings, with
+`allowUnsandboxedCommands: false` (which makes `dangerouslyDisableSandbox`
+ignored, and a project can't loosen it) and `failIfUnavailable: true`,
+`filesystem.denyRead` on the key makes the system refuse the read to every
+command the assistant runs, and what it starts, whatever its words: the
+thing no guard of words could do. The sandbox covers shell commands only;
+file tools, hooks and MCP servers run outside it, so the same paths take
+managed deny rules for Read, Edit and Write. Hooks and the runtime running
+outside it is what lets sealing still read the key. `set_up.py --write
+managed` writes all of it now. It holds for Claude Code, not for another
+assistant, nor for code the person runs; and on WSL, where
+`/etc/claude-code` is the person's to write, not at all. The account of
+the key's own stays the guarantee for everything else.
+
+**The steps, for when sealing can cross** (not to follow yet: today they
+would stop the seal page and the desktop prompt from sealing). The person
+names the account, `KEYHOLDER`:
+- *Linux:* `sudo useradd --system --no-create-home --shell /usr/sbin/nologin KEYHOLDER`
+- *macOS:* a role account in Users & Groups, or `sysadminctl`
+- *Windows:* a local account, and `icacls` for the file
+- then the key's folder and the key to it, 700 and 600.
+
+**Sealing across the line.** The kernel's `seal` and `decline` read the
+key, so they run as `KEYHOLDER`. Three ways for the person's click to get
+there:
+- *A.* The seal page runs as the keyholder (`sudo -u KEYHOLDER python3
+  seal_page.py --box BOX`). The page reads the box and the runtime's files,
+  so those need a group both accounts share.
+- *B.* The page stays the person's, and a click runs `sudo -u KEYHOLDER
+  kernel.py seal`. Without a terminal that is `NOPASSWD`, which the
+  assistant can use as well as the person: refused.
+- *C.* A small seal helper, run as the keyholder, that the page hands a
+  click to and that asks for a passkey (or a password, with sudoers'
+  `timestamp_timeout=0` so no earlier ticket carries it) every time. The
+  Grove's shape.
+
+- *D.* The key in a password manager, behind its own switch: no second
+  account at all. Most managers can ask the person on each read: 1Password
+  and Bitwarden by Touch ID or Windows Hello, macOS Keychain by confirming
+  each access, KeePassXC by confirming a client's request. That is "the
+  person, every time" on every system, by a fingerprint where there is one,
+  **but only in a per-request mode**: 1Password's SSH agent approves once
+  per app and session by default (per request is a setting; "all
+  applications" gives the guarantee up), Bitwarden's is unverified, and a
+  binary on a macOS Keychain item's trusted list reads it with no prompt.
+  And no agent's prompt shows *what* it signs: a process running as the
+  person can ask for a signature over a forged seal row at the moment
+  they expect a prompt. So the signed bytes hold the seal row's hash and a
+  nonce the seal page shows beside it, as the Grove's passkey challenge
+  does; the prompt is a second factor, the page the content check. On
+  X11 any client can click another's dialog (XTEST), so a prompt there is
+  no barrier; Wayland's is, and Yama's `ptrace_scope` at 1 or more keeps a
+  process running as the person out of an unlocked agent's memory. Not
+  GNOME's keyring: unlocked for the session, it answers any program
+  running as the person, no better than a file. Willow has no add-on for a
+  manager (2026-11-21: none built; `encrypt`, for the record at rest, is an
+  idea), and the box found the question asked nowhere before.
+
+  **The catch is the kernel.** `sealed()` reads the key on every question,
+  every `verify` and every `out`, to check each seal row's proof, and the
+  proofs are HMACs, which only the secret that made them can check. With
+  "ask every time" on, the person would be asked at every question, not at
+  each seal. **The way past it is a key pair**, which the Grove already names
+  ("Keys are HMAC secrets. The real thing is passkeys or Ed25519",
+  `docs/design/one-script/next-pile.md`): the private half signs a seal and
+  stays in the manager behind its switch; the public half, in the box,
+  checks every proof, so the manager asks exactly once a seal. That is the
+  kernel's change and the law's (CONST-0-4, the human key), in all five
+  ports and the vectors. Python's standard library has no Ed25519, but
+  Willow does: `adapters/stdlib/share/ed25519.py`, sign and check from RFC
+  8032 in the standard library alone, held to RFC 8032's vectors and to
+  pyca/cryptography's. The kernel starts from it. The owner's.
+
+  **Each port, and its standard library** (checked 2026-11-21 on this
+  machine's runtimes):
+
+  | Port | Ed25519 in its own library | What it takes |
+  |---|---|---|
+  | Python (`kernel.py`) | no: `hashlib` and `hmac`, no signatures | Willow's own `share/ed25519.py`, with the checks below and a faster pass |
+  | Go | yes, `crypto/ed25519` (Go 1.13) | nothing; the port's floor is 1.15 |
+  | TypeScript (Node) | yes, `crypto.sign`/`verify` with `ed25519` | nothing (Node 14 has it; seen on 22) |
+  | Java | yes from JDK 15 (seen on 21) | its floor from JDK 11 to 15, or 17 |
+  | Rust | no: `std` has no crypto, the port takes no crates | its own code, from Go's, as the port already is |
+  | C# (.NET 8) | no: ECDSA, no Ed25519 | its own code, or a package the port doesn't take |
+
+  ECDSA, which four of them have, isn't in Python or Rust either, and its
+  signatures differ each time unless made deterministic, which fights the
+  vectors. Ed25519 signs the same bytes everywhere; **checking is not the
+  same everywhere** ("Taming the many EdDSAs", 2020): libraries differ on
+  a non-canonical encoding, a small-order point and the cofactor. So the
+  ports share one rule, written down:
+  - refuse S ≥ L, and an A or R whose y is ≥ p;
+  - refuse the eight small-order encodings for A and R;
+  - check `[S]B = R + [k]A` without the cofactor;
+  - check the person's public key once, when it is installed: it decodes
+    and is of prime order. With that, the checks with and without the
+    cofactor agree.
+
+  Go's, Node's and Java's own checks then need only a small check of the
+  bytes in front (Java compares decoded points, so the y ≥ p rule is what
+  makes it agree). ZIP-215's looser rule would mean code of our own in
+  every port. Willow's `ed25519.py` holds the first and third rules and
+  not the small-order ones; the Grove's pinned verifier refuses
+  small-order and non-canonical keys (`tests/test_onescript_sign.py`),
+  which are the first edge vectors. Then Wycheproof's EdDSA vectors and
+  C2SP's CCTV edge cases, beside RFC 8032's, each port's expected answer
+  made by the Python rule. Rust's port needs its own SHA-512 as well.
+
+  **Signing and checking are split.** A seal is signed once, at the
+  person's click, and that need not be the kernel: 1Password, Bitwarden,
+  KeePassXC and Secretive each act as an SSH agent that asks the person on
+  every signature, and the agent's protocol is a few length-prefixed
+  messages on a Unix socket, which the standard library speaks with no
+  program of its own. The private key then never reaches the kernel at all.
+  A key file signed in the kernel stays for people with no manager.
+  Checking needs only the public half, so the ports' own code holds no
+  secret, and the timing care hand-written signing needs doesn't arise.
+
+  **Measured** (2026-11-21, a scratch Ed25519 from RFC 8032's reference,
+  standard library only, holding its vectors 1 and 2 and refusing a changed
+  message or another signature):
+
+  | One seal | Python 3.9 | 3.13 | 3.14 |
+  |---|---|---|---|
+  | today's HMAC check | 0.003 ms | 0.002 ms | 0.002 ms |
+  | Ed25519 check, RFC 8032's reference | 4.2 ms | 3.6 ms | 3.9 ms |
+  | Ed25519 check, one pass over both scalars (Straus) | 2.8 ms | 2.3 ms | not run |
+  | Ed25519 signing, once a seal | 4.0 ms | 3.4 ms | 3.7 ms |
+
+  Every command reads the whole record, and `sealed()` checks every seal
+  row: `bite` once, `propose`, `seal` and `decline` twice, `out` and
+  `verify` once each, every decline row too. At 2.5 ms a row, 500 seals is
+  over a second a question.
+
+  **Two changes make it a non-issue for questions:**
+  - *Check only the seals a question can use.* `bite` serves a sealed
+    answer only for its own question (`asked == k`), so it can check those
+    rows alone: one check or none a question, at any size of record. Worth
+    doing with the HMACs now, too. `verify`, `out`, `propose` and a seal
+    still read every row once: about 1 to 2.5 s for 500.
+  - *Remember a checked row within one process.* A row's proof never
+    changes, the record only growing, so a memo by the row's hash, in
+    memory, halves `propose` and `seal`, and in a process that stays up,
+    as `pile-serve` does, checks each seal once in its life. Never on disk:
+    the kernel keeps no index on purpose (LIMITS.md) and trusts no file in
+    the box, and a file saying "these were checked" would be one that code
+    could write a forged seal into.
+
+  **What else it costs:** the seals there are, HMACs that only the old
+  secret checks, need a way across (one row proven under both keys that
+  vouches for every seal before it, then the old secret retired; `share`
+  already keeps a chain of rotations, each signed by both its keys, which
+  is that shape); and
+  passkeys are another algorithm again: Apple's, Google's and Windows
+  Hello's sign with ECDSA P-256, so passkeys later mean P-256 checking in
+  every port as well.
+
+  Until then, with no code: a password manager can keep a copy of the key,
+  as `backup`'s card says the key belongs somewhere other than the backup.
+
+Claude's lean (2026-11-21, after the research): the Grove's passkey as the
+target, its challenge holding the seal row's hash; the managed sandbox
+now, for Claude Code; *D* where the kernel takes a key pair, in a
+per-request mode, with the row's hash in what is signed; *C* with a
+password where a passkey isn't there yet; *A* as the way to try it first.
+
+**The record, shared and append-only.** The kernel writes the record as
+the person while asking and as the keyholder while sealing, so the box's
+folder takes a group both are in (setgid, so new files keep it). And
+`chattr +a` (Linux) or `chflags uappend` (macOS) on `record.jsonl` lets
+rows be added and none rewritten, by either; the chain and Willow's
+`tip-pin` already show a rewrite, this stops one. Restore and Willow's
+`removed` add rows, so they keep working; nothing here truncates it.
+
+**The code, the same way: installed where only an administrator writes.**
+Managed settings keep an assistant from unwiring the guard door, but not
+from changing it: the hook runs `doors/guard.py` from the Provider's
+folder, and that folder is the person's. `sed -i` on `runtime.py` or a door
+is a command whose words name no file the guard holds (the key, the
+record, `BOX.runtime`), so it is let by, and an Edit is held only until a
+Read. Willow's files need nothing more: the pin refuses a Willow whose
+files differ, so a changed Willow stops the runtime rather than getting
+past it. But the pin is in the Provider's folder too. `set_up.py` now
+says who can change this code ("who can change this code"), from each
+file's and folder's owner and mode, never their bytes.
+
+Two more, found 2026-11-21. **A hook that fails lets the call through**:
+Claude Code treats a crash, a timeout or bad output as a non-blocking
+error, so one bad edit to `doors/guard.py` switched the guard off with no
+word. `set_up.py` now writes the guard door with `onFailure: "block"`
+(Claude Code 2.1.295 and later), so a guard that can't answer is a No,
+and says whether it is there. (The Grove's 2026-10-06 research says Claude
+Code has no such switch; it has one now.) And **for Claude Code, managed
+`denyWrite` and Edit/Write deny rules on this folder** stop the edit
+before an install is built; `--write managed` writes them, so the folder
+hooks run from is no longer one to work on the Provider in.
+
+The steps, when built (the person names where):
+- *Linux:* `sudo install -d -o root -g root -m 755 /opt/model-context-provider`,
+  then a copy of the Provider in it, owned by root, 644 and 755; the same
+  for the Willow it is pinned to, beside it.
+- *macOS:* the same under `/Library/Application Support/`, owned by root.
+- *Windows:* under `C:\Program Files\`, which only an administrator writes.
+- then `set_up.py --write` run from that copy, so the hooks, the MCP
+  configuration and the managed settings all name it, never the person's
+  own checkout.
+
+**Unlike the key, nothing crosses at run time.** The doors are read and run
+as the person, and the runtime writes only beside the box (`BOX.runtime`)
+and in the person's client settings, never in its own folder; Python skips
+its `__pycache__` where it can't write. Only changing the code takes the
+administrator: updating it, and `willow_pin.py repin`, which is on purpose.
+So it doesn't wait on sealing across, and `set_up.py` could print the lines
+now, as `--write managed` does. The tests and `check.py` stay in the
+person's own checkout, which is where changes are made.
+
+**Open in it, the owner's:**
+- Whether `set_up.py` prints the code's install lines now, ahead of the
+  key's, and where by default.
+- A, C, D, or more than one; and a password until passkeys, or passkeys first.
+- For D: a key pair in the kernel, and how, with the standard library
+  holding no Ed25519 (a port of it in the kernel's own code, or a signature
+  the standard library has, or the kernel calling out to one).
+- Whether the box's folder is the person's with a shared group, or the
+  keyholder's with the person reading it.
+- Whether `chattr +a` is a step setup prints, or only said.
+- Windows, where neither `sudo` nor `chattr` is.
 
 ### The owner's to decide (changes to Willow)
 
@@ -773,22 +1076,28 @@ and the last drift result; every judgement in it is a Willow card's.
 - Quoted speech in the `todo` report.
 - The privacy filter reading a run of four-digit numbers as a card.
 - What Kartikeya's scan of a job missed (written up above).
-- **#91's fix, to main (2026-11-20).** A model's shell could run the
-  kernel's `seal` or `decline`, which read the key themselves, and the guard
-  door let it. `hook-guard` 0.2.0's `seal` rule refuses it (any kernel,
-  any port, any box), 6 of 6 mutants killed, on Willow's
-  `ccr-9265087c-pvfpcl` with no pull request yet; the pin moves to it once
-  it lands, and the guard door has it with no change here.
-- **#90, a search of the key's folder.** A Grep or recursive Glob over the
-  folder that holds the key gets past `hook-guard` (a strict xfail in its
-  tests); the guard door inherits it.
-- **The same Willow branch's other two:** `gh-json` 0.2.0 (GitHub's REST
-  answers read as `gh --json`, a merge queue's run said as the pull request
-  it holds) and the contract test that holds every add-on to "refuse or
-  read" on a box of sources (#383). One pull request would carry all three.
-- **`starter.py copy` names `init --words`.** Its last line says "then init
-  --words FILE"; since #386 it can name `kernel.py words`, which
-  `set_up.py` now prints after it.
+- ~~**#91's fix, to main.**~~ Done 2026-11-21: willow-memory/Willow#387
+  merged `hook-guard` 0.2.0, whose `seal` rule refuses a command that runs
+  the kernel's `seal` or `decline` (any kernel, any port, any box). The pin
+  is on `0c07be1`, and `tests/test_guard.py` holds it through the guard
+  door. A script the model writes to get round it still gets through: keep
+  the key where the account the assistant runs as can't read it.
+- **#90, a search of the key's folder.** Fixed on Willow's
+  `ccr-9265087c-pvfpcl` (`6310940`, `hook-guard` 0.2.1), not on main yet:
+  a Grep over the key's folder or one above it, and a recursive Glob there
+  that could name the key, are refused; a search whose own filter leaves
+  the key out is let by. Its shell twin is fixed beside it (`ce79466`): a
+  glob the shell expands to the key (`cat` of a star in its folder) and a
+  recursive read of its folder or one above it (`grep -r`, `rg`, `cp -r`,
+  `rsync -a`, `zip -r`, `tar` making an archive). The Provider's guard,
+  hook and session tests pass on both. The pin moves when they land.
+- ~~**The same Willow branch's other two.**~~ Done in #387 with it:
+  `gh-json` 0.2.0, and the contract test that holds every add-on to
+  "refuse or read" on a box of sources (#383, 37 strict xfails to fix).
+- **`starter.py copy` names `init --words`.** Fixed on Willow's
+  `ccr-9265087c-pvfpcl` (`9ee4693`, `starter-words` 0.1.1), not on main
+  yet: the copy names `kernel.py words` for a record already made, beside
+  `init --words` for a new one.
 - **A "nothing hosted" check.** Run the base assistant
   ([base-jarvis.md](base-jarvis.md)) with the network off and only a model
   on this machine, and write down what works and what breaks: the kernel,
@@ -808,8 +1117,7 @@ pin is on that commit of main. Its one red was `strip (3.14)` timing out
 on shard 3, whose `test_cores.py` the timings file prices at 35 s against
 139 s; `times.py write --run latest` refreshes it, and needs gh. A kernel
 command to give a record its words list after it is made is the owner's,
-under way; `set_up.py`'s notice for a record with none names the next
-record until then. It landed on 2026-11-21 as willow-memory/Willow#386
+under way. It landed on 2026-11-21 as willow-memory/Willow#386
 (`abf3b0b`): `words --box DIR --words FILE` in `kernel.py` and all five
 ports, held by `vectors/compare.py`'s session, `box-health` and
 `record-history` reading its row, and `known-gaps`' freeze 17. The pin is

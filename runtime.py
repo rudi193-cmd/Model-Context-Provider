@@ -98,9 +98,11 @@ def sent(box: Path, door: str, verb: str, got: dict) -> dict:
 def sent_log(box: Path) -> dict:
     """What has left, oldest first, and whether the log still holds: each line
     names the hash of the one before it. The last line has no later one to
-    vouch for it, so a cut or edit there doesn't show here: pin_sent keeps
-    the newest hash somewhere the log can't reach, and check_sent holds the
-    log to it (Willow's tip-pin, for this log)."""
+    vouch for it, so a cut or edit there doesn't show here. Each session's
+    close seals where the log ended with the session, under the person's
+    key, and check_sent with no pin holds the log to the last they sealed;
+    pin_sent keeps the newest hash somewhere the log can't reach, and
+    check_sent holds the log to that (Willow's tip-pin, for this log)."""
     f = state(box) / "sent.jsonl"
     lines = f.read_text().splitlines() if f.exists() else []
     rows, breaks = [], []
@@ -202,6 +204,18 @@ def chain_holds(lines: list[str]) -> bool:
     )
 
 
+def one_folder(run: subprocess.CompletedProcess, what: str) -> dict | None:
+    """Willow's add-on that reads one folder, refused by the kernel because
+    this record reads its files from several places (init --from, CONST-VI-9),
+    said as that rather than as the add-on's traceback; None for any other
+    failure. Willow's #383 holds each such add-on to read them, or refuse."""
+    if "CONST-VI-9" not in (run.stderr or "") + (run.stdout or ""):
+        return None
+    return {"state": "refused", "code": "reads_one_folder",
+            "why": f"Willow's {what} reads one folder, and this record reads its files "
+                   "from several places (willow-memory/Willow#383)"}  # fmt: skip
+
+
 def backup(box: Path, to: Path) -> dict:
     """Willow's backup of the box, and beside it a zip of what the runtime
     keeps beside the box (the sent log, the scopes it proposed, the person's
@@ -210,6 +224,8 @@ def backup(box: Path, to: Path) -> dict:
     deleted. Neither holds the key, nor the identity the person shares with
     (share.id): a secret is never put in a zip."""
     run = willow(BACKUP, "--box", str(box), "--to", str(to))
+    if run.returncode != 0 and (said := one_folder(run, "backup")):
+        return said
     if run.returncode != 0:
         return {
             "state": "refused",
@@ -469,9 +485,13 @@ def pin_sent(box: Path, to: Path) -> dict:
     return {"state": "pinned", "rows": len(lines), "tip": tip, "to": str(to)}
 
 
-def check_sent(box: Path, pin: Path) -> dict:
+def check_sent(box: Path, pin: Path | None = None) -> dict:
     """The sent log against a pin: holds (perhaps with lines since), cut short,
-    or rewritten where the pin ended."""
+    or rewritten where the pin ended. With no pin, against the last session
+    the person sealed, which holds where the log ended then (Willow's
+    session-seal, `check --log`): the kernel reads their key, never this."""
+    if pin is None:
+        return sent_sealed(box)
     try:
         want = json.loads(pin.read_text())
         rows, tip = int(want["rows"]), str(want["tip"])
@@ -490,6 +510,34 @@ def check_sent(box: Path, pin: Path) -> dict:
     if rows and hashlib.sha256(lines[rows - 1].encode()).hexdigest() != tip:
         return {"state": "rewritten", "at": rows - 1}
     return {"state": "holds", "pinned": rows, "since": len(lines) - rows}
+
+
+def sent_sealed(box: Path) -> dict:
+    """The sent log against the last session the person sealed: `holds`,
+    `cut short` or `rewritten`, with session-seal's own words; `not sealed
+    yet` before any session that names where it ended is sealed."""
+    f = state(box) / "sent.jsonl"
+    if not f.is_file():
+        return {"state": "empty"}
+    got = sent_log(box)
+    if got["breaks"]:
+        return {
+            "state": "refused",
+            "code": "log_changed",
+            "why": f"the log doesn't hold at line {got['breaks'][0]}",
+        }
+    run = willow(SESSION_SEAL, "--box", str(box), "check", "--log", str(f), "--json")
+    try:
+        doc = json.loads(run.stdout)
+        (row,) = [g for g in doc["groups"] if g["name"] == "your log"][0]["rows"]
+    except (ValueError, KeyError, IndexError, TypeError):
+        why = (run.stderr or run.stdout).strip()
+        return {"state": "refused", "code": "session_failed", "why": why}
+    word = str(row["what"]).split(":")[0]
+    for w in ("holds", "cut short", "rewritten", "not sealed yet"):
+        if word.startswith(w):
+            return {"state": w, "sealed": row["where"], "said": row["what"]}
+    return {"state": "refused", "code": "session_failed", "why": row["what"]}
 
 
 INDEX_CACHE = "adapters/stdlib/index-cache/index_cache.py"
@@ -843,6 +891,8 @@ PLAIN = {
                      "See what is there (shelf_list): each shows the name to ask for."),
     "no_report": ("That isn't a report this makes.",
                   "The reports are: todo (what you wrote down to do), coming-up (dates in your files in the next two weeks), on-this-day (what you wrote on this date in earlier years), people (everyone your files name, a line each), ref-check (links and file:line places that no longer hold), pii-audit (where personal numbers sit, never the numbers), secrets-audit (where passwords and keys sit, never the values) and minutes (decisions and open actions)."),
+    "reads_one_folder": ("Your record reads your files from more than one place, and this reads only one folder, so it wasn't done.",
+                         "It works on a record made from one folder, as Willow's UI makes them; for this record, wait for Willow to read them all."),
     "report_failed": ("The report couldn't be made, so nothing was shared.",
                       "Check that WILLOW points at your Willow folder."),
     "report_too_long": ("The report is too long to share whole, so nothing was shared.",
@@ -1279,6 +1329,8 @@ def report(box: Path, name, for_model: bool = False) -> dict:
         doc = None
     # a report's exit code says what it found (42: something that waits on
     # the person, or nothing at all), never whether it ran: its own words do
+    if run.returncode not in (0, 42) and (said := one_folder(run, name)):
+        return said
     if run.returncode not in (0, 42) or not isinstance(doc, dict):
         return {"state": "refused", "code": "report_failed",
                 "why": (run.stderr or run.stdout).strip()[-300:]}  # fmt: skip
@@ -1777,10 +1829,15 @@ def close(box: Path, session=None) -> dict:
     """At a session's end, Willow's session-seal: the record's rows since the
     last bundle, as one proposal for the person to seal once (yes, these were
     my actions), and with it what they said to correct the assistant that
-    session, in their words. It only proposes; it never seals. Its bite is
-    now the record's last, so the read a model made goes with the session."""
+    session, in their words, and where the sent log ended, so the seal pins
+    the one line the log can't vouch for itself (a log that doesn't hold is
+    left out, and said). It only proposes; it never seals. Its bite is now
+    the record's last, so the read a model made goes with the session."""
     kept = corrections_of(box, session)
     with_ = ("--with", str(kept)) if kept is not None and kept.is_file() else ()
+    log, broken = state(box) / "sent.jsonl", sent_log(box)["breaks"]
+    if log.is_file() and not broken:
+        with_ += ("--log", str(log))
     run = willow(
         SESSION_SEAL, "--box", str(box), "--json", "--index", str(index(box)), *with_
     )
@@ -1798,11 +1855,14 @@ def close(box: Path, session=None) -> dict:
     if doc.get("state") != "populated":
         return {"state": "empty"}
     forget_read(box)
-    if with_:  # in the session's proposal now: kept nowhere else
+    if "--with" in with_:  # in the session's proposal now: kept nowhere else
         kept.unlink(missing_ok=True)
     rows = [r for g in doc.get("groups", []) for r in g["rows"]]
-    return {"state": "waiting", "seal": rows[0]["what"] if rows else None,
-            "rows": doc.get("said", "")}  # fmt: skip
+    got = {"state": "waiting", "seal": rows[0]["what"] if rows else None,
+           "rows": doc.get("said", "")}  # fmt: skip
+    if broken:
+        got["log"] = f"not in the seal: the log doesn't hold at line {broken[0]}"
+    return got
 
 
 def owed(box: Path) -> dict:
@@ -1910,6 +1970,96 @@ def guards(box: Path) -> list[tuple[str, tuple[str, ...]]]:
     out += [("hook-read-first", (HOOK_READ_FIRST, "run", *at)),
             ("hook-errors", (HOOK_ERRORS, "run", *at))]  # fmt: skip
     return out
+
+
+#: the person's own doors: what runs them is the person's, never a model's
+#: (the pipe hands back passages with no seal, the seal programs carry a click)
+PERSONS_DOORS = {
+    HERE / "doors" / "pipe.py": "the pipe door",
+    HERE / "seal_page.py": "the seal page",
+    HERE / "seal_prompt.py": "the seal prompt",
+}
+#: the command set_up.py saves for the person's door (`--write command`)
+PERSONS_COMMAND = "provider"
+#: words a command is run through, said before it
+WRAPPERS = frozenset(
+    {"env", "exec", "nohup", "sudo", "command", "nice", "time", "timeout"}
+)
+#: programs that run the script they are handed
+INTERPRETERS = re.compile(r"(python|pypy)(\d+(\.\d+)*)?|sh|bash|zsh|dash")
+
+
+def commands_of(line: str) -> list[list[str]]:
+    """A command line as its commands, each its words; a line that can't be
+    read as shell is read by blanks, which sees less but never raises."""
+    try:
+        lex = shlex.shlex(line, posix=True, punctuation_chars=True)
+        lex.whitespace_split = True
+        words = list(lex)
+    except ValueError:
+        words = line.split()
+    out: list[list[str]] = [[]]
+    for w in words:
+        if w in (";", "&&", "||", "|", "&", "|&", "(", ")"):
+            out.append([])
+        else:
+            out[-1].append(w)
+    return [c for c in out if c]
+
+
+def persons_door(command: str, cwd: str = "") -> str:
+    """Which of the person's own doors a command runs, or "": the door as the
+    program, the script an interpreter is handed, or the saved `provider`
+    command. Reading a door's file, or the word anywhere else, is not running
+    it. Like Willow's hook-guard, a test of words: a door reached by a script
+    the model writes gets through."""
+
+    def at(word: str) -> Path | None:
+        try:
+            return (Path(cwd or ".") / Path(word).expanduser()).resolve()
+        except (OSError, RuntimeError, ValueError):
+            return None
+
+    for words in commands_of(command):
+        i = 0
+        while i < len(words) and ("=" in words[i] and not words[i].startswith("-")):
+            i += 1  # VAR=value before the program
+        while i < len(words) and Path(words[i]).name in WRAPPERS:
+            i += 1
+            while i < len(words) and (words[i].startswith("-") or "=" in words[i]
+                                      or words[i].replace(".", "").isdigit()):  # fmt: skip
+                i += 1  # timeout 5, env -i X=1, nice -n 10
+        if i >= len(words):
+            continue
+        program = words[i]
+        if Path(program).name == PERSONS_COMMAND or at(program) == (
+            Path.home() / ".local" / "bin" / PERSONS_COMMAND
+        ):
+            return f"the {PERSONS_COMMAND} command"
+        if at(program) in PERSONS_DOORS:
+            return PERSONS_DOORS[at(program)]
+        if INTERPRETERS.fullmatch(Path(program).name):
+            script = next((w for w in words[i + 1 :] if not w.startswith("-")), None)
+            if script is not None and at(script) in PERSONS_DOORS:
+                return PERSONS_DOORS[at(script)]
+    return ""
+
+
+def own_doors_guard(sent: dict) -> dict | None:
+    """The runtime's own guard, asked before Willow's: a model's tool call
+    that runs one of the person's doors is blocked, naming the door. None
+    when it runs none."""
+    given = sent.get("tool_input")
+    command = given.get("command") if isinstance(given, dict) else None
+    if sent.get("tool_name") != "Bash" or not isinstance(command, str):
+        return None
+    cwd = sent.get("cwd") if isinstance(sent.get("cwd"), str) else ""
+    door = persons_door(command, cwd)
+    if not door:
+        return None
+    return {"state": "blocked", "by": "provider",
+            "says": f"blocked: rule own-door: this command runs {door}, the person's own; "
+                    "only they run it, never an assistant."}  # fmt: skip
 
 
 def judged(sent: dict, asked: list[tuple[str, tuple[str, ...]]]) -> dict:
@@ -4006,6 +4156,8 @@ def timeline(box: Path, arg) -> dict:
         run = willow(TIMELINE, "--box", str(box), "--to", str(to), about)
     if run.returncode == 42:  # nothing holds the words, or they are too common
         return {"state": "empty", "about": about, "said": run.stdout.strip()[-300:]}
+    if run.returncode != 0 and (said := one_folder(run, "timeline")):
+        return said
     if run.returncode != 0 or not to.is_file():
         return {"state": "refused", "code": "timeline_refused",
                 "why": (run.stderr or run.stdout).strip()[-300:]}  # fmt: skip
@@ -4183,7 +4335,7 @@ def event(box: Path, sent) -> dict:
         tag = hashlib.sha256(text.encode()).hexdigest()[:8]
         shelve(box, sent.get("cwd"), {"name": f"event-{name}-{tag}.json", "text": text}, "guard")  # fmt: skip
     if name == "PreToolUse":
-        return judged(sent, guards(box))
+        return own_doors_guard(sent) or judged(sent, guards(box))
     if name in ("PostToolUse", "PostToolUseFailure"):
         return judged(sent, [("hook-errors", (HOOK_ERRORS, "run", *at))])
     says = []
@@ -4252,7 +4404,9 @@ VERBS = {
         "backup": lambda box, arg, **kw: backup(box, Path(str(arg))),
         "restore": lambda box, arg, **kw: restore(box, Path(str(arg))),
         "pin": lambda box, arg, **kw: pin_sent(box, Path(str(arg))),
-        "check": lambda box, arg, **kw: check_sent(box, Path(str(arg))),
+        "check": lambda box, arg, **kw: check_sent(
+            box, Path(str(arg)) if arg else None
+        ),
         "models": lambda box, arg, **kw: models(box),
         "draft": lambda box, arg, **kw: draft(box, str(arg), None, kw.get("door", "")),
         "close": lambda box, arg, **kw: close(box, arg),
@@ -4502,6 +4656,9 @@ def status(box: Path) -> dict:
         rows.append(("a model was told or given something",
                      count(len(log["rows"]), "time")))  # fmt: skip
         rows.append(("the last time", lines[len(log["rows"]) - 1]))
+        held = sent_sealed(box)  # the log against the last session you sealed
+        rows.append(("against your last sealed session",
+                     held.get("said") or held.get("why") or held["state"]))  # fmt: skip
     group("Shared", rows)
 
     mine = tasks_known(box).values()
