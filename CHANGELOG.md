@@ -34,7 +34,7 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   the last session you sealed (holds, cut short, rewritten, or not sealed
   yet), and `status` says it under Shared. A log that doesn't hold is left
   out of the seal, and close says so. The kernel reads your key; this never
-  does. Pinned to Willow `9446bf9`, on its branch until it merges.
+  does. Pinned to Willow `f6f6e1e` (#389).
 - **Setup says who can change this code.** Managed settings stop an
   assistant unwiring the guard door, not changing it: the hook runs the
   door from the Provider's folder, and a command that edits it names no
