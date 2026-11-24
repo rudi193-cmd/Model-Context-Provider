@@ -27,8 +27,19 @@ Read [README.md](README.md) first: the two lines are the whole design.
 - **Willow by its pin.** `willow.pin.json` names the Willow this runs on,
   every file of it by hash. To move it, commit in Willow, then
   `python3 willow_pin.py repin`: it says what moved, and the commit goes
-  with the change that needs it. A new add-on the runtime runs goes in
-  `willow_pin.ADD_ONS`, with what it loads from beside it.
+  with the change that needs it. It pins kernel.py and every file of each
+  add-on the pin names but its tests, so an add-on's new file comes in by
+  itself. A new add-on the runtime runs comes in with
+  `repin --add NAME` (from `adapters/stdlib`, or `adapters/deps` when it
+  needs a package), and with it what it loads from beside it; `--drop NAME`
+  lets one go. Some are pinned only because another loads them:
+  batch-ask (index-cache and claude-code load its scan), todo (batch-ask's
+  scan), coming-up and pieces (digest; coming-up loads pieces),
+  stale-answers (digest; it loads pieces), habits (minutes), privacy
+  (secrets-audit and hook-leaks), openai-compatible (local-model), share
+  (kart: a job that came in a package, a result sent back), starter-words
+  (set_up prints its copy), test-shards (check.py cuts the tests by it).
+  Kart is under deps: Kartikeya runs a sealed job in a Python that has it.
 - **Never loosen a check to get green.** No skipped test, no loosened
   assertion.
 
