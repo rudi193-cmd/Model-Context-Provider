@@ -32,7 +32,8 @@ def test_the_willow_under_test_is_the_pinned_one():
 def test_every_add_on_the_runtime_runs_is_pinned():
     src = "".join(Path(f).read_text() for f in ("runtime.py", "set_up.py", "hosts.py"))
     used = set(re.findall(r"adapters/stdlib/([a-z0-9-]+)/", src))
-    assert used and used <= set(willow_pin.ADD_ONS), used - set(willow_pin.ADD_ONS)
+    pinned = set(willow_pin.load()["add_ons"])
+    assert used and used <= pinned, used - pinned
 
 
 def test_a_changed_missing_or_new_file_is_named(tmp_path):
@@ -74,6 +75,92 @@ def test_repin_names_what_moved_and_refuses_what_isnt_committed(tmp_path):
     assert willow_pin.load(pin)["commit"] == head
 
 
+def commit(root):
+    subprocess.run(["git", "-C", str(root), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t",
+                    "commit", "-qm", "more"], check=True)  # fmt: skip
+
+
+def a_pin(tmp_path):
+    pin = tmp_path / "pin.json"
+    shutil.copyfile(willow_pin.PIN, pin)
+    return pin
+
+
+def test_repin_at_the_pinned_bytes_moves_only_the_commit(tmp_path):
+    root, pin = copy(tmp_path), a_pin(tmp_path)
+    code, said = willow_pin.repin(root, pin)
+    assert code == 0 and "\n" not in said, said
+    old, new = willow_pin.load(), willow_pin.load(pin)
+    assert list(new) == list(old) and new["commit"] != old["commit"]
+    assert {k: v for k, v in new.items() if k != "commit"} == {k: v for k, v in old.items() if k != "commit"}  # fmt: skip
+
+
+def test_a_new_file_of_a_pinned_add_on_comes_in_and_its_tests_do_not(tmp_path):
+    root, pin = copy(tmp_path), a_pin(tmp_path)
+    backup = root / "adapters/stdlib/backup"
+    (backup / "extra.py").write_text("x = 1\n")
+    (backup / "test_more.py").write_text("")
+    (backup / "conftest.py").write_text("")
+    commit(root)
+    code, said = willow_pin.repin(root, pin)
+    assert code == 0 and said.splitlines()[1:] == ["added: adapters/stdlib/backup/extra.py"], said  # fmt: skip
+    names = list(willow_pin.load(pin)["files"])
+    assert names[names.index("adapters/stdlib/backup/extra.py") - 1].startswith("adapters/stdlib/backup/")  # fmt: skip
+    assert willow_pin.problems(root, pin) == []
+
+
+def test_add_and_drop_name_an_add_on_where_it_lives(tmp_path):
+    root, pin = copy(tmp_path), a_pin(tmp_path)
+    for kind, name in (("stdlib", "garden"), ("deps", "greenhouse")):
+        d = root / "adapters" / kind / name
+        d.mkdir(parents=True)
+        (d / (name + ".py")).write_text("x = 1\n")
+        (d / ("test_" + name + ".py")).write_text("")
+    commit(root)
+    code, said = willow_pin.repin(root, pin, add=["garden", "greenhouse"], drop=["sms"])
+    assert code == 0, said
+    doc = willow_pin.load(pin)
+    assert "garden" in doc["add_ons"] and "greenhouse" in doc["deps"] and "sms" not in doc["add_ons"]  # fmt: skip
+    i = doc["add_ons"].index("garden")
+    assert doc["add_ons"][i - 1] < "garden" < doc["add_ons"][i + 1]  # in its place
+    assert "added: adapters/stdlib/garden/garden.py" in said
+    assert "added: adapters/deps/greenhouse/greenhouse.py" in said
+    assert any(
+        line.startswith("gone: adapters/stdlib/sms/") for line in said.splitlines()
+    )
+    assert not [f for f in doc["files"] if "/test_" in f]
+    assert willow_pin.problems(root, pin) == []
+
+
+def test_repin_refuses_and_leaves_the_pin_as_it_was(tmp_path):
+    root, pin = copy(tmp_path), a_pin(tmp_path)
+    (tmp_path / "nowhere").mkdir()
+    for where, more, why in (
+        (tmp_path / "nowhere", {}, "isn't a Willow git checkout"),
+        (root, {"add": ["no-such"]}, "has no add-on no-such"),
+        (root, {"drop": ["no-such"]}, "no-such isn't an add-on the pin names"),
+    ):
+        code, said = willow_pin.repin(where, pin, **more)
+        assert code == 2 and why in said, said
+    (root / "adapters/stdlib/backup/test_later.py").write_text(
+        ""
+    )  # a test: never pinned
+    other = tmp_path / "other"
+    other.mkdir()
+    assert willow_pin.repin(root, a_pin(other))[0] == 0
+    (root / "adapters/stdlib/backup/new.py").write_text(
+        ""
+    )  # in a pinned folder, not committed
+    code, said = willow_pin.repin(root, pin)
+    assert code == 2 and "adapters/stdlib/backup/new.py" in said, said
+    (root / "adapters/stdlib/backup/new.py").unlink()
+    (root / "kernel.py").write_text("# changed, not committed\n")
+    code, said = willow_pin.repin(root, pin)
+    assert code == 2 and "kernel.py" in said, said
+    assert pin.read_bytes() == willow_pin.PIN.read_bytes()
+
+
 def test_no_door_runs_on_a_willow_it_wasnt_built_on(box, tmp_path, monkeypatch):
     pin = tmp_path / "pin.json"
     doc = willow_pin.load()
@@ -88,6 +175,7 @@ def test_no_door_runs_on_a_willow_it_wasnt_built_on(box, tmp_path, monkeypatch):
     assert (box / "record.jsonl").read_bytes() == before
 
 
-@pytest.mark.parametrize("argv", [[], ["seal"], ["check", "--willow"], ["check", "x"]])
+@pytest.mark.parametrize("argv", [[], ["seal"], ["check", "--willow"], ["check", "x"],
+                                  ["check", "--add", "x"], ["repin", "--add"], ["repin", "--drop"]])  # fmt: skip
 def test_a_bad_command_line_says_how_to_run_it(argv):
     assert willow_pin.main(argv) == 2
