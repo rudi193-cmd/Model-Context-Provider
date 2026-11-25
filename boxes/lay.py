@@ -14,6 +14,10 @@ folder holding this checkout), it makes, under WORK:
     boxes/NAME              the record, laid from the list and the mirrors
     keys/NAME.key           its key: the kernel writes it, and this never
                             opens it
+    indexes/NAME/SOURCE     an index of each source, kept by index-cache and
+                            rebuilt only when a file in it changed; the code's
+                            is of the repository's folder, a little wider than
+                            its list (index-cache reads a folder, not a list)
     runs/NAME/STACK.md      each stack's page, and STACK/ as it ran
 
 --across lays one more box, boxes/across, from every repository's list and
@@ -53,6 +57,7 @@ ADDON = {
     "history": "adapters/stdlib/git-history/git_history.py",
     "graph": "adapters/stdlib/codebase-memory/codebase_memory.py",
     "stack": "adapters/stdlib/stack/stack.py",
+    "index": "adapters/stdlib/index-cache/index_cache.py",
 }
 
 
@@ -116,7 +121,41 @@ def mirror(willow: Path, work: Path, name: str, repo: Path, cbm: str | None) -> 
                 made["graph"] = out / "graph"
         else:
             say(name, f"graph: codebase-memory-mcp exited {code}, no graph")
+    elif (out / "graph").is_dir():
+        made["graph"] = out / "graph"  # made by an earlier run with --cbm
+        say(name, "graph mirror: the one an earlier run made")
     return made
+
+
+def index(willow: Path, work: Path, name: str, repo: Path, made: dict) -> list[Path]:
+    """An index of each source, brought current by index-cache, so a question
+    is answered in a second rather than by reading the whole box again."""
+    at = work / "indexes" / name
+    at.mkdir(parents=True, exist_ok=True)
+    out = []
+    for source, folder in [(name, repo)] + [
+        (f"{name}-{k}", v) for k, v in made.items()
+    ]:
+        cmd = willow_tool(willow, "index") + [
+            "--from",
+            str(folder),
+            "--to",
+            str(at / source),
+        ]
+        code, last = run(cmd, willow)
+        say(name, f"index {source}: {last.split(';')[0] or code}")
+        if code == 0:
+            out.append(at / source)
+    return out
+
+
+def words(work: Path) -> Path:
+    """The words list, copied beside the boxes as the kernel wants it: 600."""
+    at = work / "code-words.txt"
+    if not at.exists():
+        shutil.copyfile(WORDS, at)
+        at.chmod(0o600)
+    return at
 
 
 def lay(
@@ -132,30 +171,36 @@ def lay(
     keys = work / "keys"
     keys.mkdir(parents=True, exist_ok=True)
     keys.chmod(0o700)
-    words = work / "code-words.txt"
-    if not words.exists():
-        shutil.copyfile(WORDS, words)
-        words.chmod(0o600)
     cmd = [sys.executable, str(willow / "kernel.py"), "init", "--box", str(box)]
     for source in sources:
         cmd += ["--from", source]
-    cmd += ["--key", str(keys / f"{box.name}.key"), "--words", str(words)]
+    cmd += ["--key", str(keys / f"{box.name}.key"), "--words", str(words(work))]
     code, last = run(cmd, willow)
     say(name, f"box: {last or code}")
     return box if code == 0 else None
 
 
 def stack(
-    willow: Path, work: Path, name: str, box: Path, page: Path, repo: Path | None
+    willow: Path,
+    work: Path,
+    name: str,
+    box: Path,
+    page: Path,
+    repo: Path | None,
+    indexes: list[Path],
 ) -> bool:
-    """One stack file over one box: {repo} filled in here, {box} by stack.
-    A repository's own questions (stacks/ask/NAME.md) run as "ask"."""
+    """One stack file over one box: {repo} and {indexes} filled in here,
+    {box} by stack. {indexes} is an --index for each source's index and the
+    words list. A repository's own questions (stacks/ask/NAME.md) run as
+    "ask"."""
     stem = "ask" if page.parent.name == "ask" else page.stem
     runs = work / "runs" / name
     runs.mkdir(parents=True, exist_ok=True)
     text = page.read_text(encoding="utf-8")
     if repo is not None:
         text = text.replace("{repo}", str(repo))
+    given = " ".join(f"--index {i}" for i in indexes)
+    text = text.replace("{indexes}", f"{given} --words {words(work)}")
     filled = runs / f"{stem}.stack.md"
     filled.write_text(text, encoding="utf-8")
     cmd = willow_tool(willow, "stack") + ["--box", str(box), "--stack", str(filled)]
@@ -172,27 +217,29 @@ def stack(
 
 def one(
     args, willow: Path, work: Path, name: str, spec: dict
-) -> tuple[bool, list[str]]:
-    """Lay one repository's box and run its stacks; whether all went, and
-    the box's sources, for the box across them all."""
+) -> tuple[bool, list[str], list[Path]]:
+    """Lay one repository's box, index its sources and run its stacks;
+    whether all went, and the box's sources and indexes, for the box across
+    them all."""
     repo = args.repos / spec.get("path", name)
     if not (repo / ".git").exists():
         say(name, f"not a git checkout, left out: {repo}")
-        return False, []
+        return False, [], []
     listed = point(willow, work, name, repo, spec)
     made = mirror(willow, work, name, repo, args.cbm)
     sources = [f"{name}=@{listed}"] + [f"{name}-{k}={v}" for k, v in made.items()]
     box = lay(willow, work, name, sources, args.again)
     if box is None:
-        return False, sources
+        return False, sources, []
+    indexes = index(willow, work, name, repo, made)
     if args.no_stacks:
-        return True, sources
+        return True, sources, indexes
     pages = [STACKS / f"{each}.md" for each in EACH]
     asked = STACKS / "ask" / f"{name}.md"
     if asked.exists():
         pages.append(asked)
-    ok = [stack(willow, work, name, box, page, repo) for page in pages]
-    return all(ok), sources
+    ok = [stack(willow, work, name, box, page, repo, indexes) for page in pages]
+    return all(ok), sources, indexes
 
 
 def main(argv: list[str]) -> int:
@@ -224,13 +271,15 @@ def main(argv: list[str]) -> int:
         repos = {n: repos[n] for n in wanted}
     with ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
         done = list(pool.map(lambda n: one(args, willow, work, n, repos[n]), repos))
-    ok = all(went for went, _ in done)
+    ok = all(went for went, _, _ in done)
     if args.across:
-        sources = [s for _, each in done for s in each]
+        sources = [s for _, each, _ in done for s in each]
+        indexes = [i for _, _, each in done for i in each]
         box = lay(willow, work, "across", sources, args.again) if sources else None
         ok = ok and box is not None
         if box is not None and not args.no_stacks:
-            ok = stack(willow, work, "across", box, STACKS / "across.md", None) and ok
+            page = STACKS / "across.md"
+            ok = stack(willow, work, "across", box, page, None, indexes) and ok
     print(
         f"lay: {'done' if ok else 'done, with some left out'}; pages under {work / 'runs'}"
     )

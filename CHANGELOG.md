@@ -15,6 +15,10 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   each repository's own questions, and the questions across them. One
   command, since a cloud session's container is gone when it ends. Nothing
   in it seals or opens a key; a box laid again goes beside the old one.
+  Each source keeps an index (Willow's index-cache), rebuilt only when a
+  file in it changed, and the questions are asked of those: about a second
+  each, where reading the box took twelve on willow-mcp and ninety on
+  cpython.
 
 - **The pin is the commit that runs.** The runtime ran whatever checkout
   `WILLOW` named and refused it when it wasn't the pin, so a Willow

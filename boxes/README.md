@@ -50,8 +50,8 @@ refcount …`).
 |---|---|---|
 | [orient](stacks/orient.md) | each box | the instruction files each agent loads, what they name that is gone, what nothing pins |
 | [owes](stacks/owes.md) | each box | TODOs, risky lines, secrets in plain files, stale references: leads, not findings |
-| [ask/NAME](stacks/ask/) | its box | standing questions about that repository, each source answering in turn |
-| [across](stacks/across.md) | one box over all | where one repository leans on another, and the same thing solved in each |
+| [ask/NAME](stacks/ask/) | its indexes | standing questions about that repository, each source answering in turn |
+| [across](stacks/across.md) | one box over all, and every index | where one repository leans on another, and the same thing solved in each |
 
 Each step says what it is there for and what it misreads on this kind of
 folder. The whole-folder steps are handed the repository (`{repo}`, filled
@@ -59,13 +59,27 @@ in by `lay.py`): they refuse a box laid from lists. The question steps use
 fair-merge, which ranks each source on its own and takes turns, so
 cpython's thousands of files can't crowd out a commit message.
 
-Each stack's page is `WORK/runs/NAME/STACK.md`. To ask one more question
-of a box:
+## Indexes
 
-    python $WILLOW/adapters/stdlib/fair-merge/fair_merge.py --box WORK/boxes/NAME "your question"
-    python $WILLOW/kernel.py bite --box WORK/boxes/NAME "your question"
+Each source has an index under `WORK/indexes/NAME/SOURCE`, kept by Willow's
+index-cache: a run hashes the source's files and rebuilds the index only
+when one changed, so a run over unchanged repositories checks them in a
+second. The question stacks ask through them (`{indexes}`, filled in by
+`lay.py`), with the words list. The code's index is of the repository's
+folder, a little wider than its list, since index-cache reads a folder and
+not a list (`index-cache --from NAME=@LIST` is on Willow's branch, to
+follow).
 
-A cold question over cpython takes about a minute and a half.
+Each stack's page is `WORK/runs/NAME/STACK.md`. To ask one more question:
+
+    I=WORK/indexes/NAME
+    python $WILLOW/adapters/stdlib/fair-merge/fair_merge.py --index $I/NAME \
+        --index $I/NAME-comments --index $I/NAME-history --index $I/NAME-graph \
+        --words WORK/code-words.txt "your question"
+
+That answers in about a second. The box itself still answers the kernel's
+way (`kernel.py bite --box WORK/boxes/NAME`), reading every file: about
+twelve seconds on willow-mcp and a minute and a half on cpython.
 
 ## What waits on the person
 

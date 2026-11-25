@@ -40,7 +40,9 @@ def test_each_step_sits_under_a_pool_and_fills_in_only_what_is_filled():
             assert pool, f"{page.name}: a step before any pool: {line}"
             steps += 1
             holes = set(re.findall(r"\{(\w+)\}", m.group(2)))
-            allowed = {"box"} if page.name == "across.md" else {"box", "repo"}
+            allowed = {"box", "indexes"} | (
+                set() if page.name == "across.md" else {"repo"}
+            )
             assert holes <= allowed, f"{page.name}: {line}"
         assert steps, f"{page.name} has no step"
 
