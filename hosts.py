@@ -193,7 +193,7 @@ def door_args(box: Path) -> list[str]:
 
 
 def env() -> dict:
-    return {"WILLOW": str(runtime.WILLOW)}
+    return {"WILLOW": str(runtime.WILLOW_SOURCE)}
 
 
 def places(name: str, box: Path, py: str) -> list[tuple[str, str, object]]:
@@ -224,7 +224,7 @@ def hook_command(host: str, box: Path) -> str:
     """Shell command the host runs at each prompt (doors/hook.py --host)."""
     import shlex
 
-    env_s = f"WILLOW={runtime.WILLOW}"
+    env_s = f"WILLOW={runtime.WILLOW_SOURCE}"
     parts = [
         sys.executable or "python3",
         str(HERE / "doors" / "hook.py"),
@@ -240,7 +240,7 @@ def session_command(host: str, box: Path) -> str:
     """Shell command for session start/end (doors/session.py --host)."""
     import shlex
 
-    env_s = f"WILLOW={runtime.WILLOW}"
+    env_s = f"WILLOW={runtime.WILLOW_SOURCE}"
     parts = [
         sys.executable or "python3",
         str(HERE / "doors" / "session.py"),

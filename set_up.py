@@ -149,7 +149,7 @@ GUARDED = "Write|Edit|MultiEdit|NotebookEdit|Read|NotebookRead|Grep|Glob|Bash"
 def claude_hooks(box: Path) -> dict:
     """Claude Code's hooks, as its settings file holds them: the prompt hook,
     the session door, and the guard door at each moment it answers."""
-    env = f"WILLOW={runtime.WILLOW}"
+    env = f"WILLOW={runtime.WILLOW_SOURCE}"
 
     def line(door: str) -> str:
         argv = [sys.executable, str(HERE / "doors" / door), "--box", str(box)]
@@ -180,7 +180,7 @@ def paste(box: Path) -> str:
     """What to paste: Claude Code's MCP + hooks, then every other assistant
     from Willow's hosts table, each in its own settings shape. --write does
     the merge instead."""
-    env = f"WILLOW={runtime.WILLOW}"
+    env = f"WILLOW={runtime.WILLOW_SOURCE}"
     door = [sys.executable, str(HERE / "doors" / "mcp.py"), "--box", str(box)]
     settings = claude_hooks(box)
     others = hosts.paste_all(box)
@@ -452,9 +452,9 @@ def write_managed(box: Path) -> list[str]:
                 "  - Windows itself has no sandbox: only the deny rules hold, for the file tools;"
             ]
         ),
-        f"  - an assistant can't edit the Provider in {HERE}, nor Willow in",
-        f"    {runtime.WILLOW}: work on either in another checkout, not the one the",
-        "    hooks run from (docs/OPEN.md).",
+        f"  - an assistant can't edit the Provider in {HERE}, nor the Willow it runs",
+        f"    in {runtime.WILLOW}: work on the Provider in another checkout, not the",
+        "    one the hooks run from (docs/OPEN.md).",
         "The same hooks in ~/.claude/settings.json can stay: a hook named twice runs once.",
         'To block every hook but managed ones too, add "allowManagedHooksOnly": true to the',
         "file before you install it; that blocks your own other hooks as well.",

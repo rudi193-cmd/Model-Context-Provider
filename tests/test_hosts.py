@@ -39,7 +39,7 @@ def test_show_cursor_is_mcp_json_with_willow_env(box):
         "--box",
         str(box.resolve()),
     ]
-    assert entry["env"] == {"WILLOW": str(runtime.WILLOW)}
+    assert entry["env"] == {"WILLOW": str(runtime.WILLOW_SOURCE)}
 
 
 def test_every_host_shape_parses(box):

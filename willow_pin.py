@@ -1,22 +1,45 @@
 """willow_pin.py: the Willow this was built on, held to its pin. Python 3.9+.
 
     python willow_pin.py check [--willow DIR]
-    python willow_pin.py repin [--willow DIR] [--add NAME ...] [--drop NAME ...]
+    python willow_pin.py repin [--willow DIR] [--at COMMIT] [--add NAME ...] [--drop NAME ...]
+    python willow_pin.py follow [COMMIT] [-- CHECK ARGS ...]
+    python willow_pin.py prune [--days N]
 
-The runtime runs Willow's kernel and a few of its add-ons where they live, in
-a Willow checkout. willow.pin.json pins them: Willow's commit, the add-ons by
-name, and every file of what runs, by SHA-256. `problems` names each file
-that is missing, different, or new in a pinned add-on; the runtime refuses to
-run on a Willow with any. Nothing else in Willow matters to the pin.
+The runtime runs Willow's kernel and a few of its add-ons by their command
+line. willow.pin.json pins them: Willow's commit, the add-ons by name, and
+every file of what runs, by SHA-256. `problems` names each file that is
+missing, different, or new in a pinned add-on; the runtime refuses to run on
+a Willow with any. Nothing else in Willow matters to the pin.
+
+WILLOW names where Willow's git is (else a sibling folder named Willow): any
+checkout of it, on any branch. The runtime never runs that checkout. It runs
+a copy of the pinned commit, made from git by `pinned_copy` the first time
+it is wanted and kept in Willow's git folder, named by the commit (so every
+checkout of that git shares them, and Die-Namic's too), so whatever the
+checkout is switched to, the runtime is on the commit its pin names. A
+WILLOW that isn't a git checkout is run where it is, held to the pin.
 
 `repin` is the one way to move the pin, done on purpose: it pins the
-checkout's commit. What is pinned is kernel.py and, for each add-on the pin
+checkout's commit, or with --at any commit its git has (a branch, a tag,
+origin/main), read from git, never from the files checked out. What is pinned is kernel.py and, for each add-on the pin
 names, every file Willow's git holds in its folder but its tests, so an
 add-on's new file comes in by itself. `--add` pins another add-on (from
 adapters/stdlib, or adapters/deps when it needs a package), `--drop` lets one
 go. It refuses a checkout whose pinned files have changes not committed (so
 the pin always names bytes a commit holds), and an add-on the commit doesn't
 have; then it says what moved.
+
+`follow` is the whole move in one: it fetches, repins at COMMIT (origin/main
+when none is named), makes its copy, and runs this repo's check on it (python check.py, with
+whatever follows a -- on its command line). Only
+if the check passes does it commit willow.pin.json, on the branch you're on;
+if it fails, the pin is put back as it was and nothing is committed. It
+never pushes.
+
+`prune` lets go of the copies nothing has run for N days (14 when none is
+named), never the one this pin names: a copy in use is marked so at most
+once a day, and one let go is made again from git the next time it is
+wanted.
 
 Willow is never imported or changed here: its files are only read and hashed.
 """
@@ -26,8 +49,11 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -45,9 +71,116 @@ def pinned(name: str) -> bool:
     return not name.startswith("test_") and name != "conftest.py"
 
 
-def default_root() -> Path:
-    """Where the runtime looks: WILLOW, else a sibling folder named Willow."""
+def source() -> Path:
+    """Where Willow's git is: WILLOW, else a sibling folder named Willow."""
     return Path(os.environ.get("WILLOW", HERE.parent / "Willow"))
+
+
+def copies(src: Path) -> Path | None:
+    """Where the pinned copies of SRC's commits are kept, one folder per
+    commit: in its git's own folder, where every checkout of that git finds
+    them; None when SRC isn't a git checkout. Read without running git, as
+    every hook asks it."""
+    dot = src / ".git"
+    try:
+        if dot.is_file():  # a worktree: its git folder, then the one they share
+            wt = Path(dot.read_text().split("gitdir:", 1)[1].strip())
+            wt = wt if wt.is_absolute() else (src / wt)
+            common = (
+                (wt / "commondir").read_text().strip()
+                if (wt / "commondir").is_file()
+                else "."
+            )
+            dot = (wt / common).resolve()
+    except (OSError, IndexError):
+        return None
+    return dot / "willow-pinned" if (dot / "objects").is_dir() else None
+
+
+#: written last into a copy, so a copy cut short is never taken for one
+DONE = ".willow-pinned"
+
+
+def pinned_copy(src: Path, commit: str) -> Path | None:
+    """Willow at COMMIT, made from SRC's git once and kept; None when SRC
+    isn't a git checkout or its git doesn't have the commit."""
+    home = copies(src)
+    if home is None:
+        return None
+    at = home / commit
+    if (at / DONE).is_file():
+        used(at)
+        return at
+    tree = git(src, "rev-parse", "--verify", "--quiet", commit + "^{commit}")
+    if tree.returncode != 0:
+        return None
+    at.parent.mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix=commit[:12] + ".", dir=at.parent))
+    try:
+        tar = work / "tree.tar"
+        got = git(src, "archive", "--format=tar", "-o", str(tar), commit)
+        if got.returncode != 0:
+            return None
+        with tarfile.open(tar) as t:
+            # git's own archive of Willow; "data" where this Python has it
+            safe = {"filter": "data"} if hasattr(tarfile, "data_filter") else {}
+            t.extractall(work / "tree", **safe)
+        (work / "tree" / DONE).write_text(commit + "\n")
+        try:
+            (work / "tree").rename(at)
+        except OSError:  # another made it first: theirs is the same commit
+            if not (at / DONE).is_file():
+                raise
+        return at
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+#: how long a copy's mark of being used is left before it is renewed
+DAY = 24 * 3600
+
+
+def used(at: Path) -> None:
+    """Mark a copy as run today, at most once a day: what prune goes by."""
+    import time
+
+    mark = at / DONE
+    try:
+        if time.time() - mark.stat().st_mtime > DAY:
+            os.utime(mark)
+    except OSError:  # a copy the person can't write to is still run
+        pass
+
+
+def prune(src: Path, keep: str, days: int = 14) -> list[str]:
+    """The copies let go: each in SRC's git that isn't KEEP and that no one
+    has run for DAYS days, removed, as their commits."""
+    import time
+
+    home = copies(src)
+    if home is None or not home.is_dir():
+        return []
+    gone = []
+    for at in sorted(home.iterdir()):
+        mark = at / DONE
+        if at.name == keep or not mark.is_file():
+            continue  # this pin's, or one still being made
+        if time.time() - mark.stat().st_mtime > days * DAY:
+            shutil.rmtree(at, ignore_errors=True)
+            gone.append(at.name)
+    return gone
+
+
+def default_root(pin: Path = PIN) -> Path:
+    """The Willow the runtime runs: the copy of the pinned commit, when
+    WILLOW is a git checkout that has it; else WILLOW itself, which the pin
+    then holds file by file."""
+    src = source()
+    try:
+        commit = load(pin)["commit"]
+    except (OSError, ValueError, KeyError):
+        return src
+    return pinned_copy(src, commit) or src
 
 
 def files(root: Path, pin: Path = PIN) -> list[str]:
@@ -120,11 +253,14 @@ def in_order(old: list[str], new: list[str]) -> list[str]:
     return keep
 
 
-def repin(root: Path, pin: Path = PIN, add: list[str] = (), drop: list[str] = ()) -> tuple[int, str]:  # fmt: skip
-    """(exit, what was said). Pins the checkout's commit and its files' bytes."""
-    head = git(root, "rev-parse", "HEAD")
-    if head.returncode != 0:
+def repin(root: Path, pin: Path = PIN, add: list[str] = (), drop: list[str] = (), at: str = "") -> tuple[int, str]:  # fmt: skip
+    """(exit, what was said). Pins the checkout's commit, or AT, and its
+    files' bytes as the commit holds them."""
+    if git(root, "rev-parse", "--git-dir").returncode != 0:
         return 2, f"refused: {root} isn't a Willow git checkout"
+    head = git(root, "rev-parse", "--verify", "--quiet", (at or "HEAD") + "^{commit}")
+    if head.returncode != 0:
+        return 2, f"refused: Willow's git at {root} has no commit {at}"
     commit = head.stdout.strip()
     tracked = git(root, "ls-tree", "-r", "--name-only", commit).stdout.split()
     if KERNEL not in tracked:
@@ -160,7 +296,7 @@ def repin(root: Path, pin: Path = PIN, add: list[str] = (), drop: list[str] = ()
         ).stdout.splitlines()  # fmt: skip
         if pinned(line[3:].rsplit("/", 1)[-1])
     ]
-    if dirty:
+    if dirty and not at:  # AT is read from git alone: the checkout is no matter
         return 2, "refused: changes not committed in pinned files:\n" + "\n".join(dirty)
     new = {}
     for rel in in_order(list(old.get("files", {})), have):
@@ -178,16 +314,85 @@ def repin(root: Path, pin: Path = PIN, add: list[str] = (), drop: list[str] = ()
     return 0, "\n".join([said, *moved])
 
 
-USAGE = "usage: willow_pin.py check [--willow DIR] | repin [--willow DIR] [--add NAME ...] [--drop NAME ...]"  # fmt: skip
+#: this repo's check, run by `follow` on the Willow it pins
+CHECK = [sys.executable, "check.py"]
+
+
+def follow(rev: str = "", pin: Path = PIN, check: list[str] = ()) -> tuple[int, str]:  # fmt: skip
+    """(exit, what was said). Repin at REV (origin/main when none is
+    named), run CHECK with CHECK's own arguments after it, and commit the
+    pin only if the check passes."""
+    src = source()
+    git(src, "fetch", "-q", "origin")  # offline, what git has is followed
+    was = pin.read_bytes()
+    code, said = repin(src, pin, at=rev or "origin/main")
+    if code:
+        return code, said
+    commit = load(pin)["commit"]
+    if was == pin.read_bytes():
+        return 0, f"the pin is on Willow {commit[:12]} already: nothing moved"
+    got = pinned_copy(src, commit)
+    off = problems(got, pin) if got else ["no copy made"]
+    ran = None
+    if not off:
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        ran = subprocess.run([*CHECK, *check], cwd=HERE, env={**env, "WILLOW": str(src)},
+                             capture_output=True, text=True, check=False)  # fmt: skip
+    if off or ran.returncode != 0:
+        pin.write_bytes(was)
+        why = "; ".join(off) if off else (ran.stdout + ran.stderr).strip()[-2000:]
+        return 1, f"{said}\nthe check didn't pass, so the pin is back as it was:\n{why}"
+    msg = f"pin: Willow {commit[:12]}\n\n" + "\n".join(said.splitlines()[1:])
+    done = subprocess.run(
+        ["git", "-C", str(HERE), "commit", "-q", "-m", msg.strip() + "\n", "--", pin.name],
+        capture_output=True, text=True, check=False,
+    )  # fmt: skip
+    if done.returncode != 0:
+        return (
+            1,
+            f"{said}\nthe check passed, but the commit didn't: {done.stderr.strip()}",
+        )
+    return 0, f"{said}\nthe check passed; committed, not pushed"
+
+
+USAGE = "usage: willow_pin.py check [--willow DIR] | repin [--willow DIR] [--at COMMIT] [--add NAME ...] [--drop NAME ...] | follow [COMMIT] [-- CHECK ARGS] | prune [--days N]"  # fmt: skip
 
 
 def main(argv: list[str]) -> int:
     verb, it = (argv[0] if argv else ""), iter(argv[1:])
-    root, add, drop, bad = None, [], [], verb not in ("check", "repin")
+    if verb == "prune":
+        days = argv[2] if argv[1:2] == ["--days"] and len(argv) == 3 else "14"
+        if (
+            argv[1:]
+            and (argv[1:2] != ["--days"] or len(argv) != 3)
+            or not days.isdigit()
+        ):
+            print(USAGE, file=sys.stderr)
+            return 2
+        gone = prune(source(), load()["commit"], int(days))
+        print(
+            f"let go of {len(gone)} cop{'y' if len(gone) == 1 else 'ies'}",
+            *gone,
+            sep="\n  ",
+        )
+        return 0
+    if verb == "follow":
+        rest = argv[1:]
+        more = rest[rest.index("--") + 1 :] if "--" in rest else []
+        rest = rest[: rest.index("--")] if "--" in rest else rest
+        if len(rest) > 1 or any(not a or a.startswith("-") for a in rest):
+            print(USAGE, file=sys.stderr)
+            return 2
+        code, said = follow(rest[0] if rest else "", check=more)
+        print(said, file=sys.stderr if code else sys.stdout)
+        return code
+    root, at, add, drop, bad = None, "", [], [], verb not in ("check", "repin")
     for a in it:
         got = next(it, "")
         if a == "--willow" and got and root is None:
             root = Path(got)
+        elif a == "--at" and got and not at and verb == "repin":
+            at = got
         elif a in ("--add", "--drop") and got and verb == "repin":
             (add if a == "--add" else drop).append(got)
         else:
@@ -195,11 +400,11 @@ def main(argv: list[str]) -> int:
     if bad:
         print(USAGE, file=sys.stderr)
         return 2
-    root = root or default_root()
     if verb == "repin":
-        code, said = repin(root, add=add, drop=drop)
+        code, said = repin(root or source(), add=add, drop=drop, at=at)
         print(said, file=sys.stderr if code else sys.stdout)
         return code
+    root = root or default_root()
     off = problems(root)
     if off:
         print(f"{root} isn't the pinned Willow:", *off, sep="\n  ")

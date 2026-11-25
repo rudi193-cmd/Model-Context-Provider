@@ -4,8 +4,9 @@ Line 1: a grant guards what leaves, never what is read. Reading goes through
 Willow's kernel and needs no grant.
 
 Willow is used by its command line only (kernel.py and its add-ons), so the
-kernel is never changed or imported here. WILLOW names the checkout; the
-default is a sibling folder named Willow.
+kernel is never changed or imported here. WILLOW names where Willow's git
+is (the default is a sibling folder named Willow); what runs is a copy of
+the commit willow.pin.json pins, made from it (willow_pin.py).
 """
 
 from __future__ import annotations
@@ -31,6 +32,9 @@ import willow_pin
 
 HERE = Path(__file__).resolve().parent
 WILLOW = willow_pin.default_root()
+#: where Willow's git is, as WILLOW names it: what a host's settings name,
+#: never the copy WILLOW is
+WILLOW_SOURCE = willow_pin.source()
 PIN = willow_pin.PIN
 
 
@@ -869,8 +873,8 @@ PLAIN = {
     "not_waiting": ("That isn't something waiting on you.",
                     "See what waits on you (provider waiting, or the seal page): each shows the seal to name."),
     "willow_unpinned": ("Your Willow isn't the one this was built on, so nothing was done.",
-                        "Run: python3 willow_pin.py check (it names what differs), then put "
-                        "Willow at the commit it names, or point WILLOW at a copy that is."),
+                        "Run: python3 willow_pin.py check (it names what differs). WILLOW should "
+                        "name a Willow git checkout that has the commit it names (git fetch there)."),
     "session_failed": ("The step that closes a session couldn't run, so nothing waits on you for it.",
                        "Check that WILLOW points at your Willow folder."),
     "event_unread": ("The assistant's hook sent something that can't be read, so nothing was let through.",

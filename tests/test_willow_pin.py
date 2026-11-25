@@ -175,7 +175,133 @@ def test_no_door_runs_on_a_willow_it_wasnt_built_on(box, tmp_path, monkeypatch):
     assert (box / "record.jsonl").read_bytes() == before
 
 
+def head(root):
+    return subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"],
+                          capture_output=True, text=True, check=True).stdout.strip()  # fmt: skip
+
+
+def test_what_runs_is_the_pinned_commit_whatever_the_checkout_is_on(
+    tmp_path, monkeypatch
+):
+    root, pin = copy(tmp_path), a_pin(tmp_path)
+    assert willow_pin.repin(root, pin)[0] == 0
+    pinned = head(root)
+    (root / "kernel.py").write_text("# a newer kernel\n")
+    commit(root)  # the checkout moves on; the pin stays
+    (root / "adapters/stdlib/backup/half.py").write_text("")  # and is mid-change
+    monkeypatch.setenv("WILLOW", str(root))
+    got = willow_pin.default_root(pin)
+    assert (
+        got == root / ".git/willow-pinned" / pinned
+        and (got / willow_pin.DONE).is_file()
+    )
+    assert willow_pin.problems(got, pin) == []
+    assert willow_pin.problems(root, pin) != []  # the checkout itself isn't it
+    assert willow_pin.default_root(pin) == got  # made once
+    other = tmp_path / "other-worktree"
+    subprocess.run(["git", "-C", str(root), "worktree", "add", "-q", "--detach", str(other)], check=True)  # fmt: skip
+    monkeypatch.setenv("WILLOW", str(other))
+    assert willow_pin.default_root(pin) == got  # every checkout of that git shares it
+
+
+def test_a_willow_that_isnt_git_is_run_where_it_is(tmp_path, monkeypatch):
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    monkeypatch.setenv("WILLOW", str(plain))
+    assert willow_pin.default_root() == plain and list(plain.iterdir()) == []
+
+
+def test_a_commit_its_git_lacks_makes_no_copy(tmp_path):
+    root = copy(tmp_path)
+    assert willow_pin.pinned_copy(root, "0" * 40) is None
+    assert not (root / ".git/willow-pinned").exists() or not list((root / ".git/willow-pinned").iterdir())  # fmt: skip
+
+
+def test_repin_at_a_commit_reads_git_not_the_checkout(tmp_path):
+    root, pin = copy(tmp_path), a_pin(tmp_path)
+    first = head(root)
+    (root / "kernel.py").write_text("# a newer kernel\n")
+    commit(root)
+    (root / "kernel.py").write_text("# changed, not committed\n")
+    code, said = willow_pin.repin(root, pin, at=first)
+    assert code == 0 and willow_pin.load(pin)["commit"] == first, said
+    assert willow_pin.load(pin)["files"] == willow_pin.load()["files"]
+    code, said = willow_pin.repin(root, pin, at="no-such-branch")
+    assert code == 2 and "has no commit no-such-branch" in said
+
+
+def a_repo(tmp_path, pin):
+    """A repo of this one's that holds only the pin, to commit it in, with
+    its own name for git, as CI has none."""
+    here = tmp_path / "here"
+    here.mkdir()
+    shutil.copyfile(pin, here / "willow.pin.json")
+    commit_all = ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "p"]
+    for args in (["init", "-q"], ["add", "."], commit_all,
+                 ["config", "user.name", "t"], ["config", "user.email", "t@t"]):  # fmt: skip
+        subprocess.run(["git", "-C", str(here), *args], check=True)
+    return here
+
+
+@pytest.mark.parametrize("passes", [True, False])
+def test_follow_commits_the_pin_only_when_the_check_passes(
+    tmp_path, monkeypatch, passes
+):
+    root = copy(tmp_path)
+    here = a_repo(tmp_path, willow_pin.PIN)
+    pin = here / "willow.pin.json"
+    (root / "kernel.py").write_text("# a newer kernel\n")
+    commit(root)
+    monkeypatch.setenv("WILLOW", str(root))
+    monkeypatch.setattr(willow_pin, "HERE", here)
+    monkeypatch.setattr(willow_pin, "CHECK", ["python3", "-c", f"raise SystemExit({int(not passes)})"])  # fmt: skip
+    before, was = head(here), pin.read_bytes()
+    code, said = willow_pin.follow("HEAD", pin)
+    if passes:
+        assert code == 0 and said.endswith("committed, not pushed"), said
+        assert willow_pin.load(pin)["commit"] == head(root)
+        assert (
+            head(here) != before and (root / ".git/willow-pinned" / head(root)).is_dir()
+        )
+        assert willow_pin.follow("HEAD", pin)[1].endswith("nothing moved")
+    else:
+        assert code == 1 and "back as it was" in said, said
+        assert pin.read_bytes() == was and head(here) == before
+
+
+def test_prune_lets_go_of_old_copies_but_this_pins(tmp_path, monkeypatch):
+    import os
+    import time
+
+    root = copy(tmp_path)
+    first = head(root)
+    (root / "kernel.py").write_text("# a newer kernel\n")
+    commit(root)
+    second = head(root)
+    old, new = willow_pin.pinned_copy(root, first), willow_pin.pinned_copy(root, second)
+    month = time.time() - 30 * willow_pin.DAY
+    for at in (old, new):
+        os.utime(at / willow_pin.DONE, (month, month))
+    assert willow_pin.prune(root, keep=second) == [first]
+    assert not old.exists() and new.is_dir()
+    assert willow_pin.prune(root, keep="", days=60) == []  # not old enough
+    assert willow_pin.pinned_copy(root, first) == old and old.is_dir()  # made again
+    os.utime(old / willow_pin.DONE, (month, month))
+    willow_pin.pinned_copy(root, first)  # run: marked as used today
+    assert willow_pin.prune(root, keep=second) == []
+
+
+def test_settings_name_willows_git_never_the_copy():
+    import hosts
+
+    assert hosts.env() == {"WILLOW": str(runtime.WILLOW_SOURCE)}
+    assert str(runtime.WILLOW_SOURCE) in hosts.session_command("claude", Path("box"))
+
+
 @pytest.mark.parametrize("argv", [[], ["seal"], ["check", "--willow"], ["check", "x"],
-                                  ["check", "--add", "x"], ["repin", "--add"], ["repin", "--drop"]])  # fmt: skip
+                                  ["check", "--add", "x"], ["repin", "--add"], ["repin", "--drop"],
+                                  ["repin", "--at"], ["check", "--at", "x"],
+                                  ["follow", "a", "b"], ["follow", "--all"],
+                                  ["prune", "x"], ["prune", "--days"], ["prune", "--days", "x"]])  # fmt: skip
 def test_a_bad_command_line_says_how_to_run_it(argv):
     assert willow_pin.main(argv) == 2

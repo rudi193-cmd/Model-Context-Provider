@@ -56,10 +56,12 @@ beside the person's record.
 
 ## Set it up
 
-You need Python 3.9 or newer and a Willow checkout at the commit
-[willow.pin.json](willow.pin.json) names. The pin holds every file of Willow
-this runs (the kernel and each add-on it uses) by its SHA-256, and nothing runs
-on a Willow whose files differ: `python3 willow_pin.py check` says which.
+You need Python 3.9 or newer and a Willow git checkout that has the commit
+[willow.pin.json](willow.pin.json) names, on any branch: what runs is a copy
+of that commit, made from its git the first time and kept in its git folder.
+The pin holds every file of Willow this runs (the kernel and each add-on it
+uses) by its SHA-256, and nothing runs on a Willow whose files differ:
+`python3 willow_pin.py check` says which.
 Nothing else in Willow matters to it. Make your record in Willow's UI: pick
 your folders, keep the starter words list ticked in the words step and add
 your own, seal it, and press **Start it**. A question in your own words

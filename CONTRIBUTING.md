@@ -25,9 +25,16 @@ Read [README.md](README.md) first: the two lines are the whole design.
 - **Willow by its command line only.** Nothing here imports or changes
   Willow's `kernel.py`; when Willow lacks something, the fix goes to Willow.
 - **Willow by its pin.** `willow.pin.json` names the Willow this runs on,
-  every file of it by hash. To move it, commit in Willow, then
-  `python3 willow_pin.py repin`: it says what moved, and the commit goes
-  with the change that needs it. It pins kernel.py and every file of each
+  every file of it by hash. What runs is a copy of that commit, made from
+  the git `WILLOW` names and kept in its git folder, so the checkout there
+  can be on any branch. To move it, `python3 willow_pin.py follow
+  [COMMIT] [-- CHECK ARGS]`: it fetches, repins at COMMIT (origin/main
+  when none is named), runs `check.py`, and commits the pin only if it
+  passes, else puts it back; it never pushes. `repin --at COMMIT` moves it
+  without the check; with no `--at` it pins the checkout's own commit. It
+  says what moved, and the commit goes with the change that needs it.
+  `prune [--days N]` lets go of copies nothing has run for N days (14 by
+  default), never this pin's; one let go is made again when it is wanted. It pins kernel.py and every file of each
   add-on the pin names but its tests, so an add-on's new file comes in by
   itself. A new add-on the runtime runs comes in with
   `repin --add NAME` (from `adapters/stdlib`, or `adapters/deps` when it
