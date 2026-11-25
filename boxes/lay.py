@@ -175,7 +175,7 @@ def one(
 ) -> tuple[bool, list[str]]:
     """Lay one repository's box and run its stacks; whether all went, and
     the box's sources, for the box across them all."""
-    repo = args.repos / name
+    repo = args.repos / spec.get("path", name)
     if not (repo / ".git").exists():
         say(name, f"not a git checkout, left out: {repo}")
         return False, []

@@ -1,11 +1,34 @@
 {
-  "about": "The repositories lay.py lays a box over: each one's folder name beside the others, the kinds of file kept, and the folders left out. A folder is found beside this checkout, or under --repos.",
+  "about": "The repositories lay.py lays a box over: each one's folder name beside the others, the kinds of file kept, and the folders left out. A folder is found beside this checkout, or under --repos; \"path\" names one kept under another folder name there.",
   "repos": {
-    "Model-Context-Provider": {"keep": ".py,.md,.json,.toml,.yml", "skip": ""},
-    "Willow": {"keep": ".py,.md,.txt,.json,.toml,.yml", "skip": ""},
-    "willow-mcp": {"keep": ".py,.md,.sh,.json,.toml,.yml,.sql,.txt", "skip": ""},
-    "codebase-memory-mcp": {"keep": ".c,.h,.md,.py,.sh,.ts,.tsx,.yml,.toml,.json,.txt", "skip": "node_modules,build,dist,vendor,vendored"},
-    "cpython-fork": {"keep": ".py,.c,.h,.rst,.md,.toml", "skip": "node_modules,build,decimaltestdata"},
-    "pyperformance-fork": {"keep": ".py,.toml,.txt,.rst,.md,.yml,.cfg", "skip": ""}
+    "Model-Context-Provider": {
+      "keep": ".py,.md,.json,.toml,.yml",
+      "skip": ""
+    },
+    "Willow": {
+      "keep": ".py,.md,.txt,.json,.toml,.yml",
+      "skip": ""
+    },
+    "willow-mcp": {
+      "keep": ".py,.md,.sh,.json,.toml,.yml,.sql,.txt",
+      "skip": ""
+    },
+    "codebase-memory-mcp": {
+      "keep": ".c,.h,.md,.py,.sh,.ts,.tsx,.yml,.toml,.json,.txt",
+      "skip": "node_modules,build,dist,vendor,vendored"
+    },
+    "cpython-fork": {
+      "keep": ".py,.c,.h,.rst,.md,.toml",
+      "skip": "node_modules,build,decimaltestdata"
+    },
+    "pyperformance-fork": {
+      "keep": ".py,.toml,.txt,.rst,.md,.yml,.cfg",
+      "skip": ""
+    },
+    "modelcontextprotocol": {
+      "path": "modelcontextprotocol/modelcontextprotocol",
+      "keep": ".md,.mdx,.ts,.json",
+      "skip": "node_modules,blog"
+    }
   }
 }

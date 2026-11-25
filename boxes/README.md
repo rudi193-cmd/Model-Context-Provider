@@ -13,7 +13,14 @@ One command lays all of it again, which is what a cloud session needs: its
 container is gone when the session ends, and only this folder is kept. The
 repositories are found beside this checkout (`--repos DIR` for elsewhere);
 [repos.json](repos.json) names them, the kinds of file kept and the folders
-left out.
+left out, and `path` where a repository is kept under another folder name
+(the MCP specification, cloned read-only to
+`modelcontextprotocol/modelcontextprotocol`).
+It is public and not one of the session's repositories, so a new session
+clones it first:
+
+    git clone --depth 1000 https://github.com/modelcontextprotocol/modelcontextprotocol \
+        ../modelcontextprotocol/modelcontextprotocol
 
 ## What each box is laid from
 

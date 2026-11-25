@@ -47,6 +47,7 @@ model-context-provider/
 │           ├── codebase-memory-mcp.md              questions about codebase-memory-mcp
 │           ├── cpython-fork.md                     questions about cpython-fork
 │           ├── Model-Context-Provider.md           questions about Model-Context-Provider
+│           ├── modelcontextprotocol.md             questions about modelcontextprotocol, the official spec
 │           ├── pyperformance-fork.md               questions about pyperformance-fork
 │           ├── Willow.md                           questions about Willow
 │           └── willow-mcp.md                       questions about willow-mcp

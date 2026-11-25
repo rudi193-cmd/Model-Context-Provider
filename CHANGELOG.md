@@ -5,8 +5,9 @@
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
 - **Boxes over the repositories built beside this.** `boxes/lay.py` lays a
-  Willow box over each of the six (this one, Willow, willow-mcp,
-  codebase-memory-mcp, cpython-fork, pyperformance-fork) and one over all
+  Willow box over each of the seven (this one, Willow, willow-mcp,
+  codebase-memory-mcp, cpython-fork, pyperformance-fork, and the official
+  MCP specification, modelcontextprotocol) and one over all
   of them, each pointed at the files where they are kept, with mirrors of
   their comments, their commit messages and (with a built
   codebase-memory-mcp) their call graph beside, and a words list that reads
