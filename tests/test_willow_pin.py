@@ -231,12 +231,14 @@ def test_repin_at_a_commit_reads_git_not_the_checkout(tmp_path):
 
 
 def a_repo(tmp_path, pin):
-    """A repo of this one's that holds only the pin, to commit it in."""
+    """A repo of this one's that holds only the pin, to commit it in, with
+    its own name for git, as CI has none."""
     here = tmp_path / "here"
     here.mkdir()
     shutil.copyfile(pin, here / "willow.pin.json")
     commit_all = ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "p"]
-    for args in (["init", "-q"], ["add", "."], commit_all):
+    for args in (["init", "-q"], ["add", "."], commit_all,
+                 ["config", "user.name", "t"], ["config", "user.email", "t@t"]):  # fmt: skip
         subprocess.run(["git", "-C", str(here), *args], check=True)
     return here
 
