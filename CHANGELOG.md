@@ -4,6 +4,18 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **The pin is the commit that runs.** The runtime ran whatever checkout
+  `WILLOW` named and refused it when it wasn't the pin, so a Willow
+  switched to another branch blocked every tool call, and moving the pin
+  meant parking a worktree by hand. Now `WILLOW` names Willow's git, on any
+  branch, and what runs is a copy of the pinned commit made from it once
+  and kept in its git folder (Die-Namic's `box/willow_pin.py` keeps the
+  same copies). `willow_pin.py follow [COMMIT]` is the whole move: fetch,
+  repin (origin/main when no commit is named), `check.py`, and a commit of
+  the pin only when the check passes. `repin --at COMMIT` pins any commit
+  from git, whatever is checked out. Hosts' settings name Willow's git,
+  never the copy. A `WILLOW` that isn't git runs where it is, as before.
+
 - **A guard that can't answer is a No.** Claude Code took a hook that
   crashed, timed out or printed nonsense as leave to go on, so one bad
   edit to `doors/guard.py` switched the guard off. Its PreToolUse entry

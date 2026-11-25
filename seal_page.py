@@ -876,7 +876,7 @@ def launchers(box: Path, home: Path) -> dict[str, tuple[Path, str]]:
     with nobody asking."""
     argv = [sys.executable or "python3", str(HERE / "seal_page.py"),
             "--box", str(box.resolve()), "--idle", "30"]  # fmt: skip
-    willow = f"WILLOW={Path(runtime.WILLOW).resolve()}"
+    willow = f"WILLOW={Path(runtime.WILLOW_SOURCE).resolve()}"
     return {
         "Darwin": (
             home / "Desktop" / f"{NAME}.command",

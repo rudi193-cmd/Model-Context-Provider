@@ -16,7 +16,9 @@ Read [README.md](README.md) first: the two lines are the whole design.
   in `runtime.FACES`, or it is treated as facing a model.
 - **Willow by its command line only, and by its pin.** Nothing here imports
   or changes Willow's `kernel.py`; `willow.pin.json` names the Willow it
-  runs on, and `willow_pin.py repin` is the only way to move it.
+  runs on, and `willow_pin.py repin` (or `follow`, which repins, checks and
+  commits) is the only way to move it. What runs is a copy of the pinned
+  commit, made from Willow's git; `WILLOW` names that git, on any branch.
 - **After a change:** `python check.py`, with `WILLOW` pointing at Willow:
   the pin, `ruff check`, `ruff format --check` and the tests, on this
   machine. That is the check that counts; a pull request or a workflow
