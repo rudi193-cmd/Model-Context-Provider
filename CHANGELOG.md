@@ -11,8 +11,10 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   ninety on cpython. `runtime.index()` now asks Willow's `index-cache
   --box`, which indexes everything the box reads, named as the kernel names
   its passages, and the hook answers from it as the kernel's bite would. A
-  box with only a pile keeps the index it had. The pin moves to Willow
-  `8d52fb75`, on Willow's branch `ccr-8607467b-iah1ml` until it merges.
+  box with only a pile keeps the index it had. A check reads again only
+  the files whose details on disk moved, so on cpython's 9,425 files it
+  takes under a second where it took seven. The pin moves to Willow
+  `28009362`, on Willow's branch `ccr-8607467b-iah1ml` until it merges.
 
 - **Boxes over the repositories built beside this.** `boxes/lay.py` lays a
   Willow box over each of the seven (this one, Willow, willow-mcp,
