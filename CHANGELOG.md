@@ -4,6 +4,13 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Seventeen more assistants.** `hosts.py` takes the MCP door to Amazon Q,
+  Antigravity, Augment, Cline (and its editor extension), CodeBuddy, Devin,
+  Factory Droid, GitLab Duo, IBM Bob, Junie, Kimi, Kiro, OpenHands, Qoder,
+  Qwen Code, Rovo Dev and Tabnine, each where codebase-memory-mcp's
+  installer writes it and in its shape. `--write all` writes one only where
+  its folder already is, as that installer only installs what it finds.
+
 - **Your seal page, in your own assistant.** When a model asks for
   something that waits on your seal and your assistant can show a link
   (MCP's URL elicitation, protocol 2025-11-25, now spoken), the runtime has

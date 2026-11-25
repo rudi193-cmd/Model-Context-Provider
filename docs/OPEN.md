@@ -697,8 +697,22 @@ a time. Not built with it: a button on the seal page to stop a skill
   over the six repositories worked on beside this one and the MCP
   specification ([boxes/](../boxes/README.md)). Built that day: the seal
   page offered in the person's assistant (URL elicitation), a page's
-  passages as data; the other assistants from codebase-memory-mcp's table
-  are next. The rest, each a lead with where it came from:
+  passages as data, and seventeen more assistants from codebase-memory-mcp's
+  installer. The rest, each a lead with where it came from:
+  - **The assistants left out of that table.** Kilo Code, Crush, OpenClaw,
+    Pochi, Amp and Mistral Vibe write servers in shapes whose field for the
+    environment isn't known (codebase-memory-mcp writes none, so its code
+    can't say), and the door needs `WILLOW` there; Goose, Hermes and
+    Continue keep YAML, which the standard library can't edit safely; TRAE,
+    Roo Code, Sourcegraph Cody and Visual Studio have no fixed path. Each
+    could be shown to paste once its environment field is confirmed.
+  - **Prompt hooks for more of them.** codebase-memory-mcp installs hooks
+    that add context for Qoder, Qwen Code, Devin, Factory Droid and GitLab
+    Duo in Claude Code's shape (`hookSpecificOutput.additionalContext`),
+    Kimi as plain text, Hermes as `{"context": …}` and Cline as
+    `contextModification` (its `hook_augment.c`). `doors/hook.py --host`
+    speaks three dialects now; the first five may need only the Claude
+    one, each to be tried.
   - **MCP 2026-07-28, the move to plan.** The door speaks 2025-11-25 and
     older; the newest version makes the protocol stateless. No
     `initialize`: each request carries its version and the client's

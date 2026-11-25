@@ -80,7 +80,9 @@ It checks Willow, your record and your words, and prints what to paste:
   door on SessionStart and SessionEnd, and [the guard door](docs/doors.md#the-guard-door)
   around what the assistant does;
 - Cursor and the other assistants from Willow's hosts table
-  (`hosts.py show cursor --box BOX`).
+  (`hosts.py show cursor --box BOX`), and seventeen more where
+  codebase-memory-mcp's installer writes them (Kiro, Junie, Cline, Qwen
+  Code, Amazon Q and others: `hosts.py list`).
 
 By default it changes nothing of your client's. To finish one:
 
@@ -90,7 +92,9 @@ By default it changes nothing of your client's. To finish one:
 
 `--write` merges the MCP door into that assistant's home settings (and for
 Cursor, the session hooks that tell you what waits). It never overwrites an
-entry by our name that already differs. For Claude Code, the guard door
+entry by our name that already differs, nor a file with comments in it.
+`--write all` writes one of the seventeen only where its folder already is,
+so it makes no settings for an assistant you don't have. For Claude Code, the guard door
 there sits in your own settings, which an assistant allowed to edit
 `~/.claude` could switch off; setup says so, and
 
