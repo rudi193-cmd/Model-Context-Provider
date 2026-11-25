@@ -16,8 +16,8 @@ folder holding this checkout), it makes, under WORK:
                             opens it
     indexes/NAME/SOURCE     an index of each source, kept by index-cache and
                             rebuilt only when a file in it changed; the code's
-                            is of the repository's folder, a little wider than
-                            its list (index-cache reads a folder, not a list)
+                            is of its list, as the box reads it (a Willow
+                            before index-cache --from @LIST: its folder)
     runs/NAME/STACK.md      each stack's page, and STACK/ as it ran
 
 --across lays one more box, boxes/across, from every repository's list and
@@ -127,22 +127,23 @@ def mirror(willow: Path, work: Path, name: str, repo: Path, cbm: str | None) -> 
     return made
 
 
-def index(willow: Path, work: Path, name: str, repo: Path, made: dict) -> list[Path]:
+def index(
+    willow: Path, work: Path, name: str, repo: Path, listed: Path, made: dict
+) -> list[Path]:
     """An index of each source, brought current by index-cache, so a question
-    is answered in a second rather than by reading the whole box again."""
+    is answered in a second rather than by reading the whole box again. The
+    code's is of its list, the files the box reads; a Willow whose
+    index-cache takes no list (before --from @LIST) indexes the folder."""
     at = work / "indexes" / name
     at.mkdir(parents=True, exist_ok=True)
     out = []
-    for source, folder in [(name, repo)] + [
-        (f"{name}-{k}", v) for k, v in made.items()
+    for source, given in [(name, f"@{listed}")] + [
+        (f"{name}-{k}", str(v)) for k, v in made.items()
     ]:
-        cmd = willow_tool(willow, "index") + [
-            "--from",
-            str(folder),
-            "--to",
-            str(at / source),
-        ]
-        code, last = run(cmd, willow)
+        cmd = willow_tool(willow, "index") + ["--to", str(at / source), "--from"]
+        code, last = run(cmd + [given], willow)
+        if code == 2 and given.startswith("@"):
+            code, last = run(cmd + [str(repo)], willow)
         say(name, f"index {source}: {last.split(';')[0] or code}")
         if code == 0:
             out.append(at / source)
@@ -231,7 +232,7 @@ def one(
     box = lay(willow, work, name, sources, args.again)
     if box is None:
         return False, sources, []
-    indexes = index(willow, work, name, repo, made)
+    indexes = index(willow, work, name, repo, listed, made)
     if args.no_stacks:
         return True, sources, indexes
     pages = [STACKS / f"{each}.md" for each in EACH]

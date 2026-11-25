@@ -65,10 +65,10 @@ Each source has an index under `WORK/indexes/NAME/SOURCE`, kept by Willow's
 index-cache: a run hashes the source's files and rebuilds the index only
 when one changed, so a run over unchanged repositories checks them in a
 second. The question stacks ask through them (`{indexes}`, filled in by
-`lay.py`), with the words list. The code's index is of the repository's
-folder, a little wider than its list, since index-cache reads a folder and
-not a list (`index-cache --from NAME=@LIST` is on Willow's branch, to
-follow).
+`lay.py`), with the words list. The code's index is of its list, the very
+files the box reads (`index-cache --from @LIST`, on Willow's branch
+`ccr-8607467b-iah1ml` until it merges); a Willow without it indexes the
+repository's folder instead, a little wider than the list.
 
 Each stack's page is `WORK/runs/NAME/STACK.md`. To ask one more question:
 
