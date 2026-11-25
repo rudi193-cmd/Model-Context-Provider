@@ -22,6 +22,7 @@ model-context-provider/
 ├── set_up.py                               checks Willow, the record and the words, and prints what to paste into a client
 ├── hosts.py                                the assistants that take an MCP server, and where each keeps its settings
 ├── check.py                                the check a change is held to: the pin, lint, format and the tests
+├── bench.py                                how long a question takes, timed and compared as pyperformance does
 ├── willow_pin.py                           holds Willow to its pin, and is the only way to move it
 ├── willow.pin.json                         the Willow commit this runs on, and every file of it by SHA-256
 ├── pyproject.toml                          the project's name and its dev tools; nothing to install to run it
@@ -67,6 +68,7 @@ model-context-provider/
 │   ├── conftest.py                         a box over a small pile with a test key, and what every test shares
 │   ├── test_answer.py                      a model returns one sentence, and the person seals it
 │   ├── test_backup.py                      the box and what is kept beside it, copied and checked
+│   ├── test_bench.py                       bench.py's timing and pyperformance's t-test
 │   ├── test_boxes.py                       the boxes' stacks, words and lay.py, which never seals
 │   ├── test_bring_in.py                    notes, a calendar, an export, email or texts brought into the folder
 │   ├── test_capture.py                     one thing handed in to keep, for the person's seal

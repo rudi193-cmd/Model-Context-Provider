@@ -4,6 +4,17 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A question in a fraction of the time.** On the box over cpython's
+  source a question through the runtime took 5.63 s ± 0.11 and takes
+  0.68 s ± 0.03 (8.3x); on willow-mcp's, 0.96 s to 0.29 s (3.4x), each a
+  real difference by pyperformance's t-test, five runs after a warm-up. The
+  pin moves to Willow `da6136cc`, whose scan reads only the passages and
+  words a question needs (an offsets file beside the index, each word found
+  by a search of the sorted word list) where it read all 390 MB of
+  cpython's index, and whose index-cache walks files as strings. `bench.py`
+  is the measure: `run` times a question, `compare` says whether two
+  timings differ past the noise, with pyperformance's own t-test.
+
 - **Seventeen more assistants.** `hosts.py` takes the MCP door to Amazon Q,
   Antigravity, Augment, Cline (and its editor extension), CodeBuddy, Devin,
   Factory Droid, GitLab Duo, IBM Bob, Junie, Kimi, Kiro, OpenHands, Qoder,
@@ -34,7 +45,7 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   its passages, and the hook answers from it as the kernel's bite would. A
   box with only a pile keeps the index it had. A check reads again only
   the files whose details on disk moved, so on cpython's 9,425 files it
-  takes under a second where it took seven. The pin moves to Willow
+  takes under a second where it took seven. The pin moved to Willow
   `28009362`, on Willow's branch `ccr-8607467b-iah1ml` until it merges.
 
 - **Boxes over the repositories built beside this.** `boxes/lay.py` lays a

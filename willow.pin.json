@@ -1,7 +1,7 @@
 {
   "_what": "The Willow this runtime was built on: its commit, and every file of what runs, by SHA-256. willow_pin.py refuses a checkout whose files differ; repin is the one way to move it.",
   "willow": "https://github.com/willow-memory/Willow",
-  "commit": "2800936212b4b83a00d667fc2f83a624a2bf8c06",
+  "commit": "da6136ccea7c87e63975b4d3b570dd0de5f89e9b",
   "add_ons": [
     "approved-only",
     "backup",
@@ -57,8 +57,8 @@
     "adapters/stdlib/approved-only/approved_only.py": "3f4b4bc5ec73589893e50df7efd20dca8888fdda178b85641ff0d9b2174928b0",
     "adapters/stdlib/backup/README.md": "922410b490676971c6739a875e459ec9827880e6dd912e2c3b03b82c4beeb4f3",
     "adapters/stdlib/backup/backup.py": "4f07f0f958bab14f01aedb1986bf0337c8473fb1803feb5c2a79543f89dc5d63",
-    "adapters/stdlib/batch-ask/README.md": "9de8e1949c875562b0cbc96a9c5efa8241afce5eae3f93efc94d23e1c247f291",
-    "adapters/stdlib/batch-ask/scan.py": "46fa71c637d84981c9a408b79b610768e35137b98a76708ec0d21b348c5647e5",
+    "adapters/stdlib/batch-ask/README.md": "78f1b939dbc19be106a4203d9db5019e746b386a253a0a62a511b0b0858e0f6e",
+    "adapters/stdlib/batch-ask/scan.py": "13c48568011c7792fb9502b31333d32b43913d781a4cae20d41c5bc13ec0a176",
     "adapters/stdlib/box-health/README.md": "c7e7b1894ae8f99eac0aa77d538e3e7651f331a111e1529bee1253c537ddb99c",
     "adapters/stdlib/box-health/box_health.py": "233dcc762033fa11440ed0c8f61ec086f7cbb72aec4c84b8b3b75d8a45e340d1",
     "adapters/stdlib/calendar/README.md": "43ed5443b52dc5aefe06b680f031e6472ca891f8fef7faf6bda398c4fafc1303",
@@ -91,7 +91,7 @@
     "adapters/stdlib/hook-shell/README.md": "3bf5b0ce9e858a2ea88eee608c57987576cabe70970793e356ca5c8df8d9dd51",
     "adapters/stdlib/hook-shell/hook_shell.py": "04e19d55b7256773d6c41856ee9bb7f169cf43c15234d2ce6d0180ac37dee49c",
     "adapters/stdlib/index-cache/README.md": "6673d802ceccc814d2f73a866057587d829d50bde9d08c0ce0055b8bce8ce599",
-    "adapters/stdlib/index-cache/index_cache.py": "c8cfbcff52cbe806cd9c6219cf7c9de33c31db148a1fa21ca0adb0535144be5f",
+    "adapters/stdlib/index-cache/index_cache.py": "8e63b22780a66f95ee94956f7fc05a80b02ae0f4e6ac6af6aa092badacb542c4",
     "adapters/stdlib/joplin/README.md": "ac0d514dc6784a5e4c6433b003b80cbadc1e2abdde637955c2a3f11632e7b7c3",
     "adapters/stdlib/joplin/joplin.py": "60dc3bca7ef95e3eaafa19663ae6be21aa6178c5c0dc74a6d4c720683e062639",
     "adapters/stdlib/local-model/README.md": "29dfe2d896652da660e984f1041902219eaafd0ba42677f980e0730e400db166",
