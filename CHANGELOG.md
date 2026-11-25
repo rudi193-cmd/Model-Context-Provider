@@ -4,6 +4,17 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Boxes over the repositories built beside this.** `boxes/lay.py` lays a
+  Willow box over each of the six (this one, Willow, willow-mcp,
+  codebase-memory-mcp, cpython-fork, pyperformance-fork) and one over all
+  of them, each pointed at the files where they are kept, with mirrors of
+  their comments, their commit messages and (with a built
+  codebase-memory-mcp) their call graph beside, and a words list that reads
+  a question's words as the code's. Then it runs four stacks: orient, owes,
+  each repository's own questions, and the questions across them. One
+  command, since a cloud session's container is gone when it ends. Nothing
+  in it seals or opens a key; a box laid again goes beside the old one.
+
 - **The pin is the commit that runs.** The runtime ran whatever checkout
   `WILLOW` named and refused it when it wasn't the pin, so a Willow
   switched to another branch blocked every tool call, and moving the pin

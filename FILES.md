@@ -34,6 +34,22 @@ model-context-provider/
 │   ├── hook.py                             the prompt hook: adds a sealed page to a prompt, as data
 │   ├── session.py                          session start and end: tells the person what waits, closes a session
 │   └── guard.py                            the guard: Willow's hooks around what an assistant does
+├── boxes/                                  the maintainer's Willow boxes over the repositories built beside this, and their stacks
+│   ├── README.md                           what each box is laid from, what each stack asks, and what waits on the person
+│   ├── lay.py                              lays every box and runs its stacks in one command; never seals, never opens a key
+│   ├── repos.json                          the repositories, the kinds of file kept and the folders left out
+│   ├── code-words.txt                      a words list that reads a question's words as the code's
+│   └── stacks/                             the stacks, each step with what it is for and what it misreads
+│       ├── orient.md                       before a first change: instruction files, what they name that is gone, what nothing pins
+│       ├── owes.md                         TODOs, risky lines, secrets in plain files, stale references
+│       ├── across.md                       one box over all: where one repository leans on another
+│       └── ask/                            each repository's standing questions, each source answering in turn
+│           ├── codebase-memory-mcp.md              questions about codebase-memory-mcp
+│           ├── cpython-fork.md                     questions about cpython-fork
+│           ├── Model-Context-Provider.md           questions about Model-Context-Provider
+│           ├── pyperformance-fork.md               questions about pyperformance-fork
+│           ├── Willow.md                           questions about Willow
+│           └── willow-mcp.md                       questions about willow-mcp
 ├── docs/                                   the README's longer sections, and the working notes
 │   ├── doors.md                            what each side can do, the doors, the guard, and what a model's door lists and offers
 │   ├── session.md                          one yes for a session, and one seal that closes it
@@ -50,6 +66,7 @@ model-context-provider/
 │   ├── conftest.py                         a box over a small pile with a test key, and what every test shares
 │   ├── test_answer.py                      a model returns one sentence, and the person seals it
 │   ├── test_backup.py                      the box and what is kept beside it, copied and checked
+│   ├── test_boxes.py                               the boxes' stacks, words and lay.py, which never seals
 │   ├── test_bring_in.py                    notes, a calendar, an export, email or texts brought into the folder
 │   ├── test_capture.py                     one thing handed in to keep, for the person's seal
 │   ├── test_check.py                       check.py, and the hook that holds main to it

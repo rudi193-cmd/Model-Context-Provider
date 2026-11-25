@@ -1,0 +1,50 @@
+# code-words.txt: a question's word on the left is read as any of the
+# repositories' words after the =. Both directions where it helps, since the
+# kernel expands only the question's side.
+
+# what code is made of
+function = def, fn, func, method, procedure, callable, static
+method = def, function, self
+class = struct, type, object, typedef
+call = calls, invoke, invokes, callee, caller, callers
+caller = calls, called, callers, invoked
+variable = var, field, attribute, attr, member
+constant = define, const, final, enum
+argument = arg, args, param, parameter, kwargs, flag, option
+flag = option, argument, switch
+return = returns, yield, result, output
+import = include, require, module, load, imports
+module = package, file, library, lib, import
+dependency = requirement, requirements, depends, pin, pinned, package, vendored
+config = configuration, settings, toml, yaml, ini, env, setup
+# when it goes wrong
+error = exception, raise, raises, fail, failure, err, errno, traceback
+bug = fix, issue, regression, broken, crash, wrong
+crash = segfault, abort, panic, fatal, assert, core
+leak = free, malloc, refcount, decref, incref, memory
+slow = performance, latency, benchmark, speed, regression, timing
+fast = performance, speed, optimize, optimization, cache
+# how it is checked
+test = tests, pytest, unittest, assert, check, spec, fixture
+check = test, verify, validate, lint, ci
+ci = workflow, actions, pipeline, github, check
+lint = ruff, flake8, clang, format, style
+benchmark = bench, bm, pyperformance, timing, perf, measure
+# how it is built and run
+build = compile, make, cmake, makefile, configure, link
+install = setup, pip, package, wheel, dist
+run = start, launch, main, cli, command, entrypoint
+server = mcp, serve, daemon, listen, handler, endpoint
+tool = tools, command, verb, handler, endpoint
+hook = hooks, callback, handler, event, trigger
+# what these repos call things
+record = box, ledger, chain, log
+seal = approve, sign, confirm, attest
+key = secret, token, credential, signing
+graph = node, edge, nodes, edges, callgraph, index
+index = indexer, indexing, graph, sqlite, store
+memory = store, recall, remember, sqlite, graph
+parser = parse, tokenize, tokenizer, grammar, ast, peg, treesitter
+interpreter = ceval, eval, bytecode, opcode, frame, vm
+gc = garbage, collect, collector, refcount, generation
+thread = threading, gil, lock, mutex, freethreading, nogil
