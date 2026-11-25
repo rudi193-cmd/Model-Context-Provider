@@ -18,6 +18,7 @@ import os
 import re
 import shlex
 import shutil
+import socket
 import subprocess
 import sys
 import tarfile
@@ -3120,7 +3121,12 @@ def context_granted(box: Path, question: str) -> dict:
         f"[{s.get('where', '?')}]\n{t.strip()}" for s, t in zip(served, texts)
     )
     (state(box) / "last-page.md").write_text(page)
-    return {"state": "left", "page": page, "by": "grant"}
+    # each passage by where it is, as the page names it: never the kernel's
+    # id, which is the hash of its text before withholding, so a model could
+    # try guesses of a withheld number against it
+    passages = [{"id": str(s.get("where", "?")), "file": str(s.get("where", "?")).rsplit(":", 1)[0],
+                 "text": t.strip()} for s, t in zip(served, texts)]  # fmt: skip
+    return {"state": "left", "page": page, "by": "grant", "passages": passages}
 
 
 def kart_python(box: Path) -> str:
@@ -5232,16 +5238,97 @@ def promises() -> dict:
             "text": "\n".join(text) + "\n"}  # fmt: skip
 
 
+# ── pointing the person at their seal page, through their own assistant ─────
+#: where a running seal page says it listens, beside the box: its port only,
+#: never its secret, so the address is no way in (a request without the
+#: secret's cookie, which only the person's browser holds, gets a 403)
+PAGE_AT = "seal-page.json"
+
+
+def page_here(box: Path, port: int) -> None:
+    """The seal page, as it starts: where it listens, for `page_url`."""
+    (state(box) / PAGE_AT).write_text(json.dumps({"port": port}) + "\n")
+
+
+def page_gone(box: Path) -> None:
+    """The seal page, as it stops."""
+    (state(box) / PAGE_AT).unlink(missing_ok=True)
+
+
+def page_url(box: Path) -> str | None:
+    """The address of the person's seal page while it runs, with no secret
+    in it; None when it isn't running (no address left, or nothing answers
+    there). MCP's URL elicitation must not be handed a link that lets in by
+    itself (2025-11-25, client/elicitation, "Safe URL Handling"): this one
+    lets in only the browser the person opened the page's own link in."""
+    try:
+        port = int(json.loads((state(box) / PAGE_AT).read_text())["port"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    if not 0 < port < 65536:
+        return None
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+            pass
+    except OSError:
+        return None
+    return f"http://127.0.0.1:{port}/"
+
+
+def waits_as(got: dict) -> str:
+    """What a model's waiting reply holds, in the person's words."""
+    if got.get("grant"):
+        return "a session asking to read your files"
+    if got.get("task"):
+        return "a task it wants to do"
+    if got.get("whom"):
+        return f"something to send to {got['whom']}"
+    return "something it handed in"
+
+
+def point_person(box: Path, got: dict, door: str, point) -> dict:
+    """A model's reply that waits on the person's seal, and a door that can
+    ask their assistant to show them a link (MCP's URL elicitation): their
+    seal page is offered to them there, by its address, to open in their own
+    browser. Nothing is sealed or declined by it: whatever they answer, the
+    seal is still theirs to make on the page. Written down on the sent log;
+    the reply says what they were shown, never the address."""
+    url = page_url(box)
+    if url is None:
+        return got
+    message = (f"Your assistant asked for {waits_as(got)}. It waits on your seal: "
+               "read it on your seal page, then seal it or decline it there. "
+               "Nothing is sealed from here.")  # fmt: skip
+    asked = hashlib.sha256(f"{time.time_ns()} {url}".encode()).hexdigest()[:32]
+    try:
+        action = point(message, url, asked)
+    except RuntimeError:
+        action = "unanswered"
+    sent(box, door or "unknown", "point", {"state": action})
+    return {**got, "pointed": action}
+
+
 def call(
     box: Path, verb: str, arg=None, door: str = "", ask=None, where: str = "",
-    session: str = "",
+    session: str = "", point=None,
 ) -> dict:  # fmt: skip
     """What every door calls: `decided`, with what waits on the person's
-    seal asked of the kernel at most once while it is answered."""
+    seal asked of the kernel at most once while it is answered. `point` is
+    a door's way to show the person a link in their own assistant; the
+    runtime decides when, and what."""
     global OWED_FOR
     OWED_FOR += 1
     try:
-        return decided(box, verb, arg, door, ask, where, session)
+        got = decided(box, verb, arg, door, ask, where, session)
+        faces = FACES.get(door, "model")
+        if (
+            point is not None
+            and faces == "model"
+            and got.get("state") == "waiting"
+            and got.get("seal")
+        ):
+            got = point_person(box, got, door, point)
+        return got
     finally:
         OWED_FOR -= 1
         if not OWED_FOR:
@@ -5285,4 +5372,17 @@ def decided(
     )
     if got.get("state") != "refused" and reaches:
         sent(box, door or "unknown", verb, got)
+    if faces == "model" and isinstance(got.get("page"), str) and "passages" not in got:
+        got = with_passages(got)
     return plain(got, box, faces, verbs)
+
+
+def with_passages(got: dict) -> dict:
+    """A page a model is given, its passages also as data: each one's id, the
+    file it is from and its text, exactly as the page holds them (withheld
+    as it is), so a model cites by id without taking the page's markup
+    apart. Nothing leaves that the page didn't already hold."""
+    files = files_of(got["page"])
+    out = [{"id": b["id"], "file": files.get(b["id"], ""), "text": b["text"]}
+           for b in boxes_of(got["page"])]  # fmt: skip
+    return {**got, "passages": out} if out else got

@@ -4,6 +4,20 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Your seal page, in your own assistant.** When a model asks for
+  something that waits on your seal and your assistant can show a link
+  (MCP's URL elicitation, protocol 2025-11-25, now spoken), the runtime has
+  the MCP door ask it to show you your seal page: what waits, and the
+  page's address. Only while the page runs; it leaves its port beside the
+  record, never its secret, so the address lets in only your own browser
+  and nothing is sealed by it. What you answered comes back as `pointed`
+  and goes on the sent log.
+- **A page given comes as data too.** Beside `page`, `passages` holds each
+  passage's id, file and text as the page has them, withheld, so a model
+  cites without taking the markup apart; a session let in gets each by
+  where it is, never the kernel's id (the hash of its text before
+  withholding). `context` and `page` carry an `outputSchema` saying so.
+
 - **A box laid from several places is answered from an index.** A box
   that reads its files where they are kept (`kernel.py init --from`, a
   folder or a list) has no pile folder, so the runtime kept no index for it

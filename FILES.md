@@ -44,13 +44,13 @@ model-context-provider/
 │       ├── owes.md                         TODOs, risky lines, secrets in plain files, stale references
 │       ├── across.md                       one box over all: where one repository leans on another
 │       └── ask/                            each repository's standing questions, each source answering in turn
-│           ├── codebase-memory-mcp.md              questions about codebase-memory-mcp
-│           ├── cpython-fork.md                     questions about cpython-fork
-│           ├── Model-Context-Provider.md           questions about Model-Context-Provider
-│           ├── modelcontextprotocol.md             questions about modelcontextprotocol, the official spec
-│           ├── pyperformance-fork.md               questions about pyperformance-fork
-│           ├── Willow.md                           questions about Willow
-│           └── willow-mcp.md                       questions about willow-mcp
+│           ├── codebase-memory-mcp.md      questions about codebase-memory-mcp
+│           ├── cpython-fork.md             questions about cpython-fork
+│           ├── Model-Context-Provider.md   questions about Model-Context-Provider
+│           ├── modelcontextprotocol.md     questions about modelcontextprotocol, the official spec
+│           ├── pyperformance-fork.md       questions about pyperformance-fork
+│           ├── Willow.md                   questions about Willow
+│           └── willow-mcp.md               questions about willow-mcp
 ├── docs/                                   the README's longer sections, and the working notes
 │   ├── doors.md                            what each side can do, the doors, the guard, and what a model's door lists and offers
 │   ├── session.md                          one yes for a session, and one seal that closes it
@@ -67,7 +67,7 @@ model-context-provider/
 │   ├── conftest.py                         a box over a small pile with a test key, and what every test shares
 │   ├── test_answer.py                      a model returns one sentence, and the person seals it
 │   ├── test_backup.py                      the box and what is kept beside it, copied and checked
-│   ├── test_boxes.py                               the boxes' stacks, words and lay.py, which never seals
+│   ├── test_boxes.py                       the boxes' stacks, words and lay.py, which never seals
 │   ├── test_bring_in.py                    notes, a calendar, an export, email or texts brought into the folder
 │   ├── test_capture.py                     one thing handed in to keep, for the person's seal
 │   ├── test_check.py                       check.py, and the hook that holds main to it
@@ -85,7 +85,9 @@ model-context-provider/
 │   ├── test_local_model.py                 a model on this machine, held to the same check
 │   ├── test_made.py                        a timeline of one matter, and a feed of what was sealed
 │   ├── test_pin.py                         the sent log's end, pinned where the runtime can't reach
+│   ├── test_passages.py                    a page given to a model, also as its passages: id, file and text
 │   ├── test_plain.py                       every refusal in plain words, with one next step
+│   ├── test_point.py                       the person shown their seal page in their own assistant, and nothing sealed by it
 │   ├── test_preview.py                     the page a scope would let leave, shown before the seal
 │   ├── test_promises.py                    what a model can never do, each with the test that holds it
 │   ├── test_read.py                        a read says whether the files hold a question, and no more

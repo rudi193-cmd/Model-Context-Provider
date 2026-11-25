@@ -46,6 +46,12 @@ Who can reach it, and what stops each (Willow's browse keeps the same table):
   page allows no script at all, its own included;
 - a program already running as you: nothing. It could run `kernel.py seal`
   itself, so the page gives it no reach it didn't have.
+
+While it runs it leaves its port beside the box (`seal-page.json`), never
+the secret, so a model's assistant can offer the person the page's address
+(MCP's URL elicitation). The address alone lets nothing in: without the
+cookie the person's own browser got from the link above, every request is
+a 403, as from any other program.
 """
 
 from __future__ import annotations
@@ -967,6 +973,7 @@ def main(argv: list[str]) -> int:
     print(f"Your seal page, on this machine only:\n\n  {link}\n\nCtrl-C stops it.", flush=True)  # fmt: skip
     if "--no-open" not in opts:
         webbrowser.open(link)
+    runtime.page_here(box, server.server_address[1])
     try:
         why = run(server, int(opts["--idle"]) * 60)
         print("Stopped: " + ("nobody asked for a while." if why == "idle"
@@ -975,6 +982,7 @@ def main(argv: list[str]) -> int:
     except KeyboardInterrupt:
         print("\nStopped. Whatever you didn't seal still waits.")
     finally:
+        runtime.page_gone(box)
         server.server_close()
     return 0
 
