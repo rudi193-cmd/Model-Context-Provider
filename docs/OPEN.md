@@ -693,6 +693,60 @@ a time. Not built with it: a button on the seal page to stop a skill
   interface (it settles who each sentence is for, so the two lists become
   one), then measuring it.
 
+- **From the repositories beside it (2026-11-25).** Asked of the boxes
+  over the six repositories worked on beside this one and the MCP
+  specification ([boxes/](../boxes/README.md)). Built that day: the seal
+  page offered in the person's assistant (URL elicitation), a page's
+  passages as data; the other assistants from codebase-memory-mcp's table
+  are next. The rest, each a lead with where it came from:
+  - **MCP 2026-07-28, the move to plan.** The door speaks 2025-11-25 and
+    older; the newest version makes the protocol stateless. No
+    `initialize`: each request carries its version and the client's
+    capabilities in `_meta`, and a server answers `server/discover`.
+    Server-initiated requests (`sampling/createMessage`,
+    `elicitation/create`) give way to multi round-trip requests: a result
+    of `resultType: "input_required"` that the client answers and sends
+    back. Every result carries `resultType`; list and read results carry
+    `ttlMs` and `cacheScope`; `resources/subscribe` becomes
+    `subscriptions/listen`; tasks move to an extension
+    (`io.modelcontextprotocol/tasks`). The drafting through sampling and
+    the pointing both ride on server-initiated requests, so both change
+    shape. Not urgent: clients still speak the older versions.
+    (`docs/specification/2026-07-28/changelog.mdx` in the spec.)
+  - **Tell the client when the seal is made.** URL elicitation has
+    `notifications/elicitation/complete` for when the out-of-band part is
+    done. The runtime could send it when the person seals or declines
+    what they were pointed at, so their assistant can say so; it needs a
+    way to see the seal land while the door waits for the next request.
+  - **The tasks extension and the task queue.** SEP-1686's tasks (durable
+    requests, polled) and this project's `task_add`/`task_claim`/
+    `task_done` answer different questions (a long call, a job the person
+    said yes to); whether one should be spoken as the other is open.
+  - **willow-mcp's patterns, to read before taking.** It needs Python 3.11
+    and `cryptography`, so no code comes over as it is; only its docstrings
+    were read. `gates_actions` gives the live HTML page and the terminal UI
+    one tested answer for what each row does: a shape for the seal page's
+    layout items (grants first, a count, the detail folded). Its
+    `egress_authorization` binds an approval to one task id and the exact
+    task text, single-use by the row's own state: close to step 3 of "my
+    rig", and to a grant that can't be used twice. `build_lease` is
+    time-boxed, where a grant here lasts "until the session ends".
+  - **codebase-memory-mcp's graph as a report.** Willow's
+    `codebase-memory` add-on mirrors its SQLite graph as passages (each
+    function, its file and line, what it calls); for a person whose folder
+    is code, a `report` of it, or a source of the record, would answer
+    "what calls this" without a page of the code.
+  - **The check, by test and not by file.** cpython splits one large test
+    module into a package of files so its runner can run them in parallel
+    (`Lib/test/test_io/__init__.py:3`); `tests/test_grant.py`, which bounds
+    a part of `check.py`, could be split the same way. Its runner also
+    kills a worker that has said nothing for a while
+    (`Lib/test/libregrtest/run_workers.py`), which `check.py`'s parts don't.
+  - **A change past the noise.** pyperformance compares two runs with a
+    two-tailed t-test at 95% (`doc/usage.rst:555`): the rule `model-drift`
+    needs for "only a change past the rig's own noise counts", and the one
+    a "measure it" study would use.
+
 ### A model on the person's own rig (designed 2026-11-21, not built)
 
 **Why.** People run very large models on rigs of their own: a machine
@@ -1098,6 +1152,24 @@ person's own checkout, which is where changes are made.
   `ccr-9265087c-pvfpcl` (`9ee4693`, `starter-words` 0.1.1), not on main
   yet: the copy names `kernel.py words` for a record already made, beside
   `init --words` for a new one.
+- **Willow's branch `ccr-8607467b-iah1ml`, to main** (2026-11-25):
+  `index-cache --from @LIST` and `--box`, a check that reads again only
+  the files whose details on disk moved, and claude-code's hook answering
+  a box laid from several places from its index. The pin is on its
+  `28009362` until it merges, then moves to main.
+- **The kernel's `listed()` is quadratic**: it looks back along the list
+  for each line, which on a list of 5,000 files was most of a check's time.
+  index-cache reads lists with its own copy by a set, held equal to the
+  kernel's by a test; a set in the kernel would speed every box laid from
+  a list.
+- **More of #383**, met by the boxes' stacks: the forge's `suggest` crashes
+  with a traceback on a box laid with `--from`, as do `instruction-files`,
+  `risky-code`, `secrets-audit`, `ref-check`, `box-health` and `digest`
+  (they take `--from FOLDER` instead); `browse` checks an index against
+  one folder only, as the hook did; `unpinned` says a repository with a
+  `pyproject.toml` has neither `package.json` nor `requirements.txt`; and
+  the forge misses `git-history` for "commit history" (a line for
+  `ui/search-words.txt`).
 - **A "nothing hosted" check.** Run the base assistant
   ([base-jarvis.md](base-jarvis.md)) with the network off and only a model
   on this machine, and write down what works and what breaks: the kernel,
