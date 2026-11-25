@@ -3,6 +3,7 @@
     python willow_pin.py check [--willow DIR]
     python willow_pin.py repin [--willow DIR] [--at COMMIT] [--add NAME ...] [--drop NAME ...]
     python willow_pin.py follow [COMMIT] [-- CHECK ARGS ...]
+    python willow_pin.py prune [--days N]
 
 The runtime runs Willow's kernel and a few of its add-ons by their command
 line. willow.pin.json pins them: Willow's commit, the add-ons by name, and
@@ -34,6 +35,11 @@ whatever follows a -- on its command line). Only
 if the check passes does it commit willow.pin.json, on the branch you're on;
 if it fails, the pin is put back as it was and nothing is committed. It
 never pushes.
+
+`prune` lets go of the copies nothing has run for N days (14 when none is
+named), never the one this pin names: a copy in use is marked so at most
+once a day, and one let go is made again from git the next time it is
+wanted.
 
 Willow is never imported or changed here: its files are only read and hashed.
 """
@@ -103,6 +109,7 @@ def pinned_copy(src: Path, commit: str) -> Path | None:
         return None
     at = home / commit
     if (at / DONE).is_file():
+        used(at)
         return at
     tree = git(src, "rev-parse", "--verify", "--quiet", commit + "^{commit}")
     if tree.returncode != 0:
@@ -127,6 +134,41 @@ def pinned_copy(src: Path, commit: str) -> Path | None:
         return at
     finally:
         shutil.rmtree(work, ignore_errors=True)
+
+
+#: how long a copy's mark of being used is left before it is renewed
+DAY = 24 * 3600
+
+
+def used(at: Path) -> None:
+    """Mark a copy as run today, at most once a day: what prune goes by."""
+    import time
+
+    mark = at / DONE
+    try:
+        if time.time() - mark.stat().st_mtime > DAY:
+            os.utime(mark)
+    except OSError:  # a copy the person can't write to is still run
+        pass
+
+
+def prune(src: Path, keep: str, days: int = 14) -> list[str]:
+    """The copies let go: each in SRC's git that isn't KEEP and that no one
+    has run for DAYS days, removed, as their commits."""
+    import time
+
+    home = copies(src)
+    if home is None or not home.is_dir():
+        return []
+    gone = []
+    for at in sorted(home.iterdir()):
+        mark = at / DONE
+        if at.name == keep or not mark.is_file():
+            continue  # this pin's, or one still being made
+        if time.time() - mark.stat().st_mtime > days * DAY:
+            shutil.rmtree(at, ignore_errors=True)
+            gone.append(at.name)
+    return gone
 
 
 def default_root(pin: Path = PIN) -> Path:
@@ -313,11 +355,27 @@ def follow(rev: str = "", pin: Path = PIN, check: list[str] = ()) -> tuple[int, 
     return 0, f"{said}\nthe check passed; committed, not pushed"
 
 
-USAGE = "usage: willow_pin.py check [--willow DIR] | repin [--willow DIR] [--at COMMIT] [--add NAME ...] [--drop NAME ...] | follow [COMMIT] [-- CHECK ARGS]"  # fmt: skip
+USAGE = "usage: willow_pin.py check [--willow DIR] | repin [--willow DIR] [--at COMMIT] [--add NAME ...] [--drop NAME ...] | follow [COMMIT] [-- CHECK ARGS] | prune [--days N]"  # fmt: skip
 
 
 def main(argv: list[str]) -> int:
     verb, it = (argv[0] if argv else ""), iter(argv[1:])
+    if verb == "prune":
+        days = argv[2] if argv[1:2] == ["--days"] and len(argv) == 3 else "14"
+        if (
+            argv[1:]
+            and (argv[1:2] != ["--days"] or len(argv) != 3)
+            or not days.isdigit()
+        ):
+            print(USAGE, file=sys.stderr)
+            return 2
+        gone = prune(source(), load()["commit"], int(days))
+        print(
+            f"let go of {len(gone)} cop{'y' if len(gone) == 1 else 'ies'}",
+            *gone,
+            sep="\n  ",
+        )
+        return 0
     if verb == "follow":
         rest = argv[1:]
         more = rest[rest.index("--") + 1 :] if "--" in rest else []

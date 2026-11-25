@@ -15,6 +15,7 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   the pin only when the check passes. `repin --at COMMIT` pins any commit
   from git, whatever is checked out. Hosts' settings name Willow's git,
   never the copy. A `WILLOW` that isn't git runs where it is, as before.
+  `prune [--days N]` lets go of the copies nothing has run for N days.
 
 - **A guard that can't answer is a No.** Claude Code took a hook that
   crashed, timed out or printed nonsense as leave to go on, so one bad

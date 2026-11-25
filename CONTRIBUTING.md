@@ -32,7 +32,9 @@ Read [README.md](README.md) first: the two lines are the whole design.
   when none is named), runs `check.py`, and commits the pin only if it
   passes, else puts it back; it never pushes. `repin --at COMMIT` moves it
   without the check; with no `--at` it pins the checkout's own commit. It
-  says what moved, and the commit goes with the change that needs it. It pins kernel.py and every file of each
+  says what moved, and the commit goes with the change that needs it.
+  `prune [--days N]` lets go of copies nothing has run for N days (14 by
+  default), never this pin's; one let go is made again when it is wanted. It pins kernel.py and every file of each
   add-on the pin names but its tests, so an add-on's new file comes in by
   itself. A new add-on the runtime runs comes in with
   `repin --add NAME` (from `adapters/stdlib`, or `adapters/deps` when it

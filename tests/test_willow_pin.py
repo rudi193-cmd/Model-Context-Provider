@@ -267,6 +267,28 @@ def test_follow_commits_the_pin_only_when_the_check_passes(
         assert pin.read_bytes() == was and head(here) == before
 
 
+def test_prune_lets_go_of_old_copies_but_this_pins(tmp_path, monkeypatch):
+    import os
+    import time
+
+    root = copy(tmp_path)
+    first = head(root)
+    (root / "kernel.py").write_text("# a newer kernel\n")
+    commit(root)
+    second = head(root)
+    old, new = willow_pin.pinned_copy(root, first), willow_pin.pinned_copy(root, second)
+    month = time.time() - 30 * willow_pin.DAY
+    for at in (old, new):
+        os.utime(at / willow_pin.DONE, (month, month))
+    assert willow_pin.prune(root, keep=second) == [first]
+    assert not old.exists() and new.is_dir()
+    assert willow_pin.prune(root, keep="", days=60) == []  # not old enough
+    assert willow_pin.pinned_copy(root, first) == old and old.is_dir()  # made again
+    os.utime(old / willow_pin.DONE, (month, month))
+    willow_pin.pinned_copy(root, first)  # run: marked as used today
+    assert willow_pin.prune(root, keep=second) == []
+
+
 def test_settings_name_willows_git_never_the_copy():
     import hosts
 
@@ -277,6 +299,7 @@ def test_settings_name_willows_git_never_the_copy():
 @pytest.mark.parametrize("argv", [[], ["seal"], ["check", "--willow"], ["check", "x"],
                                   ["check", "--add", "x"], ["repin", "--add"], ["repin", "--drop"],
                                   ["repin", "--at"], ["check", "--at", "x"],
-                                  ["follow", "a", "b"], ["follow", "--all"]])  # fmt: skip
+                                  ["follow", "a", "b"], ["follow", "--all"],
+                                  ["prune", "x"], ["prune", "--days"], ["prune", "--days", "x"]])  # fmt: skip
 def test_a_bad_command_line_says_how_to_run_it(argv):
     assert willow_pin.main(argv) == 2
