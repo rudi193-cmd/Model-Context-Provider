@@ -4,6 +4,16 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A box laid from several places is answered from an index.** A box
+  that reads its files where they are kept (`kernel.py init --from`, a
+  folder or a list) has no pile folder, so the runtime kept no index for it
+  and every question read every file again: twelve seconds on willow-mcp,
+  ninety on cpython. `runtime.index()` now asks Willow's `index-cache
+  --box`, which indexes everything the box reads, named as the kernel names
+  its passages, and the hook answers from it as the kernel's bite would. A
+  box with only a pile keeps the index it had. The pin moves to Willow
+  `8d52fb75`, on Willow's branch `ccr-8607467b-iah1ml` until it merges.
+
 - **Boxes over the repositories built beside this.** `boxes/lay.py` lays a
   Willow box over each of the seven (this one, Willow, willow-mcp,
   codebase-memory-mcp, cpython-fork, pyperformance-fork, and the official

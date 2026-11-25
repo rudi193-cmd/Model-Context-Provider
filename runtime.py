@@ -549,17 +549,17 @@ INDEXED = "adapters/stdlib/claude-code/hook.py"
 
 
 def index(box: Path) -> Path:
-    """The index of the box's folder, kept beside the box (never in it, and
-    never in a backup: backup takes the runtime's files, not its folders),
-    brought current by Willow's index-cache: a rebuild only when a file in
-    the folder changed. While it is current a bite is answered from it, in
-    seconds on a folder the kernel takes a minute to read."""
+    """The index of everything the box reads (its pile folder, and each
+    place a box laid with --from reads where it is kept), kept beside the
+    box (never in it, and never in a backup: backup takes the runtime's
+    files, not its folders), brought current by Willow's index-cache --box:
+    a rebuild only when a file the box reads changed. While it is current a
+    bite is answered from it, in seconds on a folder the kernel takes a
+    minute to read. A box that won't open is left to the kernel's bite,
+    which says what's wrong with it."""
     at = state(box) / "index"
-    try:
-        pile = json.loads((box / "kernel.json").read_text())["pile"]
-    except (OSError, ValueError, KeyError, TypeError):
-        return at  # the kernel's bite says what's wrong with the box
-    willow(INDEX_CACHE, "--from", str(pile), "--to", str(at))
+    if (box / "kernel.json").is_file():
+        willow(INDEX_CACHE, "--box", str(box), "--to", str(at))
     return at
 
 

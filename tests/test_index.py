@@ -58,3 +58,35 @@ def test_a_session_closes_with_the_index_and_without_it(box, monkeypatch):
     runtime.read(box, FROST)
     monkeypatch.setattr(runtime, "INDEX_CACHE", "no/such/index_cache.py")
     assert runtime.close(box)["state"] == "waiting"
+
+
+def test_a_box_laid_from_several_places_is_answered_from_its_index(tmp_path):
+    """A box that reads its files where they are kept (init --from, a folder
+    and a list) keeps an index of all of them, answers as the kernel does
+    from it, and follows a change to a listed file."""
+    notes, code = tmp_path / "notes", tmp_path / "code"
+    notes.mkdir(), code.mkdir()
+    (notes / "garden.md").write_text("The first frost comes in late October.\n")
+    (code / "frost.md").write_text("Frost comes first to the low field.\n")
+    lst = tmp_path / "code.list"
+    lst.write_text(f"{code / 'frost.md'}\n")
+    b = tmp_path / "box"
+    run = runtime.willow(
+        "kernel.py", "init", "--box", str(b), "--from", f"notes={notes}",
+        "--from", f"code=@{lst}", "--key", str(tmp_path / "test.key"),
+    )  # fmt: skip
+    assert run.returncode == 0, run.stderr
+    got = runtime.read(b, FROST)
+    at = runtime.state(b) / "index"
+    assert (at / "index.json").is_file() and not (b / "index").exists()
+    want = kernel_bite(b, FROST)
+    want.pop("look", None)
+    assert got == want and got["state"] == "populated"
+    assert {s["where"] for s in got["served"]} == {
+        "notes/garden.md:1",
+        "code/frost.md:1",
+    }
+    (code / "frost.md").write_text("Snowdrops come up in the low field.\n")
+    asked = runtime.read(b, "when do the snowdrops come up")
+    assert asked["state"] == "populated"
+    assert [s["where"] for s in asked["served"]] == ["code/frost.md:1"]
