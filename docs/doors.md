@@ -134,6 +134,31 @@ payload was kept with `capture`, the fix went to Willow (`hook-errors`
 0.1.2, commit `14efe16d`, not yet in a Willow pull request), and the pin
 moved to it. A correction and a denied command have not been tried.
 
+## Which hooks run
+
+Each hook around what your assistant does is on until you turn it off, the
+way the tool groups are: `provider hooks` lists them, each with what it is
+for and whether it runs, and `provider hooks off=hook-read-first` (on your
+own door, `{"hooks": {"off": ["hook-read-first"]}}`) turns one off. It is
+kept in `hooks.txt` beside your record, where the guard holds it, and no
+door that faces a model has the switch.
+
+| Hook | What it is for |
+|---|---|
+| `hook-guard` | the key, the record and the runtime's own files beside it: always on |
+| `hook-leaks` | a secret in what the assistant writes |
+| `hook-shell` | the commands you deny in `deny.txt`, when there is one |
+| `hook-read-first` | an edit of a file the assistant hasn't read |
+| `hook-errors` | a command that already failed twice, and each failed one kept |
+| `hook-feedback` | a correction you make, kept for the session's seal |
+| `hook-handoff` | where the last session ended, told to the next |
+| `prompt-context` | whether your files hold something on each prompt |
+
+Fewer hooks, fewer rows on your record. On a busy day here (879 rows),
+`hook-read-first` wrote 371 of them, the prompt's questions 329 and
+`hook-handoff` 116. A hook turned off is a guard you no longer have:
+`hook-read-first` off lets an assistant edit a file it never read.
+
 ## Your seal page, in your assistant
 
 When a model asks for something that waits on your seal (a session's yes,

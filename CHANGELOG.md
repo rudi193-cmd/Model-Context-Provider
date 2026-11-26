@@ -4,6 +4,13 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Which hooks run is yours to switch.** `provider hooks` lists the hooks
+  around what your assistant does, each with what it is for; `off=` and
+  `on=` turn one off or on, kept in `hooks.txt` beside your record. The
+  guard of your key and record is always on, and no model has the switch.
+  A hook turned off writes nothing on the record: on a busy day,
+  `hook-read-first` alone wrote 371 of 879 rows.
+
 - **A long report comes in parts.** A session you let in was refused a
   report over 20,000 characters whole (`minutes`, on a real folder). It is
   now given whole lines up to that, and asks for the next part with

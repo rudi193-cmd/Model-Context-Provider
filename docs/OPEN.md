@@ -624,6 +624,13 @@ a time. Not built with it: a button on the seal page to stop a skill
   mutants all killed and every demo folder held) is that add-on, and the
   runtime asks it instead of `out`: asking what waits writes nothing on the
   record. The switch for which hooks are on is still open.
+  **Done 2026-11-26: the switch for which hooks are on** (`hooks` on the
+  person's door, `hooks.txt` beside the record; `hook-guard` always on;
+  [doors.md](doors.md), "Which hooks run"). Measured first, on the hooks'
+  own record: on its busiest recent day, 879 rows, `hook-read-first` 371,
+  the prompt hook's bites 329, `hook-handoff` 116, `out` 30 (none since
+  `seals-waiting`). Not built: a page for it on the seal page, as the tools
+  have.
 - ~~More importers that fit by their card, none run by hand yet: `mastodon`,
   `goodreads`, `karakeep`, `opml`, `takeout`, `bookmarks`, `zotero`.~~
   **Done 2026-11-26:** each is a `bring_in` kind, and so is `code-graph`

@@ -81,6 +81,7 @@ model-context-provider/
 │   ├── test_grant.py                       one yes for one session in one folder
 │   ├── test_guard.py                       the guard door, decided by the runtime
 │   ├── test_hook.py                        the prompt hook gives a sealed page, or only whether the files hold it
+│   ├── test_hooks_on.py                    the person's switch for the hooks: each on until turned off, the guard always
 │   ├── test_hosts.py                       the hosts table, pointed at the MCP door
 │   ├── test_index.py                       a question answered from an index of the folder, kept current
 │   ├── test_launch.py                      a Willow command run as python would, its compiled code kept

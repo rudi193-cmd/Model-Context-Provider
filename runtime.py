@@ -987,6 +987,8 @@ PLAIN = {
                  "You choose which tools a model is offered: provider tools lists them, and provider tools on=GROUP turns one on."),
     "tool_refused": ("That tool wasn't called in a way it takes, so nothing was done.",
                      "The reason it gave names the action or the argument that was missing: call it again with that."),
+    "hooks_refused": ("That isn't a hook that can be turned on or off, so nothing was changed.",
+                      "See them with: provider hooks. hook-guard is always on."),
     "tools_refused": ("That isn't a group of tools, so nothing was changed.",
                       "See the groups and which are on (provider tools, or the seal page's tools page), then name the ones to turn on or off."),
     "remove_refused": ("Nothing was removed.",
@@ -2036,6 +2038,69 @@ def hooked(sent: dict, *args: str) -> subprocess.CompletedProcess:
     )  # fmt: skip
 
 
+#: the hooks around what an assistant does, by name, and what each is for.
+#: Each is on unless the person turns it off (hooks.txt beside the box, a
+#: name a line, a minus before it for off), as the tool groups are. The
+#: guard of the key and the record, and of the person's own doors, never is
+HOOKS = {
+    "hook-guard": "the key, the record and the runtime's own files beside it: always on",
+    "hook-leaks": "a secret in what the assistant writes",
+    "hook-shell": "the commands you deny in deny.txt, when there is one",
+    "hook-read-first": "an edit of a file the assistant hasn't read",
+    "hook-errors": "a command that already failed twice, and each failed one kept",
+    "hook-feedback": "a correction you make (no, wrong, I said), kept for the session's seal",
+    "hook-handoff": "where the last session ended, told to the next",
+    "prompt-context": "whether your files hold something on each prompt",
+}
+HOOKS_ALWAYS = ("hook-guard",)
+
+
+def hooks_said(box: Path) -> dict:
+    """What the person said of each hook in hooks.txt beside the box."""
+    f = state(box) / "hooks.txt"
+    out = {}
+    for line in f.read_text().splitlines() if f.is_file() else []:
+        word = line.strip()
+        name = word.lstrip("-")
+        if name in HOOKS and name not in HOOKS_ALWAYS:
+            out[name] = not word.startswith("-")
+    return out
+
+
+def hooks_on(box: Path) -> dict:
+    """Each hook, and whether it runs: as the person said, else on."""
+    said = hooks_said(box)
+    return {h: h in HOOKS_ALWAYS or said.get(h, True) for h in HOOKS}
+
+
+def hooks_set(box: Path, arg) -> dict:
+    """The person's switch for the hooks: {"on": [HOOK, ...], "off": [HOOK,
+    ...]}, kept in hooks.txt beside the box; anything else lists them, each
+    with what it is for and whether it runs. Fewer hooks, fewer rows on the
+    record; hook-guard is never off."""
+    if isinstance(arg, dict) and set(arg) & {"on", "off"}:
+        turn = {}
+        for key, value in (("on", True), ("off", False)):
+            named = arg.get(key) or []
+            for h in [named] if isinstance(named, str) else named:
+                if h not in HOOKS or h in HOOKS_ALWAYS or turn.get(h, value) != value:
+                    return {"state": "refused", "code": "hooks_refused",
+                            "why": f"{h!r}: name a hook other than hook-guard, once; one of "
+                                   f"{', '.join(x for x in HOOKS if x not in HOOKS_ALWAYS)}"}  # fmt: skip
+                turn[h] = value
+        said = {**hooks_said(box), **turn}
+        (state(box) / "hooks.txt").write_text(
+            "".join(f"{'' if on else '-'}{h}\n" for h, on in sorted(said.items()))
+        )
+    on, said = hooks_on(box), hooks_said(box)
+    return {"state": "listed", "hooks": [
+        {"hook": h, "what": what, "on": on[h],
+         "why": ("always on" if h in HOOKS_ALWAYS
+                 else ("you turned it on" if said[h] else "you turned it off") if h in said
+                 else "on unless you turn it off")}
+        for h, what in HOOKS.items()]}  # fmt: skip
+
+
 def guards(box: Path) -> list[tuple[str, tuple[str, ...]]]:
     """Willow's guards on a tool call, in the order they are asked. Each
     judges by fixed rule, never by what the assistant meant: the key, the
@@ -2054,7 +2119,8 @@ def guards(box: Path) -> list[tuple[str, tuple[str, ...]]]:
         out.append(("hook-shell", (HOOK_SHELL, "run", "--rules", str(deny))))
     out += [("hook-read-first", (HOOK_READ_FIRST, "run", *at)),
             ("hook-errors", (HOOK_ERRORS, "run", *at))]  # fmt: skip
-    return out
+    on = hooks_on(box)  # what the person turned off isn't asked
+    return [(name, argv) for name, argv in out if on[name]]
 
 
 #: the person's own doors: what runs them is the person's, never a model's
@@ -3134,7 +3200,10 @@ def context_hooked(box: Path, question: str, where, session) -> dict:
     """What a prompt hook is given: context(), and when the files hold the
     question for a session that asked to be let in, that it did. The door
     then says to ask with the context tool, which gives what that session
-    may have, rather than that nothing is given. No passage either way."""
+    may have, rather than that nothing is given. No passage either way. A
+    person who turned prompt-context off is asked nothing at a prompt."""
+    if not hooks_on(box)["prompt-context"]:
+        return {"state": "off"}
     got = context(box, question)
     if got["state"] == "populated" and grant_asked(box, where, session):
         return {**got, "asked": True}
@@ -4434,7 +4503,10 @@ def event(box: Path, sent) -> dict:
         shelve(box, sent.get("cwd"), {"name": f"event-{name}-{tag}.json", "text": text}, "guard")  # fmt: skip
     if name == "PreToolUse":
         return own_doors_guard(sent) or judged(sent, guards(box))
+    on = hooks_on(box)
     if name in ("PostToolUse", "PostToolUseFailure"):
+        if not on["hook-errors"]:
+            return {"state": "empty"}
         return judged(sent, [("hook-errors", (HOOK_ERRORS, "run", *at))])
     says = []
     if name == "SessionEnd":
@@ -4450,7 +4522,7 @@ def event(box: Path, sent) -> dict:
         elif asked.get("state") == "granted":
             says.append("Model Context Provider: the person has let this session read "
                         "from their files while it works in this folder.")  # fmt: skip
-    if name == "UserPromptSubmit":
+    if name == "UserPromptSubmit" and on["hook-feedback"]:
         # a correction of the person's is kept for the session's one seal,
         # not handed in on its own (the owner's word, 2026-11-20)
         mine = state(box) / "corrections.txt"
@@ -4463,7 +4535,7 @@ def event(box: Path, sent) -> dict:
         elif run.returncode != 0:
             return {"state": "refused", "code": "guard_failed",
                     "why": f"hook-feedback: {run.stderr.strip()[-300:]}"}  # fmt: skip
-    if name in ("Stop", "SessionStart", "UserPromptSubmit"):
+    if name in ("Stop", "SessionStart", "UserPromptSubmit") and on["hook-handoff"]:
         run = hooked(sent, HOOK_HANDOFF, "run", *at)
         if run.returncode != 0:
             return {"state": "refused", "code": "guard_failed",
@@ -4524,6 +4596,7 @@ VERBS = {
         # and what changed in their own folder since it was last looked at
         # which groups of tools a model is offered: theirs to switch
         "tools": lambda box, arg, **kw: tools_set(box, arg),
+        "hooks": lambda box, arg, **kw: hooks_set(box, arg),
         "stored": lambda box, arg, **kw: stored(box, arg),
         "remove": lambda box, arg, **kw: remove(box, arg),
         "archive": lambda box, arg, **kw: remove(box, arg, archive=True),
