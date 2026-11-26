@@ -4,6 +4,13 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A question is one program.** The runtime ran index-cache and then the
+  hook's bite, two programs a question; Willow's hook now takes `--keep`
+  and brings the index current itself, checking it once. A question on
+  cpython's box 0.68 s to 0.46 s, on willow-mcp's 0.25 s to 0.16 s, each
+  past the noise; `check.py` 81 s to 71 s. The pin moves to Willow
+  `9db2472a`.
+
 - **Willow's commands start faster, and its kernel reads faster.** The
   runtime runs each Willow command as `python SCRIPT` would, but loads the
   script by the loader that keeps its compiled code (`runtime.LAUNCH`),

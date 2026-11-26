@@ -587,9 +587,12 @@ def index(box: Path) -> Path:
 def bite(box: Path, question: str) -> subprocess.CompletedProcess:
     """The kernel's bite, from the index while it is current (claude-code's
     bite: the same JSON, exit code and row), else the kernel reading the
-    folder. A refusal is always the kernel's own, so it says why."""
+    folder. One program: `--keep` brings the index current in it first, as
+    `index` would with a program of its own. A refusal is always the
+    kernel's own, so it says why."""
+    at = state(box) / "index"
     run = willow(
-        INDEXED, "bite", "--box", str(box), "--index", str(index(box)), question
+        INDEXED, "bite", "--box", str(box), "--index", str(at), "--keep", question
     )
     if run.returncode != 2:
         return run
