@@ -137,6 +137,9 @@ button.seal { background: var(--go); border-color: var(--go);
   color: var(--paper); font-weight: bold; }
 button.decline { color: var(--no); border-color: var(--no); }
 label { font-size: .85rem; color: var(--soft); }
+.says { margin: .6rem 0 0; }
+.file { margin: .75rem 0 0; font-size: .8rem; color: var(--soft); }
+.line { margin: 0 0 .5rem; font-size: .75rem; color: var(--soft); }
 nav.top { border: 0; margin: 0 0 1.5rem; padding: 0;
   justify-content: space-between; font-size: .95rem; }
 a { color: inherit; }
@@ -205,9 +208,10 @@ def held(data: str) -> str:
     )
 
 
-def exactly(box: Path, subject: str, prop: dict) -> str:
-    """What the key would sign, said so it can be read: where it would be
-    written, what it claims, what it holds; then the file itself, as it is."""
+def exactly(box: Path, subject: str, prop: dict, more: str = "") -> str:
+    """What the key would sign, said so it can be read: what a seal does, in
+    full; where it would be written, what it claims, what it holds; then the
+    file itself, as it is."""
     try:
         raw = (box / "proposals" / f"{subject[9:]}.json").read_text()
     except OSError:
@@ -232,7 +236,9 @@ def exactly(box: Path, subject: str, prop: dict) -> str:
         ),  # fmt: skip
     ]
     return (
-        "<details><summary>Exactly what you’d be sealing</summary><dl>"
+        "<details><summary>Exactly what you’d be sealing</summary>"
+        + (f'<p class="soft">{more}</p>' if more else "")
+        + "<dl>"
         + "".join(f"<dt>{k}</dt><dd>{v}</dd>" for k, v in facts)
         + '</dl><p class="soft">What it holds:</p>'
         + held(str(prop.get("data", "")))
@@ -457,6 +463,63 @@ def page_files(box: Path, claim: str) -> list[str]:
     return sorted(files - {""})
 
 
+def passages_shown(pv: dict) -> str:
+    """A page to share as it reads: each file a small heading, each passage a
+    quote, its line under it. The page that leaves is the same; only how it
+    is shown to the person differs. Every word is escaped."""
+    files = pv.get("files")
+    if not files:
+        return f"<pre>{esc(pv.get('page', 'The page can’t be shown.'))}</pre>"
+    out = []
+    for f in files:
+        out.append(f'<p class="file">{esc(f.get("file", ""))}</p>')
+        for p in f.get("passages", []):
+            line = str(p.get("where", "")).rpartition(":")[2]
+            out.append(f"<blockquote>{esc(p.get('text', ''))}</blockquote>")
+            if line.isdigit():
+                out.append(f'<p class="line">line {esc(line)}</p>')
+    return "".join(out)
+
+
+#: what is most at stake first: a session's yes lets a model read without
+#: asking again, then what leaves, then what is only kept
+ORDER = ("grant", "page", "share", "skill", "task", "report", "sentence",
+         "session", "note", "suggestion")  # fmt: skip
+#: each kind as the count line says it, one and many
+NAMED = {
+    "grant": ("a session asking to read your files", "sessions asking to read your files"),
+    "page": ("a page to share", "pages to share"),
+    "share": ("a package to send someone", "packages to send someone"),
+    "skill": ("a skill to give a model", "skills to give a model"),
+    "task": ("a task to do", "tasks to do"),
+    "report": ("a report to share", "reports to share"),
+    "sentence": ("a model’s sentence", "sentences from a model"),
+    "session": ("a session’s actions", "sessions’ actions"),
+    "note": ("a note", "notes"),
+    "suggestion": ("a suggestion", "suggestions"),
+}  # fmt: skip
+
+
+def shown_as(w: dict) -> str:
+    """Its kind as the page orders and counts it: a note apart from a suggestion."""
+    kind = kind_of(w)
+    if kind == "suggestion" and str(w.get("path", "")).startswith("captured/note-"):
+        return "note"
+    return kind
+
+
+def counted(now: list) -> str:
+    """How many wait, and of what, most at stake first."""
+    by: dict = {}
+    for w in now:
+        by[shown_as(w)] = by.get(shown_as(w), 0) + 1
+    said = [NAMED[k][0] if by[k] == 1 else f"{by[k]} {NAMED[k][1]}"
+            for k in ORDER if k in by]  # fmt: skip
+    listed = said[0] if len(said) == 1 else ", ".join(said[:-1]) + " and " + said[-1]
+    n = len(now)
+    return f"{n} thing{'s' * (n != 1)} wait{'s' * (n == 1)} on your seal: {listed}."
+
+
 def card(box: Path, token: str, w: dict) -> str:
     """One thing that waits, said as what it is, with what the key would sign
     folded under it. Every word from the box or a model is escaped."""
@@ -485,9 +548,10 @@ def card(box: Path, token: str, w: dict) -> str:
                 if said
                 else ""
             )
-            + '<p class="soft">Sealing says these actions were yours. It lets no '
-            "page leave: a page leaves only on its own seal.</p>"
         )
+        line = "A seal says these actions were yours. It lets no page leave."
+        more = ("Sealing says these actions were yours. It lets no page leave: a "
+                "page leaves only on its own seal.")  # fmt: skip
         sealing = "Seal: these were my actions"
     elif kind == "page":
         got = runtime.call(box, "preview", subject, door="page")
@@ -496,13 +560,14 @@ def card(box: Path, token: str, w: dict) -> str:
         body = (
             '<p class="kind">A page to share</p>'
             f"<h2>{esc(n)} passage{'s' * (n != 1)} of your folder, for one "
-            "question</h2>"
-            '<p class="soft">This is the page as it would leave, with names, '
-            "numbers and addresses withheld. Sealing lets it be given to a "
-            "model for this question, whole, until it changes in your files or "
-            "you stop it.</p>"
-            f"<pre>{esc(pv.get('page', 'The page can’t be shown.'))}</pre>"
+            "question</h2>" + passages_shown(pv)
         )
+        line = ("A seal gives this page to a model for this question, withheld, "
+                "until it changes or you stop it.")  # fmt: skip
+        more = ("This is the page as it would leave, with names, numbers and "
+                "addresses withheld. Sealing lets it be given to a model for "
+                "this question, whole, until it changes in your files or you "
+                "stop it.")  # fmt: skip
         sealing = "Seal: share this page"
     elif kind == "sentence":
         body = (
@@ -514,21 +579,23 @@ def card(box: Path, token: str, w: dict) -> str:
                 if (files := page_files(box, str(w.get("claim", ""))))
                 else ""
             )
-            + f'<p class="soft">{esc(w.get("claim", ""))}. Sealing keeps it in your '
-            f"record, at {esc(w.get('path', ''))}.</p>"
         )
+        line = "A seal keeps this sentence in your record."
+        more = (f"{esc(w.get('claim', ''))}. Sealing keeps it in your record, at "
+                f"{esc(w.get('path', ''))}.")  # fmt: skip
         sealing = "Seal: keep this sentence"
     elif kind == "report":
         body = (
             '<p class="kind">A report to share</p>'
             f"<h2>{esc(w.get('claim') or 'A report from your files')}</h2>"
-            '<p class="soft">These are lines of your own files, as they would '
-            "leave, with names, numbers and addresses withheld. This one was "
-            "asked for before a report stopped waiting on a seal of its own: "
-            "sealing it now gives it to no one. A session you let in is given "
-            "a report as it reads; decline this to clear it.</p>"
             f"<pre>{esc(data.strip())}</pre>"
         )
+        line = "Sealing this now gives it to no one; decline it to clear it."
+        more = ("These are lines of your own files, as they would leave, with "
+                "names, numbers and addresses withheld. This one was asked for "
+                "before a report stopped waiting on a seal of its own: sealing "
+                "it now gives it to no one. A session you let in is given a "
+                "report as it reads; decline this to clear it.")  # fmt: skip
         sealing = "Seal: share this report"
     elif kind == "task":
         folder, said = runtime.task_parse(data)
@@ -537,40 +604,45 @@ def card(box: Path, token: str, w: dict) -> str:
             '<p class="kind">A task to do</p>'
             f"<h2>{esc(w.get('claim') or 'A task')}</h2>"
             f"<blockquote>{esc(said)}</blockquote>"
-            f'<p class="soft">This task: {esc(by)}. For: '
-            f"{esc('any project' if folder == 'any' else folder)}. Sealing says "
-            "yes, do this: a session in that project may be given these words, "
-            "withheld as a page is, and may claim the task. It grants no tool, "
-            "no file and no leave: the guard still holds every tool call, and "
-            "what is done is still closed over for one seal.</p>"
         )
+        line = (f"This task: {esc(by)}, for "
+                f"{esc('any project' if folder == 'any' else folder)}. A yes lets a "
+                "session there be given these words and claim it.")  # fmt: skip
+        more = ("Sealing says yes, do this: a session in that project may be "
+                "given these words, withheld as a page is, and may claim the "
+                "task. It grants no tool, no file and no leave: the guard still "
+                "holds every tool call, and what is done is still closed over "
+                "for one seal.")  # fmt: skip
         sealing = "Seal: yes, do this"
     elif kind == "skill":
         body = (
             '<p class="kind">A skill to give a model</p>'
             f"<h2>{esc(w.get('claim') or 'A skill')}</h2>"
-            '<p class="soft">These are instructions. A model that asks for this '
-            "skill by name will be given exactly these words and may follow "
-            "them, so read them as you would anything you let run: what they "
-            "tell it to do, and what they tell it to reach for. Sealing covers "
-            "these words alone. If the file changes afterwards, the skill is "
-            "given to no one until you name it again and seal what it then "
-            "says.</p>"
             f"<pre>{esc(data.strip())}</pre>"
         )
+        line = ("A model that asks for this skill is given exactly these words and "
+                "may follow them: read them as you would anything you let run.")  # fmt: skip
+        more = ("These are instructions. A model that asks for this skill by "
+                "name will be given exactly these words and may follow them, so "
+                "read them as you would anything you let run: what they tell it "
+                "to do, and what they tell it to reach for. Sealing covers these "
+                "words alone. If the file changes afterwards, the skill is given "
+                "to no one until you name it again and seal what it then says.")  # fmt: skip
         sealing = "Seal: give this skill"
     elif kind == "share":
         body = (
             '<p class="kind">A package to send someone</p>'
             f"<h2>{esc(w.get('claim') or 'A package')}</h2>"
-            '<p class="soft">A model put this together from sentences you '
-            "already sealed. If you say yes, exactly these sentences are packed "
-            "for the person named, signed with your sharing identity (not your "
-            "seal key), into a file beside your record, and a row is written on "
-            "your record. Nothing is sent: the file is yours to pass on. Check "
-            "the name and the key are who you mean.</p>"
             f"<pre>{esc(data.strip())}</pre>"
         )
+        line = ("A yes packs these sentences for the person named; nothing is "
+                "sent. Check the name and the key are who you mean.")  # fmt: skip
+        more = ("A model put this together from sentences you already sealed. If "
+                "you say yes, exactly these sentences are packed for the person "
+                "named, signed with your sharing identity (not your seal key), "
+                "into a file beside your record, and a row is written on your "
+                "record. Nothing is sent: the file is yours to pass on. Check the "
+                "name and the key are who you mean.")  # fmt: skip
         sealing = "Seal: pack this"
     elif kind == "grant":
         folder = next(
@@ -579,15 +651,16 @@ def card(box: Path, token: str, w: dict) -> str:
         body = (
             '<p class="kind">A session asking to read your files</p>'
             f"<h2>{esc(folder)}</h2>"
-            '<p class="soft">An assistant session working in this folder asks to '
-            "read from your files. If you say yes, it is answered directly "
-            "until that session ends: what your files hold on what it asks, "
-            "and what a job it runs in the sandbox prints, with names and "
-            "numbers withheld. You are not asked again for each one. "
-            "Everything it is given is on your shared page, and you can stop "
-            "it there at any time. It ends by itself when the session does."
-            "</p>"
         )
+        line = ("A yes lets this session read your files, withheld, until it ends. "
+                "You can stop it any time.")  # fmt: skip
+        more = ("An assistant session working in this folder asks to read from "
+                "your files. If you say yes, it is answered directly until that "
+                "session ends: what your files hold on what it asks, and what a "
+                "job it runs in the sandbox prints, with names and numbers "
+                "withheld. You are not asked again for each one. Everything it is "
+                "given is on your shared page, and you can stop it there at any "
+                "time. It ends by itself when the session does.")  # fmt: skip
         sealing = "Seal: yes, for this session"
     else:
         note = str(w.get("path", "")).startswith("captured/note-")
@@ -597,16 +670,14 @@ def card(box: Path, token: str, w: dict) -> str:
             f'<p class="kind">{kind_said}</p>'
             + (f"<h2>{esc(title)}</h2>" if title else "")
             + f"<blockquote>{esc(data.strip()[:2000])}</blockquote>"
-            + f'<p class="soft">Sealing writes it to {esc(w.get("path", ""))}.'
-            + (
-                " A model may then be given this note, withheld as a page is."
-                if str(w.get("path", "")).startswith("captured/note-")
-                else ""
-            )
-            + "</p>"
         )
+        line = ("A seal keeps it; a model may then be given it, withheld."
+                if note else f"A seal writes it to {esc(w.get('path', ''))}.")  # fmt: skip
+        more = f"Sealing writes it to {esc(w.get('path', ''))}." + (
+            " A model may then be given this note, withheld as a page is."
+            if note else "")  # fmt: skip
         sealing = "Seal"
-    exact = exactly(box, subject, prop)
+    exact = exactly(box, subject, prop, more)
     acts = (
         '<div class="acts">'
         + button(token, "seal", subject, sealing)
@@ -614,7 +685,8 @@ def card(box: Path, token: str, w: dict) -> str:
         + button(token, "decline", subject, "Decline", "final: never offered again")
         + "</div>"
     )
-    return f'<section class="card">{body}{exact}{acts}</section>'
+    return (f'<section class="card">{body}<p class="says">{line}</p>{exact}'
+            f"{acts}</section>")  # fmt: skip
 
 
 def page(box: Path, token: str, note: tuple[str, str] = ("", "")) -> str:
@@ -627,7 +699,8 @@ def page(box: Path, token: str, note: tuple[str, str] = ("", "")) -> str:
         say = " ".join(x for x in (got.get("say"), got.get("next")) if x)
         parts.append(f'<section class="card note refused">{esc(say)}</section>')
     items = got.get("waiting", [])
-    now = [w for w in items if not w.get("later")]
+    now = sorted((w for w in items if not w.get("later")),
+                 key=lambda w: ORDER.index(shown_as(w)))  # fmt: skip
     aside = [w for w in items if w.get("later")]
     if not now and got.get("state") != "refused":
         parts.append(
@@ -635,8 +708,7 @@ def page(box: Path, token: str, note: tuple[str, str] = ("", "")) -> str:
             "seal.</section>"
         )
     if now:
-        parts.append(f'<p class="count">{len(now)} thing{"s" * (len(now) != 1)} '
-                     f'wait{"s" * (len(now) == 1)} on your seal.</p>')  # fmt: skip
+        parts.append(f'<p class="count">{esc(counted(now))}</p>')
     parts += [card(box, token, w) for w in now]
     if aside:
         rows = "".join(

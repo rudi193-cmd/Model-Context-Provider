@@ -1279,13 +1279,17 @@ def preview(box: Path, subject) -> dict:
                 "where", "?"
             )
             by.setdefault(where.rsplit(":", 1)[0], []).append((where, text))
+        pools = sorted(by.items(), key=lambda kv: (-len(kv[1]), kv[0]))
         page = "\n".join(
             f"## {pool}\n\n"
             + "\n".join(f"{w}\n\n```\n{t}\n```\n" for w, t in sorted(each))
-            for pool, each in sorted(by.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+            for pool, each in pools
         )
+        # the same page by file, for the person's own page to show as it reads
+        files = [{"file": pool, "passages": [{"where": w, "text": t} for w, t in sorted(each)]}
+                 for pool, each in pools]  # fmt: skip
         out.append({"seal": s, "passages": len(known[s]), "page": page,
-                    "stopped": s in stopped(box)})  # fmt: skip
+                    "files": files, "stopped": s in stopped(box)})  # fmt: skip
     return {"state": "preview" if out else "empty", "previews": out}
 
 

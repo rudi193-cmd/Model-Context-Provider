@@ -4,6 +4,14 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **The seal page, laid out for a phone.** A page to share reads as it
+  reads: each file a small heading, each passage a quote with its line under
+  it, where it showed the page's own markup; the page that leaves is the
+  same. What waits comes most at stake first (a session asking to read your
+  files, then what would leave, then what is only kept), under a line that
+  counts it by kind. Each card has one plain line above its buttons; the
+  rest of what it said is folded into "Exactly what you'd be sealing".
+  Nothing changes what a seal does.
 - **Asking what waits no longer writes on the record.** The runtime asked
   `kernel.py out`, which appends a row each time: 595 in one run of the
   tests, and most of a busy record's rows. It asks Willow's new

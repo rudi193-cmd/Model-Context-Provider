@@ -684,6 +684,12 @@ a time. Not built with it: a button on the seal page to stop a skill
      "Exactly what you'd be sealing", one line left above the buttons.
   1, 2, 5 and the count are wording; 3, 4's order and 6 are layout, to be
   seen as a mock-up first. None changes what a seal does.
+  **Done 2026-11-26:** 1, 2, 5 and the count earlier; 3, 4 and 6 on the
+  owner's yes to the mock-up. A page to share reads as files and quoted
+  passages with their lines (the page that leaves is unchanged); the cards
+  come most at stake first (a session's yes, then what leaves, then what is
+  kept) under a count by kind; one plain line above the buttons, the rest
+  folded into "Exactly what you'd be sealing".
   **Context (2026-11-26, from the boxes):** 1 is built at `seal_page.py:418`, from a
   session's `came_of` counts in the kernel's own names; 5 is the
   `suggestion` card at `seal_page.py:534`. willow-mcp's approvals page and
