@@ -3,6 +3,7 @@ stop that keeps one from ever leaving again."""
 
 from test_leave import seal
 
+from conftest import facts
 import runtime
 
 FROST = "when does the first frost come"
@@ -59,7 +60,9 @@ def test_a_stopped_scope_never_leaves_by_any_door(box, tmp_path):
         runtime.call(box, "leave", str(tmp_path / "out.md"), door="pipe")["code"]
         == "stopped"
     )
-    assert runtime.call(box, "context", FROST, door="hook") == {"state": "populated"}
+    assert facts(runtime.call(box, "context", FROST, door="hook")) == {
+        "state": "populated"
+    }
     asked = []
     got = runtime.call(
         box, "draft", FROST, door="mcp", ask=lambda s, u: asked.append(u)

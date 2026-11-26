@@ -13,6 +13,14 @@ import runtime
 CHANGED_AT_START = runtime.changed_at_start
 
 
+def facts(got: dict) -> dict:
+    """A reply without the words the runtime adds for its reader (`say`, what
+    happened, and `next`, what to do): the facts a test holds it to. Those
+    words are held on their own, in tests/test_ahead.py, never to carry a
+    word of the files."""
+    return {k: v for k, v in got.items() if k not in ("say", "next")}
+
+
 @pytest.fixture(autouse=True)
 def no_check_let_go(monkeypatch):
     """A session's start sets a program going on its own to fingerprint the

@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 from test_leave import seal
 
+from conftest import facts
 import runtime
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -107,7 +108,7 @@ def test_a_tools_action_is_its_verb_called_and_written_down_as_it_always_was(
     assert said(put) == {"state": "shelved", "name": "notes.md"}
     assert [i["name"] for i in said(listed)["items"]] == ["notes.md"]
     assert said(got)["says"] == "what I found"
-    assert said(held) == {"state": "populated"}  # whether, and nothing more
+    assert facts(said(held)) == {"state": "populated"}  # whether, and nothing more
     assert said(task)["state"] == "waiting"
     rows = runtime.sent_log(box)["rows"]
     assert [r["verb"] for r in rows] == ["shelf_add", "shelf_list", "shelf_read",

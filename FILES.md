@@ -66,6 +66,7 @@ model-context-provider/
 │   └── NOTES.md                            design notes that fit nowhere else
 ├── tests/                                  one file a subject; each docstring says what it holds the code to
 │   ├── conftest.py                         a box over a small pile with a test key, and what every test shares
+│   ├── test_ahead.py                       a reply that isn't a refusal still says what to do next
 │   ├── test_answer.py                      a model returns one sentence, and the person seals it
 │   ├── test_backup.py                      the box and what is kept beside it, copied and checked
 │   ├── test_bench.py                       bench.py's timing and pyperformance's t-test

@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from conftest import facts
 import runtime
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -121,7 +122,10 @@ def test_a_model_learns_whether_the_files_hold_it_never_what_they_say(box):
     got = mcp(box, tool(1, "page", action="read", question=q))[0]["result"][
         "structuredContent"
     ]
-    assert got == {"state": "populated"}  # the model's: no text, place or count
+    # the model's: no text, place or count; only what it can do next
+    assert set(got) == {"state", "say", "next"} and got["state"] == "populated"
+    assert "frost" not in json.dumps(got) and "garden" not in json.dumps(got)
+    assert "propose" in got["next"] and not any(ch.isdigit() for ch in got["say"])
 
 
 def test_a_sealed_scope_is_the_one_page_the_model_gets(box):
@@ -143,7 +147,7 @@ def test_a_sealed_scope_is_the_one_page_the_model_gets(box):
 
 def test_a_door_the_runtime_does_not_know_is_treated_as_facing_a_model(box):
     got = runtime.call(box, "read", "when does the first frost come", door="new")
-    assert got == {"state": "populated"}
+    assert facts(got) == {"state": "populated"}
 
 
 def test_mcp_cannot_leave_unsealed_any_more_than_the_pipe(box):

@@ -4,6 +4,12 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A model is told what to do next, not only when it is refused.** A
+  struck sentence says what failed and names the passage, on its page but
+  not cited, that holds each word it added; a reply that waits says on
+  whom and where; a bare `populated` names the two ways on (`grant`, or
+  `page`'s `propose`). The words added carry nothing of the files.
+
 - **The tests' box is made once a run.** Each test made a box with the
   kernel's init, 624 a run. The box is now made once a test process, at a
   fixed place, and put back as it was made before each test, at the same

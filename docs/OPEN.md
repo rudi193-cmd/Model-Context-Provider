@@ -709,6 +709,13 @@ a time. Not built with it: a button on the seal page to stop a skill
   one holding the word the check names can be found there and named. The
   drafting path already turns the checks into a reason and a second try
   (`runtime.py:827` to `832`).
+  **Done 2026-11-26: 1, 2 and 4.** A reply to a model that isn't a refusal
+  but would leave it stuck now carries `say` and `next` (`runtime.ahead`): a
+  struck sentence says what failed and names, by its id, the uncited
+  passage on the page that holds each word it added (`in_uncited`); a reply
+  that waits says on whom and where; a bare `populated` names `grant` and
+  `page`'s `propose`. tests/test_ahead.py holds them, and that the words
+  added carry none of the files'. 3 is done since 2026-11-25 (`passages`).
 
 - **The broad fix for both lists, and other ways to see it (2026-11-20).**
   Asked of Claude after the two lists above; the owner is working on the

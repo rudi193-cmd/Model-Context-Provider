@@ -1774,7 +1774,7 @@ def answer(box: Path, sentence: str) -> dict:
     where = files_of(page.read_text())
     left_out = [{"id": b["id"], "file": where.get(b["id"], "")} for b in left]
     if run.returncode == 42:
-        return {"state": "struck", "checks": checks}
+        return {"state": "struck", "checks": checks, **in_uncited(checks, left)}
     # the page is a whole scope the person sealed (sealed_page let it leave
     # only so); the answer names that scope, which cites the passages itself.
     # It cites none directly: once a question is sealed the kernel answers its
@@ -5397,7 +5397,62 @@ def decided(
         sent(box, door or "unknown", verb, got)
     if faces == "model" and isinstance(got.get("page"), str) and "passages" not in got:
         got = with_passages(got)
-    return plain(got, box, faces, verbs)
+    return plain(ahead(got, faces), box, faces, verbs)
+
+
+#: sentence-check's words for what a sentence adds: "failed: straw is no
+#: box's", "failed: cover, straw are no box's"
+LACKS = re.compile(r"failed: (.+) (?:is|are) no box's")
+
+
+def in_uncited(checks: dict, left: list[dict]) -> dict:
+    """For a struck sentence, each word it added that a passage it didn't cite
+    holds: {"in_uncited": {word: that passage's id}}, the ids the page gave.
+    The word is often on the page, only in a passage the sentence left out."""
+    m = LACKS.match(str(checks.get("nothing the boxes lack", "")))
+    if not m:
+        return {}
+    out = {}
+    for w in (x.strip() for x in m.group(1).split(",")):
+        for b in left:
+            if w and w in set(re.findall(r"[\w']+", b["text"].lower())):
+                out[w] = b["id"]
+                break
+    return {"in_uncited": out} if out else {}
+
+
+def ahead(got: dict, faces: str) -> dict:
+    """What a model can do next, for a reply that isn't a refusal but would
+    leave it stuck: something that waits on the person, a struck sentence,
+    or a bare "populated". Refusals get theirs from `plain`. Each `say` is
+    what happened; each `next` the one thing to do, a model's own to take
+    or, said so, something to tell the person."""
+    if faces != "model" or "say" in got:
+        return got
+    state = got.get("state")
+    if state == "waiting" and got.get("seal"):
+        say = f"It waits on the person's seal: {waits_as(got)}."
+        nxt = ("Tell the person: it is on their seal page (provider waiting lists "
+               "it), where they seal or decline it. Nothing is done until they do.")  # fmt: skip
+        return {**got, "say": say, "next": nxt}
+    if state == "struck":
+        failed = [f"{k}: {v[len('failed: '):]}" for k, v in got.get("checks", {}).items()
+                  if str(v).startswith("failed")]  # fmt: skip
+        say = "Your sentence was struck, and goes nowhere: " + "; ".join(failed) + "."
+        found = got.get("in_uncited") or {}
+        if found:
+            nxt = " ".join(f"{w!r} isn't in the passages you cited; it is in [{i}]."
+                           for w, i in found.items())  # fmt: skip
+            nxt += " Cite that passage too, or say it without those words."
+        else:
+            nxt = "Say it again with only what the passages you cite hold, each cited by its id."
+        return {**got, "say": say, "next": nxt}
+    if state == "populated" and set(got) == {"state"}:
+        say = "The person's files hold something for that; nothing of it is given yet."
+        nxt = ("Ask to be let in for this session (grant); or, the strict way, ask the "
+               "person to seal what was found as one page (page, action propose).")  # fmt: skip
+        return {**got, "say": say, "next": nxt}
+    return got
 
 
 def with_passages(got: dict) -> dict:

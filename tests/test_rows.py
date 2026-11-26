@@ -8,6 +8,8 @@ import json
 
 from test_leave import seal
 
+from conftest import facts
+
 import runtime
 
 
@@ -54,7 +56,7 @@ def test_it_is_kept_in_memory_and_nowhere_else(box):
 def test_a_no_is_never_remembered_so_a_seal_is_seen_at_once(box):
     got = model(box, "grant")
     for _ in range(3):
-        assert model(box, "context", "when does the first frost come") == {
+        assert facts(model(box, "context", "when does the first frost come")) == {
             "state": "populated"}  # fmt: skip
     assert not [k for k in runtime.REMEMBERED if k[0] == str(box)]
     seal(box, got["seal"])
