@@ -350,6 +350,10 @@ so none is lost. A box is ticked when it is built.
   are the owner quoted saying "I need to…" in a past session, not tasks.
   - **Needs:** the owner's yes; it is a change to Willow's `todo`, and it
     would also drop a real task that happens to be quoted.
+  - **Context (2026-11-26, from the boxes):** Willow's `who-said` already reads a
+    quote by its shape (a chat's stamp, a speech verb, or quotation marks;
+    `adapters/stdlib/who-said/README.md:24`), so `todo` could leave out a
+    line that shape calls a quote rather than learn quotes itself.
 - [x] **The `people` report.** A line a person (how often, in how many
   files, over what dates), from one call to Willow: `people` 0.1.2 has a
   `--json`. Proposed on the task queue, sealed by the owner, and done from
@@ -419,6 +423,11 @@ so none is lost. A box is ticked when it is built.
 - [x] Push the Willow commits, or the GitHub workflow can't find the pinned
   commit. Done: every commit the pin names is on Willow's main.
 - [ ] `hook-shell` is off until there is a `deny.txt` beside the record.
+  - **Context (2026-11-26, from the boxes):** `hook-shell` takes its rules as `--deny`
+    (`adapters/stdlib/hook-shell/README.md:23`). The rules Willow's own
+    guard study ran with, a place to start a `deny.txt` from: `rm -rf`,
+    `git push --force` and a pipe into `sh`
+    (`demo/five-repos/reports/08-guards.md:13`).
 - [ ] A correction ("No, …") hasn't been tried in a real session.
 - [x] The guard covers the box, not `BOX.runtime` (`stopped.json`,
   `scopes.json`, `names.txt`, `deny.txt`). Closed for careless or direct
@@ -590,12 +599,32 @@ a time. Not built with it: a button on the seal page to stop a skill
 - Fewer rows on the record still: a read-only way to ask the kernel what
   is sealed and what waits (a Willow add-on), and a switch for which hooks
   are on, as the tool groups have. Measure what is left first.
+  **Context (2026-11-26, from the boxes):** the rows come from `kernel.py out`, which
+  appends an `out` row each time it is asked what waits
+  (`kernel.py:1202` on Willow's branch), and the runtime asks it whenever its note of what
+  waits is cleared (`OWED`, `runtime.py:46`): 595 times in one run of the
+  tests. A read-only add-on would answer from the same `read`, `sealed` and
+  `waiting` the kernel's `out` uses, without the `append`.
 - More importers that fit by their card, none run by hand yet: `mastodon`,
   `goodreads`, `karakeep`, `opml`, `takeout`, `bookmarks`, `zotero`.
 - Not looked at: `milestones`, `projects`, `handover`. `pile-store` was
   measured and left out (no gain on the real folder).
+  **Context (2026-11-26, from the boxes):** `milestones` (0.1.1, uses `habits`) is a
+  child's firsts, words and heights by age, and writes nothing. `projects`
+  (0.1.1) and `handover` (0.1.2) read a folder of projects, each its own
+  folder holding its record, its stack files and the folders it ran them
+  into (`projects.py` `find`). Run over the boxes of `boxes/lay.py`, it
+  found the nine records but none of their stacks or runs, since `lay.py`
+  keeps the stacks and runs apart from the boxes. Laid one folder a
+  repository (its box, `orient.md`, `owes.md`, `ask.md`, its runs),
+  `handover` would say where each repository's stacks stand, with nothing
+  built.
 - Willow's `rss-out` can write inside the record's folder; the runtime
   refuses that, the add-on itself does not.
+  **Context (2026-11-26, from the boxes):** still so: `rss_out.py` opens `--to` with
+  `O_CREAT | O_EXCL` wherever it names (lines 147 to 157), with no check
+  that it is outside the folder the box reads. index-cache's `within` is a
+  check of that kind, by strings.
 
 - **The seal page, read as the person on a phone (2026-11-20).** From its
   own HTML rendered over a throwaway record, at 390 pixels, in headless
@@ -619,6 +648,13 @@ a time. Not built with it: a button on the seal page to stop a skill
      "Exactly what you'd be sealing", one line left above the buttons.
   1, 2, 5 and the count are wording; 3, 4's order and 6 are layout, to be
   seen as a mock-up first. None changes what a seal does.
+  **Context (2026-11-26, from the boxes):** 1 is built at `seal_page.py:418`, from a
+  session's `came_of` counts in the kernel's own names; 5 is the
+  `suggestion` card at `seal_page.py:534`. willow-mcp's approvals page and
+  its terminal one answer "what does pressing this row do" from one module
+  both use, `gates_actions.py` (`describe` and `apply`; its commit
+  `bfd9a3bf`), with its tests: the shape for 4 and 6 to keep the page and
+  any other way in to it saying the same thing.
 
 - **The model's side, read as a model in a whole session (2026-11-20).**
   The MCP door driven from initialize to the shelf over a throwaway record,
@@ -645,6 +681,12 @@ a time. Not built with it: a button on the seal page to stop a skill
      not the line marked to do: the kernel's rank, by design. Nothing
      tells a model `report todo` is for that; the tools' words could.
   1 and 2 matter most.
+  **Context (2026-11-26, from the boxes):** for 1, a struck answer comes back at
+  `runtime.py:1777` as its checks alone, while the passages the sentence
+  left uncited are in hand above it (`left`, `runtime.py:1758`): the
+  one holding the word the check names can be found there and named. The
+  drafting path already turns the checks into a reason and a second try
+  (`runtime.py:827` to `832`).
 
 - **The broad fix for both lists, and other ways to see it (2026-11-20).**
   Asked of Claude after the two lists above; the owner is working on the
@@ -727,11 +769,20 @@ a time. Not built with it: a button on the seal page to stop a skill
     the pointing both ride on server-initiated requests, so both change
     shape. Not urgent: clients still speak the older versions.
     (`docs/specification/2026-07-28/changelog.mdx` in the spec.)
+    **Context (2026-11-26, from the boxes):** the spec pages are `basic/patterns/mrtr.mdx`
+    (multi round-trip requests), `server/discover.mdx` and
+    `basic/patterns/subscriptions.mdx` under `docs/specification/2026-07-28`;
+    the door's code they would change is `doors/mcp.py:223` (initialize),
+    `:289` (`Asker`, sampling) and `:328` (`Pointer`, the seal page).
   - **Tell the client when the seal is made.** URL elicitation has
     `notifications/elicitation/complete` for when the out-of-band part is
     done. The runtime could send it when the person seals or declines
     what they were pointed at, so their assistant can say so; it needs a
     way to see the seal land while the door waits for the next request.
+    **Context (2026-11-26, from the boxes):** the notification is
+    `notifications/elicitation/complete`, optional, carrying the
+    `elicitationId` (`docs/specification/2025-11-25/client/elicitation.mdx:398`);
+    the runtime makes that id (`point_person`), so it can say which.
   - **The tasks extension and the task queue.** SEP-1686's tasks (durable
     requests, polled) and this project's `task_add`/`task_claim`/
     `task_done` answer different questions (a long call, a job the person
@@ -879,9 +930,14 @@ and the last drift result; every judgement in it is a Willow card's.
 - Whether the Grove's D10 (no Tailscale Funnel or cloudflared,
   `one-box/README.md:223`) covers a private tailnet, which isn't public
   ingress; until then the tunnel and a pinned certificate are the paths.
-- Willow's `openai-compatible`, `model-exam` and `model-drift` cards say
+- ~~Willow's `openai-compatible`, `model-exam` and `model-drift` cards say
   temperature 0 with a fixed seed says the same thing twice. Not always:
-  theirs to correct.
+  theirs to correct.~~ **Context (2026-11-26, from the boxes):** corrected in Willow's
+  `bfb6714f` ("temperature 0 and a seed aren't the same answer every
+  time"): `model-drift/README.md:62` and `openai-compatible/README.md:36`
+  say so, and `model-exam` names the settings without the claim. For the
+  rig's noise, Willow's `same-way` (0.1.1) already asks a model each
+  question three times and counts how often its answer flips.
 
 ### The key in an account of its own (designed 2026-11-21, not built)
 
@@ -1124,6 +1180,16 @@ administrator: updating it, and `willow_pin.py repin`, which is on purpose.
 So it doesn't wait on sealing across, and `set_up.py` could print the lines
 now, as `--write managed` does. The tests and `check.py` stay in the
 person's own checkout, which is where changes are made.
+
+**Context (2026-11-26, from the boxes):** willow-mcp has built this shape for its own
+trust root: `deploy/provision-uids.sh` makes login-disabled system accounts
+(the trust owner, which owns its key, and the runtime), and its runbook
+(`docs/deploy/dedicated-uid-deployment.md`) has the one step way *B* needs:
+the person's own command builds and checks everything first, then asks sudo
+to run only a narrow helper as the owning account, which never gets the
+person's home, agent socket or private key, and `doctor` checks the
+separation from the person's side ("uid separation: OK"). It needs Python
+3.11 and `cryptography`, so the pattern comes over, not the code.
 
 **Open in it, the owner's:**
 - Whether `set_up.py` prints the code's install lines now, ahead of the
