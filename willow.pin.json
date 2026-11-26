@@ -1,7 +1,7 @@
 {
   "_what": "The Willow this runtime was built on: its commit, and every file of what runs, by SHA-256. willow_pin.py refuses a checkout whose files differ; repin is the one way to move it.",
   "willow": "https://github.com/willow-memory/Willow",
-  "commit": "12ea88df8b9e5d6f7c0d10d1cc56c964cc5fd735",
+  "commit": "e118af874f45e23e351f4727370b9644fc12e730",
   "add_ons": [
     "approved-only",
     "backup",
@@ -73,7 +73,7 @@
     "adapters/stdlib/calendar/README.md": "43ed5443b52dc5aefe06b680f031e6472ca891f8fef7faf6bda398c4fafc1303",
     "adapters/stdlib/calendar/cal.py": "63ff4bf1e57548e4917bc3f2f3e3eb7ec9063ad72b0f6dfa2a288ef27f4d62eb",
     "adapters/stdlib/claude-code/README.md": "b24a31662dac6ce08f90b79672da61310b0cedbd5077717d997603a666940ed8",
-    "adapters/stdlib/claude-code/hook.py": "4e5eaeaac1320ff9512d9269167362c97ea8ac0d44c81fdf8528d31079df5fc7",
+    "adapters/stdlib/claude-code/hook.py": "738dad0cebcace917103478a9ae065e46435da331549b49aec2c23fda25c8526",
     "adapters/stdlib/coming-up/README.md": "27e7c24956c6a5e0b60c3c8a5b20ca6490d255876ef7f8e1aefbdff5d7008501",
     "adapters/stdlib/coming-up/coming_up.py": "7d0c870f5840e1210eaac01853de763bc4db19305deb3dcc0bb472cc5ab88d81",
     "adapters/stdlib/digest/README.md": "71bb5488d17c7e41e67c52d13469c347bb5da9a7fba4f1820b266e93f2296a21",
