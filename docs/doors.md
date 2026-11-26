@@ -44,7 +44,7 @@ next.
 | Door | Faces | What it is |
 |---|---|---|
 | `doors/pipe.py` | the person | one JSON request a line in, one answer a line out |
-| `doors/mcp.py` | a model | MCP over stdio, by hand: its tools, and [its resources and prompts](#listed-and-started-by-you); asks the client's model through sampling when the client offers it |
+| `doors/mcp.py` | a model | MCP over stdio, by hand: its tools, and [its resources and prompts](#listed-and-started-by-you); asks the client's model through sampling when the client offers it, and [shows the person their seal page](#your-seal-page-in-your-assistant) when the client shows links |
 | `doors/hook.py` | a model, through its host | Prompt hook (Claude Code, and `--host` for Gemini/Codex/OpenCode): the sealed page, or one line saying nothing is sealed; for a session that asked to be let in, one line pointing at the `context` tool instead. Cursor cannot inject; use MCP |
 | `doors/guard.py` | a model, through its host | Claude Code's hooks around what the assistant does: before and after a tool call, at a turn's end, at a session's start, before a summary |
 | `doors/session.py` | the person | Session start/end: each session closed for one seal; at the next start the person is told what waits (Claude `systemMessage`, Cursor `user_message` + desktop notice). Cursor also nudges after this server's MCP tools |
@@ -133,6 +133,43 @@ sends a failed command as `PostToolUseFailure` with `"error": "Exit code
 payload was kept with `capture`, the fix went to Willow (`hook-errors`
 0.1.2, commit `14efe16d`, not yet in a Willow pull request), and the pin
 moved to it. A correction and a denied command have not been tried.
+
+## Your seal page, in your assistant
+
+When a model asks for something that waits on your seal (a session's yes,
+a note, a task, a page to share), and your assistant says it can show you a
+link (MCP's URL elicitation, protocol 2025-11-25), the runtime asks it to
+show you your seal page there: what waits, in a sentence, and the page's
+address to open in your own browser. It does so only while the page runs,
+since that is the only time there is an address to give.
+
+- **Nothing is sealed or declined by it.** Opening it, saying no, or
+  closing it, the thing still waits on the page, for your click there.
+  What you answered comes back to the model as `pointed`, and goes on the
+  sent log; the address never reaches the model.
+- **The address lets nothing in by itself.** The seal page leaves only its
+  port beside your record while it runs (`seal-page.json`), never its
+  secret. Your own browser has the secret's cookie from when you opened the
+  link the page printed; anything else that opens the address, your
+  assistant, a model's shell, another program, gets a 403. That is the
+  rule the protocol sets (no link that lets in on its own), and why a
+  model can't use the address to seal.
+- **Your assistant hears when you've settled it.** Once you seal or
+  decline what you were shown, the door tells your assistant on its next
+  request (`notifications/elicitation/complete`, with the id it was
+  shown under), so it can say so. The runtime finds it in your record's own
+  seal and decline rows, asks the kernel nothing, and writes it on the sent
+  log.
+- **It is the runtime's call, not the door's.** The door carries the
+  request and the answer, as it carries sampling; the runtime decides when
+  a reply points at all and says what you are shown.
+
+A page given to a model also comes as data: beside `page`, `passages`
+holds each one's id, file and text as the page has them, withheld as it
+is, so a model cites by id without taking the markup apart. A session let
+in is given each passage by where it is; never the kernel's id, which is
+the hash of its text before withholding. The two tools that can give a
+page, `context` and `page`, say so in their `outputSchema`.
 
 ## Listed, and started by you
 

@@ -71,7 +71,7 @@ def test_the_identity_is_made_once_and_is_not_the_seal_key(box, tmp_path):
     assert pipe(box, "share_id") == {"state": "known", "key": made["key"]}
     idf = runtime.state(box) / "share.id"
     assert idf.stat().st_mode & 0o077 == 0  # the person's alone
-    assert idf.read_text() != (tmp_path / "test.key").read_text()
+    assert idf.read_text() != (box.parent / "test.key").read_text()
     assert not list(box.rglob("share.id"))  # beside the box, never in it
 
 

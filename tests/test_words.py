@@ -7,6 +7,7 @@ import os
 import pytest
 from test_leave import seal
 
+from conftest import facts
 import runtime
 
 ASK = "when is the inspection"  # their word; the file says MOT
@@ -39,7 +40,9 @@ def test_without_their_words_the_model_hears_nothing_is_there(worded):
 
 
 def test_with_their_words_the_same_question_finds_the_file(worded):
-    assert runtime.call(worded(True), "read", ASK, door="mcp") == {"state": "populated"}
+    assert facts(runtime.call(worded(True), "read", ASK, door="mcp")) == {
+        "state": "populated"
+    }
 
 
 def test_their_words_carry_the_whole_way_to_a_sealed_page(worded):

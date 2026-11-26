@@ -22,6 +22,7 @@ model-context-provider/
 ├── set_up.py                               checks Willow, the record and the words, and prints what to paste into a client
 ├── hosts.py                                the assistants that take an MCP server, and where each keeps its settings
 ├── check.py                                the check a change is held to: the pin, lint, format and the tests
+├── bench.py                                how long a question takes, timed and compared as pyperformance does
 ├── willow_pin.py                           holds Willow to its pin, and is the only way to move it
 ├── willow.pin.json                         the Willow commit this runs on, and every file of it by SHA-256
 ├── pyproject.toml                          the project's name and its dev tools; nothing to install to run it
@@ -34,6 +35,23 @@ model-context-provider/
 │   ├── hook.py                             the prompt hook: adds a sealed page to a prompt, as data
 │   ├── session.py                          session start and end: tells the person what waits, closes a session
 │   └── guard.py                            the guard: Willow's hooks around what an assistant does
+├── boxes/                                  the maintainer's Willow boxes over the repositories built beside this, and their stacks
+│   ├── README.md                           what each box is laid from, what each stack asks, and what waits on the person
+│   ├── lay.py                              lays every box and runs its stacks in one command; never seals, never opens a key
+│   ├── repos.json                          the repositories, the kinds of file kept and the folders left out
+│   ├── code-words.txt                      a words list that reads a question's words as the code's
+│   └── stacks/                             the stacks, each step with what it is for and what it misreads
+│       ├── orient.md                       before a first change: instruction files, what they name that is gone, what nothing pins
+│       ├── owes.md                         TODOs, risky lines, secrets in plain files, stale references
+│       ├── across.md                       one box over all: where one repository leans on another
+│       └── ask/                            each repository's standing questions, each source answering in turn
+│           ├── codebase-memory-mcp.md      questions about codebase-memory-mcp
+│           ├── cpython-fork.md             questions about cpython-fork
+│           ├── Model-Context-Provider.md   questions about Model-Context-Provider
+│           ├── modelcontextprotocol.md     questions about modelcontextprotocol, the official spec
+│           ├── pyperformance-fork.md       questions about pyperformance-fork
+│           ├── Willow.md                   questions about Willow
+│           └── willow-mcp.md               questions about willow-mcp
 ├── docs/                                   the README's longer sections, and the working notes
 │   ├── doors.md                            what each side can do, the doors, the guard, and what a model's door lists and offers
 │   ├── session.md                          one yes for a session, and one seal that closes it
@@ -48,8 +66,11 @@ model-context-provider/
 │   └── NOTES.md                            design notes that fit nowhere else
 ├── tests/                                  one file a subject; each docstring says what it holds the code to
 │   ├── conftest.py                         a box over a small pile with a test key, and what every test shares
+│   ├── test_ahead.py                       a reply that isn't a refusal still says what to do next
 │   ├── test_answer.py                      a model returns one sentence, and the person seals it
 │   ├── test_backup.py                      the box and what is kept beside it, copied and checked
+│   ├── test_bench.py                       bench.py's timing and pyperformance's t-test
+│   ├── test_boxes.py                       the boxes' stacks, words and lay.py, which never seals
 │   ├── test_bring_in.py                    notes, a calendar, an export, email or texts brought into the folder
 │   ├── test_capture.py                     one thing handed in to keep, for the person's seal
 │   ├── test_check.py                       check.py, and the hook that holds main to it
@@ -62,12 +83,15 @@ model-context-provider/
 │   ├── test_hook.py                        the prompt hook gives a sealed page, or only whether the files hold it
 │   ├── test_hosts.py                       the hosts table, pointed at the MCP door
 │   ├── test_index.py                       a question answered from an index of the folder, kept current
+│   ├── test_launch.py                      a Willow command run as python would, its compiled code kept
 │   ├── test_leave.py                       a page leaves only once sealed, whole
 │   ├── test_listed.py                      the resources and prompts a model's door lists
 │   ├── test_local_model.py                 a model on this machine, held to the same check
 │   ├── test_made.py                        a timeline of one matter, and a feed of what was sealed
 │   ├── test_pin.py                         the sent log's end, pinned where the runtime can't reach
+│   ├── test_passages.py                    a page given to a model, also as its passages: id, file and text
 │   ├── test_plain.py                       every refusal in plain words, with one next step
+│   ├── test_point.py                       the person shown their seal page in their own assistant, and nothing sealed by it
 │   ├── test_preview.py                     the page a scope would let leave, shown before the seal
 │   ├── test_promises.py                    what a model can never do, each with the test that holds it
 │   ├── test_read.py                        a read says whether the files hold a question, and no more

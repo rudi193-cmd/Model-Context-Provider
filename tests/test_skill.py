@@ -130,7 +130,7 @@ def test_one_declined_before_is_never_given(box, skill, tmp_path):
 
 
 def test_the_box_its_key_and_what_is_not_text_are_never_named_as_a_skill(box, tmp_path):
-    key = tmp_path / "test.key"  # the fixture's key: named, never opened
+    key = box.parent / "test.key"  # the fixture's key: named, never opened
     binary = tmp_path / "blob.md"
     binary.write_bytes(b"\xff\xfe\x00\x01")
     empty = tmp_path / "empty.md"

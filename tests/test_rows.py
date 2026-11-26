@@ -8,6 +8,8 @@ import json
 
 from test_leave import seal
 
+from conftest import facts
+
 import runtime
 
 
@@ -35,7 +37,7 @@ def test_a_yes_is_asked_of_the_kernel_once_and_then_remembered(box):
         assert model(box, "tasks") == {"state": "empty"}
     after = kinds(box)
     assert after.count("bite") == before.count("bite")  # not asked again
-    assert after.count("out") - before.count("out") <= 15  # once a call, at most
+    assert after.count("out") == before.count("out")  # asking what waits adds no row
 
 
 def test_it_is_kept_in_memory_and_nowhere_else(box):
@@ -54,7 +56,7 @@ def test_it_is_kept_in_memory_and_nowhere_else(box):
 def test_a_no_is_never_remembered_so_a_seal_is_seen_at_once(box):
     got = model(box, "grant")
     for _ in range(3):
-        assert model(box, "context", "when does the first frost come") == {
+        assert facts(model(box, "context", "when does the first frost come")) == {
             "state": "populated"}  # fmt: skip
     assert not [k for k in runtime.REMEMBERED if k[0] == str(box)]
     seal(box, got["seal"])
@@ -113,12 +115,30 @@ def test_what_was_remembered_is_never_handed_out_to_be_changed(box):
 
 
 def test_what_waits_is_asked_once_a_call_and_again_after_anything_changes_it(box):
-    before = kinds(box).count("out")
+    before = kinds(box)
     model(box, "tasks")
-    assert kinds(box).count("out") - before <= 1
+    assert kinds(box) == before  # asking what waits writes nothing on the record
     # a call that proposes sees what it proposed: nothing stale within it
     got = model(box, "grant")
     assert got["state"] == "waiting" and got["seal"] in runtime.waiting_seals(box)
     seal(box, got["seal"])  # the person's, in another program: seen by the next call
     assert model(box, "grant")["state"] == "granted"
     assert not runtime.OWED and runtime.OWED_FOR == 0  # nothing kept between calls
+
+
+def test_what_waits_is_asked_at_most_once_a_call(box, monkeypatch):
+    """Read-only now, so asking costs no row; still asked once a call, not
+    once a check within it."""
+    asks = []
+    real = runtime.willow
+
+    def counted(*args):
+        if args[:1] == (runtime.SEALS_WAITING,):
+            asks.append(args)
+        return real(*args)
+
+    monkeypatch.setattr(runtime, "willow", counted)
+    for verb in ("tasks", "notes", "grant"):
+        asks.clear()
+        model(box, verb)
+        assert len(asks) <= 1, (verb, len(asks))

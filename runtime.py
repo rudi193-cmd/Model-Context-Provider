@@ -18,6 +18,7 @@ import os
 import re
 import shlex
 import shutil
+import socket
 import subprocess
 import sys
 import tarfile
@@ -46,13 +47,34 @@ OWED: dict = {}
 OWED_FOR = 0
 
 
+#: `python SCRIPT ARGS`, but with the script's compiled code kept between
+#: runs: Python compiles a script it is handed from its source every time,
+#: and keeps a module's. This loads the script as `__main__` from its file
+#: (so its `__name__`, `__file__`, `sys.argv` and `sys.path[0]` are what a
+#: plain run gives it), by the loader that reads and writes __pycache__.
+#: A script that isn't there exits 2, as Python's own refusal does. Thousands
+#: of Willow commands a check, and two a question, each start without
+#: compiling the kernel's 66 KB again.
+LAUNCH = (
+    "import importlib.util as u,os,sys;"
+    "p=sys.argv[1];sys.argv=sys.argv[1:];"
+    "os.path.isfile(p) or (print(sys.executable+': can'+chr(39)+'t open file '+repr(p),"
+    "file=sys.stderr),sys.exit(2));"
+    "sys.path[0]=os.path.dirname(os.path.abspath(p));"
+    "s=u.spec_from_file_location('__main__',os.path.abspath(p));m=u.module_from_spec(s);"
+    "sys.modules['__main__']=m;s.loader.exec_module(m)"
+)
+
+
 def willow(*args: str) -> subprocess.CompletedProcess:
     """Run one of Willow's commands, its output caught."""
-    if args[1:2] not in (("bite",), ("out",)):  # it may propose, seal or decline
+    # it may propose, seal or decline; asking what waits never does
+    if args[1:2] not in (("bite",), ("out",)) and args[:1] != (SEALS_WAITING,):
         OWED.clear()
     return subprocess.run(
-        [sys.executable, *args], cwd=WILLOW, capture_output=True, text=True, check=False
-    )
+        [sys.executable, "-c", LAUNCH, *args],
+        cwd=WILLOW, capture_output=True, text=True, check=False,
+    )  # fmt: skip
 
 
 def state(box: Path) -> Path:
@@ -135,9 +157,15 @@ def waiting(box: Path) -> dict:
     return got
 
 
+#: what waits, said as kernel.py out says it, with no row added to the record
+SEALS_WAITING = "adapters/stdlib/seals-waiting/seals_waiting.py"
+
+
 def waiting_now(box: Path) -> dict:
-    """What waits, asked of the kernel now."""
-    run = willow("kernel.py", "out", "--box", str(box))
+    """What waits, asked now, with nothing written: Willow's seals-waiting
+    says what `kernel.py out` says but appends no row, where `out` appended
+    one an ask (595 in one run of the tests)."""
+    run = willow(SEALS_WAITING, "--box", str(box))
     if run.returncode == 2:
         return {"state": "refused", "code": "record_broken", "why": run.stderr.strip()}
     out = []
@@ -549,26 +577,29 @@ INDEXED = "adapters/stdlib/claude-code/hook.py"
 
 
 def index(box: Path) -> Path:
-    """The index of the box's folder, kept beside the box (never in it, and
-    never in a backup: backup takes the runtime's files, not its folders),
-    brought current by Willow's index-cache: a rebuild only when a file in
-    the folder changed. While it is current a bite is answered from it, in
-    seconds on a folder the kernel takes a minute to read."""
+    """The index of everything the box reads (its pile folder, and each
+    place a box laid with --from reads where it is kept), kept beside the
+    box (never in it, and never in a backup: backup takes the runtime's
+    files, not its folders), brought current by Willow's index-cache --box:
+    a rebuild only when a file the box reads changed. While it is current a
+    bite is answered from it, in seconds on a folder the kernel takes a
+    minute to read. A box that won't open is left to the kernel's bite,
+    which says what's wrong with it."""
     at = state(box) / "index"
-    try:
-        pile = json.loads((box / "kernel.json").read_text())["pile"]
-    except (OSError, ValueError, KeyError, TypeError):
-        return at  # the kernel's bite says what's wrong with the box
-    willow(INDEX_CACHE, "--from", str(pile), "--to", str(at))
+    if (box / "kernel.json").is_file():
+        willow(INDEX_CACHE, "--box", str(box), "--to", str(at))
     return at
 
 
 def bite(box: Path, question: str) -> subprocess.CompletedProcess:
     """The kernel's bite, from the index while it is current (claude-code's
     bite: the same JSON, exit code and row), else the kernel reading the
-    folder. A refusal is always the kernel's own, so it says why."""
+    folder. One program: `--keep` brings the index current in it first, as
+    `index` would with a program of its own. A refusal is always the
+    kernel's own, so it says why."""
+    at = state(box) / "index"
     run = willow(
-        INDEXED, "bite", "--box", str(box), "--index", str(index(box)), question
+        INDEXED, "bite", "--box", str(box), "--index", str(at), "--keep", question
     )
     if run.returncode != 2:
         return run
@@ -912,7 +943,7 @@ PLAIN = {
     "skill_too_long": ("That skill is too long to read before you give it, so it wasn't named.",
                        "Split it into smaller skills, each a file of its own."),
     "bring_what": ("That isn't something it can bring in.",
-                   'Say what, where from and what to call it: {{"kind": "notes", "calendar", "joplin", "evernote", "google-keep", "mail" or "sms", "from": "/path/to/the/folder", "as": "a-plain-name"}}. For sms you may add "me" (your name in it) and "tz" (the time zone its messages were sent in).'),
+                   'Say what, where from and what to call it: {{"kind": "notes", "calendar", "joplin", "evernote", "google-keep", "mail", "sms", "mastodon", "goodreads", "karakeep", "opml", "takeout", "bookmarks", "zotero" or "code-graph", "from": "/path/to/the/folder", "as": "a-plain-name"}}. For sms you may add "me" (your name in it) and "tz" (the time zone its messages were sent in).'),
     "bring_name": ("That name isn't one plain folder name.",
                    "Use letters, digits, dots, dashes and underscores, starting with a letter or digit, at most 64: vault-2024."),
     "bring_no_folder": ("There's no folder of yours to bring this into.",
@@ -922,7 +953,7 @@ PLAIN = {
     "bring_exists": ("There's already a copy by that name that isn't of this folder, and it's never written over.",
                      "Choose another name, or bring in the same folder again under the same name."),
     "bring_nothing": ("There was nothing in that folder it could read, so nothing was brought in.",
-                      "Check it holds what that kind reads: a notes vault (.md files), calendar files (.ics, .vcf), a Joplin export (.jex), Evernote exports (.enex) or Google Keep notes (.json)."),
+                      "Check it holds what that kind reads: a notes vault (.md files), calendar files (.ics, .vcf), a Joplin export (.jex), Evernote exports (.enex), Google Keep notes (.json), a Mastodon archive (outbox.json), a Goodreads or StoryGraph export (.csv), a Karakeep export (.json), OPML lists (.opml), a Google Takeout's My Activity, browser bookmarks (an HTML export, or a copy of places.sqlite), a copy of zotero.sqlite, or codebase-memory-mcp's graph (.db)."),
     "bring_failed": ("The step that brings files in couldn't run, so nothing was brought in.",
                      "Check that the folder is there and that WILLOW points at your Willow folder."),
     "bring_record": ("The list of what you brought in can't be read.",
@@ -989,7 +1020,7 @@ FOR_MODEL = {
                      "piece of work goes on the project's shelf (the shelf tool).",
     "not_on_shelf": "List the shelf (the shelf tool, action list) and use a name "
                     "from there.",
-    "no_report": "Use one of these names exactly, in small letters: todo, coming-up, "
+    "no_report": "Use one of these names: todo, coming-up, "
                  "on-this-day, people, ref-check, pii-audit, secrets-audit, minutes.",
     "task_refused": "Say it in other words: an empty or very long task isn't kept, "
                     "and the same task is only handed in once.",
@@ -1322,6 +1353,8 @@ def report(box: Path, name, for_model: bool = False) -> dict:
     Reading needs no grant, so this is the person's to read as it is. For a
     model, a report of places only (PLACES_ONLY) is given without what
     each row found."""
+    if isinstance(name, str):  # its name in any case: Todo is todo
+        name = name.strip().lower()
     script = REPORTS.get(name) if isinstance(name, str) else None
     if script is None:
         return {"state": "refused", "code": "no_report",
@@ -1750,7 +1783,7 @@ def answer(box: Path, sentence: str) -> dict:
     where = files_of(page.read_text())
     left_out = [{"id": b["id"], "file": where.get(b["id"], "")} for b in left]
     if run.returncode == 42:
-        return {"state": "struck", "checks": checks}
+        return {"state": "struck", "checks": checks, **in_uncited(checks, left)}
     # the page is a whole scope the person sealed (sealed_page let it leave
     # only so); the answer names that scope, which cites the passages itself.
     # It cites none directly: once a question is sealed the kernel answers its
@@ -2161,7 +2194,15 @@ BRING_IN = {"notes": "adapters/stdlib/notes/notes.py",
             "evernote": "adapters/stdlib/evernote/evernote.py",
             "google-keep": "adapters/stdlib/google-keep/google_keep.py",
             "mail": "adapters/stdlib/mail/mail.py",
-            "sms": "adapters/stdlib/sms/sms.py"}  # fmt: skip
+            "sms": "adapters/stdlib/sms/sms.py",
+            "mastodon": "adapters/stdlib/mastodon/mastodon.py",
+            "goodreads": "adapters/stdlib/goodreads/goodreads.py",
+            "karakeep": "adapters/stdlib/karakeep/karakeep.py",
+            "opml": "adapters/stdlib/opml/opml.py",
+            "takeout": "adapters/stdlib/takeout/takeout.py",
+            "bookmarks": "adapters/stdlib/bookmarks/bookmarks.py",
+            "zotero": "adapters/stdlib/zotero/zotero.py",
+            "code-graph": "adapters/stdlib/codebase-memory/codebase_memory.py"}  # fmt: skip
 #: what a kind's importer may also be told, each one plain line: a phone
 #: backup's own name for the person, and the time zone its messages were sent in
 BRING_ALSO = {"sms": ("me", "tz")}
@@ -3120,7 +3161,12 @@ def context_granted(box: Path, question: str) -> dict:
         f"[{s.get('where', '?')}]\n{t.strip()}" for s, t in zip(served, texts)
     )
     (state(box) / "last-page.md").write_text(page)
-    return {"state": "left", "page": page, "by": "grant"}
+    # each passage by where it is, as the page names it: never the kernel's
+    # id, which is the hash of its text before withholding, so a model could
+    # try guesses of a withheld number against it
+    passages = [{"id": str(s.get("where", "?")), "file": str(s.get("where", "?")).rsplit(":", 1)[0],
+                 "text": t.strip()} for s, t in zip(served, texts)]  # fmt: skip
+    return {"state": "left", "page": page, "by": "grant", "passages": passages}
 
 
 def kart_python(box: Path) -> str:
@@ -4209,11 +4255,6 @@ def timeline_to_model(box: Path, arg, let: bool) -> dict:
     slug = re.sub(r"[^a-z0-9]+", "-", got["about"].lower()).strip("-")[:40] or "matter"
     same = [p for p in sorted(out.glob(f"timeline-{slug}-*.txt")) if out.is_dir()
             and p.read_text() == got["text"]]  # fmt: skip
-    kept = same[-1] if same else made_at(box, None, f"timeline-{slug}.txt")
-    if not same:
-        fd = os.open(kept, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
-            f.write(got["text"])
     # the session's part: the lines in the dates it asked for, from the line
     # it asked to start after, as many whole lines as are given at once
     head, _, body = got["text"].partition("\n\n")
@@ -4233,8 +4274,13 @@ def timeline_to_model(box: Path, arg, let: bool) -> dict:
         if size > REPORT_MOST and part:
             break
         part.append(ln)
-    if not part:
-        return {"state": "empty", "about": got["about"], "file": str(kept)}
+    if not part:  # nothing in those days: no file made, none named
+        return {"state": "empty", "about": got["about"]}
+    kept = same[-1] if same else made_at(box, None, f"timeline-{slug}.txt")
+    if not same:
+        fd = os.open(kept, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+            f.write(got["text"])
     try:
         said = withhold(box, [head, *part])
     except RuntimeError as why:  # can't withhold: nothing leaves
@@ -5232,16 +5278,144 @@ def promises() -> dict:
             "text": "\n".join(text) + "\n"}  # fmt: skip
 
 
+# ── pointing the person at their seal page, through their own assistant ─────
+#: where a running seal page says it listens, beside the box: its port only,
+#: never its secret, so the address is no way in (a request without the
+#: secret's cookie, which only the person's browser holds, gets a 403)
+PAGE_AT = "seal-page.json"
+
+
+def page_here(box: Path, port: int) -> None:
+    """The seal page, as it starts: where it listens, for `page_url`."""
+    (state(box) / PAGE_AT).write_text(json.dumps({"port": port}) + "\n")
+
+
+def page_gone(box: Path) -> None:
+    """The seal page, as it stops."""
+    (state(box) / PAGE_AT).unlink(missing_ok=True)
+
+
+def page_url(box: Path) -> str | None:
+    """The address of the person's seal page while it runs, with no secret
+    in it; None when it isn't running (no address left, or nothing answers
+    there). MCP's URL elicitation must not be handed a link that lets in by
+    itself (2025-11-25, client/elicitation, "Safe URL Handling"): this one
+    lets in only the browser the person opened the page's own link in."""
+    try:
+        port = int(json.loads((state(box) / PAGE_AT).read_text())["port"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    if not 0 < port < 65536:
+        return None
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+            pass
+    except OSError:
+        return None
+    return f"http://127.0.0.1:{port}/"
+
+
+def waits_as(got: dict) -> str:
+    """What a model's waiting reply holds, in the person's words."""
+    if got.get("grant"):
+        return "a session asking to read your files"
+    if got.get("task"):
+        return "a task it wants to do"
+    if got.get("whom"):
+        return f"something to send to {got['whom']}"
+    return "something it handed in"
+
+
+def point_person(box: Path, got: dict, door: str, point) -> dict:
+    """A model's reply that waits on the person's seal, and a door that can
+    ask their assistant to show them a link (MCP's URL elicitation): their
+    seal page is offered to them there, by its address, to open in their own
+    browser. Nothing is sealed or declined by it: whatever they answer, the
+    seal is still theirs to make on the page. Written down on the sent log;
+    the reply says what they were shown, never the address."""
+    url = page_url(box)
+    if url is None:
+        return got
+    message = (f"Your assistant asked for {waits_as(got)}. It waits on your seal: "
+               "read it on your seal page, then seal it or decline it there. "
+               "Nothing is sealed from here.")  # fmt: skip
+    asked = hashlib.sha256(f"{time.time_ns()} {url}".encode()).hexdigest()[:32]
+    try:
+        action = point(message, url, asked)
+    except RuntimeError:
+        action = "unanswered"
+    sent(box, door or "unknown", "point", {"state": action})
+    f = state(box) / POINTED
+    try:
+        known = json.loads(f.read_text())
+    except (OSError, ValueError):
+        known = {}
+    known[asked] = got["seal"]
+    f.write_text(json.dumps(known) + "\n")
+    return {**got, "pointed": action}
+
+
+#: each seal page offered in the person's assistant, by its elicitation id,
+#: and what it was for, until the person seals or declines it
+POINTED = "pointed.json"
+
+
+def settled(box: Path) -> list[str]:
+    """The ids of the seal pages offered whose thing the person has sealed or
+    declined since, each said once: MCP's notifications/elicitation/complete
+    is how a door tells their assistant. Read from the record's own seal and
+    decline rows; nothing is asked of the kernel, and nothing is written to
+    the record. Each is written down on the sent log."""
+    f = state(box) / POINTED
+    try:
+        known = json.loads(f.read_text())
+    except (OSError, ValueError):
+        return []
+    if not isinstance(known, dict) or not known:
+        return []
+    done: dict[str, str] = {}
+    try:
+        lines = (box / "record.jsonl").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    for line in lines:
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if row.get("kind") in ("seal", "decline") and isinstance(
+            row.get("subject"), str
+        ):
+            done[row["subject"]] = row["kind"]
+    out = [k for k, subject in known.items() if subject in done]
+    for k in out:
+        sent(box, "mcp", "point_done", {"state": done[known.pop(k)]})
+    if out:
+        f.write_text(json.dumps(known) + "\n")
+    return out
+
+
 def call(
     box: Path, verb: str, arg=None, door: str = "", ask=None, where: str = "",
-    session: str = "",
+    session: str = "", point=None,
 ) -> dict:  # fmt: skip
     """What every door calls: `decided`, with what waits on the person's
-    seal asked of the kernel at most once while it is answered."""
+    seal asked of the kernel at most once while it is answered. `point` is
+    a door's way to show the person a link in their own assistant; the
+    runtime decides when, and what."""
     global OWED_FOR
     OWED_FOR += 1
     try:
-        return decided(box, verb, arg, door, ask, where, session)
+        got = decided(box, verb, arg, door, ask, where, session)
+        faces = FACES.get(door, "model")
+        if (
+            point is not None
+            and faces == "model"
+            and got.get("state") == "waiting"
+            and got.get("seal")
+        ):
+            got = point_person(box, got, door, point)
+        return got
     finally:
         OWED_FOR -= 1
         if not OWED_FOR:
@@ -5285,4 +5459,72 @@ def decided(
     )
     if got.get("state") != "refused" and reaches:
         sent(box, door or "unknown", verb, got)
-    return plain(got, box, faces, verbs)
+    if faces == "model" and isinstance(got.get("page"), str) and "passages" not in got:
+        got = with_passages(got)
+    return plain(ahead(got, faces), box, faces, verbs)
+
+
+#: sentence-check's words for what a sentence adds: "failed: straw is no
+#: box's", "failed: cover, straw are no box's"
+LACKS = re.compile(r"failed: (.+) (?:is|are) no box's")
+
+
+def in_uncited(checks: dict, left: list[dict]) -> dict:
+    """For a struck sentence, each word it added that a passage it didn't cite
+    holds: {"in_uncited": {word: that passage's id}}, the ids the page gave.
+    The word is often on the page, only in a passage the sentence left out."""
+    m = LACKS.match(str(checks.get("nothing the boxes lack", "")))
+    if not m:
+        return {}
+    out = {}
+    for w in (x.strip() for x in m.group(1).split(",")):
+        for b in left:
+            if w and w in set(re.findall(r"[\w']+", b["text"].lower())):
+                out[w] = b["id"]
+                break
+    return {"in_uncited": out} if out else {}
+
+
+def ahead(got: dict, faces: str) -> dict:
+    """What a model can do next, for a reply that isn't a refusal but would
+    leave it stuck: something that waits on the person, a struck sentence,
+    or a bare "populated". Refusals get theirs from `plain`. Each `say` is
+    what happened; each `next` the one thing to do, a model's own to take
+    or, said so, something to tell the person."""
+    if faces != "model" or "say" in got:
+        return got
+    state = got.get("state")
+    if state == "waiting" and got.get("seal"):
+        say = f"It waits on the person's seal: {waits_as(got)}."
+        nxt = ("Tell the person: it is on their seal page (provider waiting lists "
+               "it), where they seal or decline it. Nothing is done until they do.")  # fmt: skip
+        return {**got, "say": say, "next": nxt}
+    if state == "struck":
+        failed = [f"{k}: {v[len('failed: '):]}" for k, v in got.get("checks", {}).items()
+                  if str(v).startswith("failed")]  # fmt: skip
+        say = "Your sentence was struck, and goes nowhere: " + "; ".join(failed) + "."
+        found = got.get("in_uncited") or {}
+        if found:
+            nxt = " ".join(f"{w!r} isn't in the passages you cited; it is in [{i}]."
+                           for w, i in found.items())  # fmt: skip
+            nxt += " Cite that passage too, or say it without those words."
+        else:
+            nxt = "Say it again with only what the passages you cite hold, each cited by its id."
+        return {**got, "say": say, "next": nxt}
+    if state == "populated" and set(got) == {"state"}:
+        say = "The person's files hold something for that; nothing of it is given yet."
+        nxt = ("Ask to be let in for this session (grant); or, the strict way, ask the "
+               "person to seal what was found as one page (page, action propose).")  # fmt: skip
+        return {**got, "say": say, "next": nxt}
+    return got
+
+
+def with_passages(got: dict) -> dict:
+    """A page a model is given, its passages also as data: each one's id, the
+    file it is from and its text, exactly as the page holds them (withheld
+    as it is), so a model cites by id without taking the page's markup
+    apart. Nothing leaves that the page didn't already hold."""
+    files = files_of(got["page"])
+    out = [{"id": b["id"], "file": files.get(b["id"], ""), "text": b["text"]}
+           for b in boxes_of(got["page"])]  # fmt: skip
+    return {**got, "passages": out} if out else got

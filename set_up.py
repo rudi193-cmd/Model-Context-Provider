@@ -506,6 +506,8 @@ def write(box: Path, which: str) -> list[str]:
     if which == "all":
         lines = write_claude_hooks(box)
         for name in hosts.HOSTS:
+            if not hosts.here_now(name):
+                continue  # not on this machine: no settings made for it
             lines.extend(hosts.write_host(name, box))
             if name == "cursor":
                 lines.extend(hosts.write_cursor_hooks(box))

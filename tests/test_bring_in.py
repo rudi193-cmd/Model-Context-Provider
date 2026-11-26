@@ -3,6 +3,8 @@ brought into the folder the box reads, by the person, through Willow's
 add-ons for each."""
 
 import hashlib
+from pathlib import Path
+import sqlite3
 import io
 import json
 import tarfile
@@ -129,6 +131,153 @@ def keep(tmp_path):
     return k
 
 
+#: Zotero's own tables, those its importer reads, as Willow's zotero test
+#: makes them (adapters/stdlib/zotero/test_zotero.py, SCHEMA)
+ZOTERO = """
+CREATE TABLE itemTypes (itemTypeID INTEGER PRIMARY KEY, typeName TEXT, templateItemTypeID INT, display INT DEFAULT 1);
+CREATE TABLE itemTypesCombined (itemTypeID INT NOT NULL, typeName TEXT NOT NULL, display INT DEFAULT 1 NOT NULL,
+    custom INT NOT NULL, PRIMARY KEY (itemTypeID));
+CREATE TABLE fields (fieldID INTEGER PRIMARY KEY, fieldName TEXT, fieldFormatID INT);
+CREATE TABLE fieldsCombined (fieldID INT NOT NULL, fieldName TEXT NOT NULL, label TEXT, fieldFormatID INT,
+    custom INT NOT NULL, PRIMARY KEY (fieldID));
+CREATE TABLE creatorTypes (creatorTypeID INTEGER PRIMARY KEY, creatorType TEXT);
+CREATE TABLE items (itemID INTEGER PRIMARY KEY, itemTypeID INT NOT NULL,
+    dateAdded TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, dateModified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    clientDateModified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, libraryID INT NOT NULL, key TEXT NOT NULL,
+    version INT NOT NULL DEFAULT 0, clientVersion INT NOT NULL DEFAULT 0, synced INT NOT NULL DEFAULT 0,
+    UNIQUE (libraryID, key));
+CREATE TABLE itemDataValues (valueID INTEGER PRIMARY KEY, value UNIQUE, valueNormalized TEXT);
+CREATE TABLE itemData (itemID INT, fieldID INT, valueID, PRIMARY KEY (itemID, fieldID));
+CREATE TABLE itemNotes (itemID INTEGER PRIMARY KEY, parentItemID INT, note TEXT, title TEXT);
+CREATE TABLE itemAttachments (itemID INTEGER PRIMARY KEY, parentItemID INT, linkMode INT, contentType TEXT,
+    charsetID INT, path TEXT, syncState INT DEFAULT 0, storageModTime INT, storageHash TEXT,
+    lastProcessedModificationTime INT, lastRead INT);
+CREATE TABLE itemAnnotations (itemID INTEGER PRIMARY KEY, parentItemID INT NOT NULL, type INTEGER NOT NULL,
+    authorName TEXT, text TEXT, textNormalized TEXT, comment TEXT, commentNormalized TEXT, color TEXT,
+    pageLabel TEXT, sortIndex TEXT NOT NULL, position TEXT NOT NULL, isExternal INT NOT NULL);
+CREATE TABLE tags (tagID INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, nameNormalized TEXT);
+CREATE TABLE itemTags (itemID INT NOT NULL, tagID INT NOT NULL, type INT NOT NULL, PRIMARY KEY (itemID, tagID));
+CREATE TABLE creators (creatorID INTEGER PRIMARY KEY, firstName TEXT, lastName TEXT, fieldMode INT,
+    firstNameNormalized TEXT, lastNameNormalized TEXT, UNIQUE (lastName, firstName, fieldMode));
+CREATE TABLE itemCreators (itemID INT NOT NULL, creatorID INT NOT NULL, creatorTypeID INT NOT NULL DEFAULT 1,
+    orderIndex INT NOT NULL DEFAULT 0, PRIMARY KEY (itemID, creatorID, creatorTypeID, orderIndex),
+    UNIQUE (itemID, orderIndex));
+CREATE TABLE collections (collectionID INTEGER PRIMARY KEY, collectionName TEXT NOT NULL,
+    parentCollectionID INT DEFAULT NULL, clientDateModified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    libraryID INT NOT NULL, key TEXT NOT NULL, version INT NOT NULL DEFAULT 0, clientVersion INT NOT NULL DEFAULT 0,
+    synced INT NOT NULL DEFAULT 0, UNIQUE (libraryID, key));
+CREATE TABLE collectionItems (collectionID INT NOT NULL, itemID INT NOT NULL, orderIndex INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (collectionID, itemID));
+CREATE TABLE deletedCollections (collectionID INTEGER PRIMARY KEY, dateDeleted DEFAULT CURRENT_TIMESTAMP NOT NULL);
+CREATE TABLE deletedItems (itemID INTEGER PRIMARY KEY, dateDeleted DEFAULT CURRENT_TIMESTAMP NOT NULL);
+CREATE TABLE feedItems (itemID INTEGER PRIMARY KEY, guid TEXT NOT NULL UNIQUE, readTime TIMESTAMP, translatedTime TIMESTAMP);
+"""
+
+
+def one_file(tmp: Path, folder: str, name: str, data: str) -> Path:
+    """A folder holding one export file: what each importer is pointed at."""
+    f = tmp / folder / name
+    f.parent.mkdir(parents=True)
+    f.write_text(data)
+    return tmp / folder
+
+
+@pytest.fixture
+def mastodon(tmp_path):
+    return one_file(tmp_path, "mastodon-archive", "outbox.json", json.dumps({
+        "type": "OrderedCollection", "orderedItems": [{
+            "type": "Create", "published": "2026-03-02T08:15:00Z",
+            "object": {"type": "Note",
+                       "content": "<p>Planted out the tomatoes by the greenhouse today.</p>"}}]}))  # fmt: skip
+
+
+@pytest.fixture
+def goodreads(tmp_path):
+    return one_file(tmp_path, "goodreads-export", "goodreads_library_export.csv",
+                    "Book Id,Title,Author,My Rating,Date Read,Date Added,Bookshelves,"
+                    "Exclusive Shelf,My Review,Private Notes\n1,The Hobbit,J.R.R. Tolkien,4,"
+                    "2026/03/02,2023/01/05,fantasy,read,A comfort read about dragons.,\n")  # fmt: skip
+
+
+@pytest.fixture
+def karakeep(tmp_path):
+    return one_file(tmp_path, "karakeep-export", "karakeep.json", json.dumps({"bookmarks": [{
+        "createdAt": 1710000000, "title": "Tomato staking guide", "tags": ["garden"],
+        "note": "Read the staking section before May.",
+        "content": {"type": "link", "url": "https://example.org/t"}}]}))  # fmt: skip
+
+
+@pytest.fixture
+def opml(tmp_path):
+    return one_file(tmp_path, "feeds", "feeds.opml",
+                    '<?xml version="1.0"?><opml version="2.0"><head><title>Feeds</title></head>'
+                    '<body><outline text="Gardening"><outline text="Allotment Weekly podcast" '
+                    'type="rss" xmlUrl="https://example.org/a.xml"/></outline></body></opml>')  # fmt: skip
+
+
+@pytest.fixture
+def takeout(tmp_path):
+    t = tmp_path / "takeout" / "Takeout" / "My Activity" / "Search"
+    t.mkdir(parents=True)
+    (t / "MyActivity.json").write_text(json.dumps([{
+        "header": "Search", "title": "Searched for when to prune apple trees",
+        "time": "2026-02-10T09:00:00.000Z", "products": ["Search"]}]))  # fmt: skip
+    return tmp_path / "takeout"
+
+
+@pytest.fixture
+def bookmarks(tmp_path):
+    return one_file(tmp_path, "browser", "bookmarks.html",
+                    "<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><p><DT><H3>Garden</H3><DL><p>"
+                    '<DT><A HREF="https://example.org/compost" ADD_DATE="1710000000">'
+                    "Compost bin building plans</A></DL><p></DL>")  # fmt: skip
+
+
+@pytest.fixture
+def zotero(tmp_path):
+    z = tmp_path / "zotero-copy"
+    z.mkdir()
+    con = sqlite3.connect(z / "zotero.sqlite")
+    con.executescript(ZOTERO)
+    con.execute("INSERT INTO itemTypes VALUES (7, 'book', NULL, 1)")
+    con.execute("INSERT INTO itemTypesCombined VALUES (7, 'book', 1, 0)")
+    for i, f in ((1, "title"), (6, "date"), (8, "publisher")):
+        con.execute("INSERT INTO fields VALUES (?, ?, NULL)", (i, f))
+        con.execute("INSERT INTO fieldsCombined VALUES (?, ?, NULL, NULL, 0)", (i, f))
+    con.execute("INSERT INTO items (itemID, itemTypeID, dateAdded, libraryID, key) "
+                "VALUES (1, 7, '2026-01-04 10:00:00', 1, 'K0000001')")  # fmt: skip
+    for f, v in ((1, "The Well-Tempered Garden"), (6, "1970"), (8, "Collins")):
+        con.execute("INSERT INTO itemDataValues (value) VALUES (?)", (v,))
+        (vid,) = con.execute(
+            "SELECT valueID FROM itemDataValues WHERE value = ?", (v,)
+        ).fetchone()
+        con.execute("INSERT INTO itemData VALUES (1, ?, ?)", (f, vid))
+    con.commit()
+    con.close()
+    return z
+
+
+@pytest.fixture
+def code_graph(tmp_path):
+    """codebase-memory-mcp's graph as it writes it now: nodes and edges."""
+    g = tmp_path / "graph-copy"
+    g.mkdir()
+    con = sqlite3.connect(g / "graph.db")
+    con.executescript("""
+        CREATE TABLE nodes (id INTEGER PRIMARY KEY, project TEXT, label TEXT, name TEXT,
+            qualified_name TEXT, file_path TEXT, start_line INTEGER, end_line INTEGER, properties TEXT);
+        CREATE TABLE edges (id INTEGER PRIMARY KEY, project TEXT, source_id INTEGER,
+            target_id INTEGER, type TEXT, properties TEXT);
+        INSERT INTO nodes VALUES
+            (1, 'p', 'Function', 'water_beds', 'garden.water_beds', 'garden.py', 3, 9, '{}'),
+            (2, 'p', 'Function', 'open_valve', 'garden.open_valve', 'garden.py', 12, 20, '{}');
+        INSERT INTO edges VALUES (1, 'p', 1, 2, 'CALLS', '{}');
+    """)
+    con.commit()
+    con.close()
+    return g
+
+
 @pytest.fixture
 def vault(tmp_path):
     v = tmp_path / "vault"
@@ -193,6 +342,62 @@ def test_a_calendar_is_mirrored_and_its_event_is_found(box, cal):
         ("joplin", "joplin", FROST, "export.jex.txt", "notebook: Garden"),
         ("evernote", "evernote", BEANS, "Garden.enex.txt", "tags: garden"),
         ("google-keep", "keep", MILK, "shopping.json.txt", "[ ] milk"),
+        (
+            "mastodon",
+            "mastodon",
+            "when were the tomatoes planted out by the greenhouse",
+            "outbox.json.txt",
+            "Planted out the tomatoes",
+        ),
+        (
+            "goodreads",
+            "goodreads",
+            "what did I think of the hobbit",
+            "goodreads_library_export.csv.txt",
+            "read The Hobbit by J.R.R. Tolkien",
+        ),
+        (
+            "karakeep",
+            "karakeep",
+            "the tomato staking guide",
+            "karakeep.json.txt",
+            "note: Read the staking section",
+        ),
+        (
+            "opml",
+            "opml",
+            "the allotment weekly podcast",
+            "feeds.opml.txt",
+            "Allotment Weekly podcast",
+        ),
+        (
+            "takeout",
+            "takeout",
+            "when to prune apple trees",
+            "Takeout/My Activity/Search/MyActivity.json.txt",
+            "Searched for when to prune",
+        ),
+        (
+            "bookmarks",
+            "bookmarks",
+            "compost bin building plans",
+            "bookmarks.html.txt",
+            "in Garden",
+        ),
+        (
+            "zotero",
+            "zotero",
+            "the well-tempered garden by collins",
+            "zotero.sqlite.txt",
+            "The Well-Tempered Garden. Collins.",
+        ),
+        (
+            "code-graph",
+            "code_graph",
+            "what calls open_valve",
+            "graph.db.txt",
+            "edges: call garden.open_valve",
+        ),
     ],
 )
 def test_an_export_is_mirrored_and_a_question_then_finds_it(
@@ -240,8 +445,8 @@ def test_a_from_that_is_the_mirror_itself_is_refused(box, vault):
     assert bring(box, "notes", mirror)["code"] == "bring_inside"
 
 
-def test_a_from_that_holds_the_pile_is_refused(box, tmp_path):
-    assert bring(box, "notes", tmp_path)["code"] == "bring_inside"
+def test_a_from_that_holds_the_pile_is_refused(box):
+    assert bring(box, "notes", box.parent)["code"] == "bring_inside"
 
 
 @pytest.mark.parametrize("name", ["", "a/b", "..", "../x", ".hidden", "a b", "x" * 65])
@@ -480,3 +685,16 @@ def test_what_else_an_importer_is_told_is_one_plain_line_and_only_what_it_takes(
         "tz": "nowhere",
     }
     assert runtime.call(box, "bring_in", more, door="pipe")["state"] == "brought"
+
+
+@pytest.mark.parametrize(
+    "kind, fixture",
+    [("mastodon", "mastodon"), ("goodreads", "goodreads"), ("karakeep", "karakeep"),
+     ("opml", "opml"), ("takeout", "takeout"), ("bookmarks", "bookmarks"),
+     ("zotero", "zotero"), ("code-graph", "code_graph")],
+)  # fmt: skip
+def test_each_newer_kinds_original_is_never_changed(box, request, kind, fixture):
+    src = request.getfixturevalue(fixture)
+    before = snapshot(src)
+    assert bring(box, kind, src)["state"] == "brought"
+    assert snapshot(src) == before

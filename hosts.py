@@ -84,6 +84,18 @@ def local_tools(py: str, args: list[str], env: dict) -> dict:
     }
 
 
+def typed(field: str, value: str):
+    """The usual shape with one more field fixed: `type` or `transport`
+    set to `stdio`, for the assistants that read one."""
+
+    def shape(py: str, args: list[str], env: dict) -> dict:
+        entry = {"command": py, "args": args, field: value, "env": env}
+        return {"mcpServers": {NAME: entry}}
+
+    shape.__doc__ = f'The usual shape, with "{field}": "{value}".'
+    return shape
+
+
 def codex_table(py: str, args: list[str], env: dict) -> str:
     """Codex's shape, the one TOML one: text, not a document."""
     return toml_table(f"mcp_servers.{NAME}", {"command": py, "args": args, "env": env})
@@ -167,6 +179,80 @@ HOSTS = {
         ],
     ),
 }
+
+#: More assistants, each where codebase-memory-mcp's installer writes its
+#: MCP entry (src/cli/cli.c and src/cli/agent_clients.c there, read
+#: 2026-11-25), in the shape it writes, with WILLOW in `env` as every
+#: mcpServers host above takes it. A path an environment variable moves is
+#: named in the words; --write uses the default.
+MORE = {
+    "amazon-q": ("Amazon Q Developer", ".aws/amazonq/default.json", mcp_servers),
+    "antigravity": ("Antigravity", ".gemini/config/mcp_config.json", mcp_servers),
+    "augment": ("Augment (Auggie)", ".augment/settings.json", mcp_servers),
+    "cline": ("Cline", ".cline/mcp.json", mcp_servers),
+    "codebuddy": ("CodeBuddy Code", ".codebuddy/.mcp.json", mcp_servers),
+    "devin": ("Devin CLI", ".config/devin/config.json", mcp_servers),
+    "factory-droid": ("Factory Droid", ".factory/mcp.json", typed("type", "stdio")),
+    "gitlab-duo": ("GitLab Duo CLI", ".gitlab/duo/mcp.json", typed("type", "stdio")),
+    "ibm-bob": ("IBM Bob Shell", ".bob/mcp_settings.json", mcp_servers),
+    "junie": ("Junie", ".junie/mcp/mcp.json", mcp_servers),
+    "kimi": ("Kimi Code CLI", ".kimi-code/mcp.json", mcp_servers),
+    "kiro": ("Kiro", ".kiro/settings/mcp.json", mcp_servers),
+    "openhands": ("OpenHands", ".openhands/mcp.json", mcp_servers),
+    "qoder": ("Qoder CLI", ".qoder/settings.json", mcp_servers),
+    "qwen-code": ("Qwen Code", ".qwen/settings.json", mcp_servers),
+    "rovo-dev": ("Rovo Dev CLI", ".rovodev/mcp.json", typed("transport", "stdio")),
+    "tabnine": ("Tabnine", ".tabnine/mcp_servers.json", mcp_servers),
+}
+#: where a path moves with an environment variable, said beside it
+MOVED = {
+    "gitlab-duo": "$GLAB_CONFIG_DIR/duo/mcp.json, or $XDG_CONFIG_HOME/gitlab/duo/mcp.json",
+    "kimi": "$KIMI_CODE_HOME/mcp.json",
+    "kiro": "$KIRO_HOME/settings/mcp.json",
+    "qwen-code": "$QWEN_HOME/settings.json",
+    "rovo-dev": "the mcp.mcpConfigPath in ~/.rovodev/config.yml, if it names another",
+}
+#: Cline's extension reads a second file of its own
+ALSO = {"cline": (".cline/data/settings/cline_mcp_settings.json", "Cline in an editor")}
+for _name, (_title, _home, _shape) in MORE.items():
+    _where = f"~/{_home}" + (f" (or {MOVED[_name]})" if _name in MOVED else "")
+    _places = [(_where, _home, _shape)]
+    if _name in ALSO:
+        _places.append(
+            (f"{ALSO[_name][1]}: ~/{ALSO[_name][0]}", ALSO[_name][0], _shape)
+        )
+    HOSTS[_name] = (_title, _places)
+
+#: the folder in the home folder that says an assistant of MORE is here:
+#: `--write all` writes one only where it is, so it never makes settings
+#: for an assistant the person doesn't have (codebase-memory-mcp installs
+#: only what it detects); `--write NAME` writes it when asked
+FOUND_BY = {
+    "amazon-q": ".aws/amazonq",
+    "antigravity": ".gemini/antigravity-cli",
+    "augment": ".augment",
+    "cline": ".cline",
+    "codebuddy": ".codebuddy",
+    "devin": ".config/devin",
+    "factory-droid": ".factory",
+    "gitlab-duo": ".gitlab/duo",
+    "ibm-bob": ".bob",
+    "junie": ".junie",
+    "kimi": ".kimi-code",
+    "kiro": ".kiro",
+    "openhands": ".openhands",
+    "qoder": ".qoder",
+    "qwen-code": ".qwen",
+    "rovo-dev": ".rovodev",
+    "tabnine": ".tabnine",
+}
+
+
+def here_now(name: str) -> bool:
+    """Whether the assistant called name is on this machine, as far as its
+    home settings can say: always, for the hosts this table began with."""
+    return name not in FOUND_BY or (Path.home() / FOUND_BY[name]).is_dir()
+
 
 #: Prompt hooks that can inject context (Willow's hook-elsewhere). Cursor cannot.
 HOOK_HOSTS = {

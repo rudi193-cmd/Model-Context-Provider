@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from conftest import facts
 import runtime
 import seal_prompt
 
@@ -85,7 +86,7 @@ def test_a_no_declines_it_for_good(box, tmp_path):
     subject = asked(box)
     got = run(box, subject, clicks(tmp_path, DECLINED))
     assert got.returncode == 0 and got.stdout.strip() == f"declined {subject}"
-    assert context(box) == {"state": "populated"}
+    assert facts(context(box)) == {"state": "populated"}
     assert runtime.waiting(box)["state"] == "empty"
 
 
@@ -107,7 +108,7 @@ def test_not_now_or_anything_unclear_changes_nothing(box, tmp_path, answer):
     assert got.returncode == 42 and "waits on your seal page" in got.stdout
     assert decided(box) == []
     assert [w["seal"] for w in runtime.waiting(box)["waiting"]] == [subject]
-    assert context(box) == {"state": "populated"}
+    assert facts(context(box)) == {"state": "populated"}
 
 
 def test_a_dialog_that_never_came_up_is_not_a_yes(box, tmp_path):

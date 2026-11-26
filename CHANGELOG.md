@@ -4,6 +4,130 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Asking what waits no longer writes on the record.** The runtime asked
+  `kernel.py out`, which appends a row each time: 595 in one run of the
+  tests, and most of a busy record's rows. It asks Willow's new
+  `seals-waiting`, which says the same and appends nothing. The pin moves
+  to Willow `12ea88df`, which also has `rss-out` refusing a feed written
+  inside the record's folder.
+
+- **Your assistant hears when you've sealed.** After your seal page was
+  offered in your assistant, sealing or declining it there is told to the
+  assistant on its next request (MCP's `notifications/elicitation/complete`).
+
+- **The boxes, one project a repository.** `boxes/lay.py` lays each
+  repository as Willow's `projects` and `handover` read a project: its box,
+  its stacks and the runs of them in one folder. `handover` then says
+  where each repository's stacks stand, with nothing built for it.
+
+- **Eight more things to bring in.** `bring_in` takes `mastodon`,
+  `goodreads`, `karakeep`, `opml`, `takeout`, `bookmarks`, `zotero` and
+  `code-graph` (codebase-memory-mcp's graph: each function, its file and
+  line, what it calls), each Willow's card for it, pinned.
+
+- **The seal page in the person's words.** A session's card says what was
+  done as questions asked of their files and how many found something,
+  things handed in, sealed and declined, not as the kernel's rows
+  (`4 × bite: served`); a model's sentence says which files the page it
+  was said of came from; a note is headed "A note to keep"; and the page
+  says how many things wait.
+
+- **Two rough edges off the model's tools.** A report is named in any
+  case (`Todo` is `todo`), and a timeline with nothing in the days asked
+  for makes no file and names none, where it wrote the whole timeline and
+  named it.
+
+- **A model is told what to do next, not only when it is refused.** A
+  struck sentence says what failed and names the passage, on its page but
+  not cited, that holds each word it added; a reply that waits says on
+  whom and where; a bare `populated` names the two ways on (`grant`, or
+  `page`'s `propose`). The words added carry nothing of the files.
+
+- **The tests' box is made once a run.** Each test made a box with the
+  kernel's init, 624 a run. The box is now made once a test process, at a
+  fixed place, and put back as it was made before each test, at the same
+  path: a box's record names its folder by its path, so it is never moved.
+  What the runtime keeps in memory for a box starts empty each test.
+  `check.py` 71 s to 64 s; the whole suite passes in reverse order too.
+
+- **A question is one program.** The runtime ran index-cache and then the
+  hook's bite, two programs a question; Willow's hook now takes `--keep`
+  and brings the index current itself, checking it once. A question on
+  cpython's box 0.68 s to 0.46 s, on willow-mcp's 0.25 s to 0.16 s, each
+  past the noise; `check.py` 81 s to 71 s. The pin moves to Willow
+  `9db2472a`.
+
+- **Willow's commands start faster, and its kernel reads faster.** The
+  runtime runs each Willow command as `python SCRIPT` would, but loads the
+  script by the loader that keeps its compiled code (`runtime.LAUNCH`),
+  where Python compiled it from source every time: about 60 ms to 45 ms a
+  command, `check.py` 88 s to 81 s, a question on willow-mcp's box 0.29 s
+  to 0.25 s (past the noise). The pin moves to Willow `e3c98033`, whose
+  kernel reads the same dates, plain forms and lists faster: cpython's
+  index is built in 28 s where it took 66, byte for byte the same, and the
+  kernel's vectors made again under Python 3.14 change in nothing but the
+  kernel's hash.
+
+- **A question in a fraction of the time.** On the box over cpython's
+  source a question through the runtime took 5.63 s ± 0.11 and takes
+  0.68 s ± 0.03 (8.3x); on willow-mcp's, 0.96 s to 0.29 s (3.4x), each a
+  real difference by pyperformance's t-test, five runs after a warm-up. The
+  pin moves to Willow `da6136cc`, whose scan reads only the passages and
+  words a question needs (an offsets file beside the index, each word found
+  by a search of the sorted word list) where it read all 390 MB of
+  cpython's index, and whose index-cache walks files as strings. `bench.py`
+  is the measure: `run` times a question, `compare` says whether two
+  timings differ past the noise, with pyperformance's own t-test.
+
+- **Seventeen more assistants.** `hosts.py` takes the MCP door to Amazon Q,
+  Antigravity, Augment, Cline (and its editor extension), CodeBuddy, Devin,
+  Factory Droid, GitLab Duo, IBM Bob, Junie, Kimi, Kiro, OpenHands, Qoder,
+  Qwen Code, Rovo Dev and Tabnine, each where codebase-memory-mcp's
+  installer writes it and in its shape. `--write all` writes one only where
+  its folder already is, as that installer only installs what it finds.
+
+- **Your seal page, in your own assistant.** When a model asks for
+  something that waits on your seal and your assistant can show a link
+  (MCP's URL elicitation, protocol 2025-11-25, now spoken), the runtime has
+  the MCP door ask it to show you your seal page: what waits, and the
+  page's address. Only while the page runs; it leaves its port beside the
+  record, never its secret, so the address lets in only your own browser
+  and nothing is sealed by it. What you answered comes back as `pointed`
+  and goes on the sent log.
+- **A page given comes as data too.** Beside `page`, `passages` holds each
+  passage's id, file and text as the page has them, withheld, so a model
+  cites without taking the markup apart; a session let in gets each by
+  where it is, never the kernel's id (the hash of its text before
+  withholding). `context` and `page` carry an `outputSchema` saying so.
+
+- **A box laid from several places is answered from an index.** A box
+  that reads its files where they are kept (`kernel.py init --from`, a
+  folder or a list) has no pile folder, so the runtime kept no index for it
+  and every question read every file again: twelve seconds on willow-mcp,
+  ninety on cpython. `runtime.index()` now asks Willow's `index-cache
+  --box`, which indexes everything the box reads, named as the kernel names
+  its passages, and the hook answers from it as the kernel's bite would. A
+  box with only a pile keeps the index it had. A check reads again only
+  the files whose details on disk moved, so on cpython's 9,425 files it
+  takes under a second where it took seven. The pin moved to Willow
+  `28009362`, on Willow's branch `ccr-8607467b-iah1ml` until it merges.
+
+- **Boxes over the repositories built beside this.** `boxes/lay.py` lays a
+  Willow box over each of the seven (this one, Willow, willow-mcp,
+  codebase-memory-mcp, cpython-fork, pyperformance-fork, and the official
+  MCP specification, modelcontextprotocol) and one over all
+  of them, each pointed at the files where they are kept, with mirrors of
+  their comments, their commit messages and (with a built
+  codebase-memory-mcp) their call graph beside, and a words list that reads
+  a question's words as the code's. Then it runs four stacks: orient, owes,
+  each repository's own questions, and the questions across them. One
+  command, since a cloud session's container is gone when it ends. Nothing
+  in it seals or opens a key; a box laid again goes beside the old one.
+  Each source keeps an index (Willow's index-cache), rebuilt only when a
+  file in it changed, and the questions are asked of those: about a second
+  each, where reading the box took twelve on willow-mcp and ninety on
+  cpython.
+
 - **The pin is the commit that runs.** The runtime ran whatever checkout
   `WILLOW` named and refused it when it wasn't the pin, so a Willow
   switched to another branch blocked every tool call, and moving the pin

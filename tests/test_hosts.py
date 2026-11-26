@@ -101,3 +101,67 @@ def test_write_refuses_a_different_entry(box, tmp_path, monkeypatch):
     )
     code, out = run("write", "cursor", "--box", box)
     assert code == 2 and "refused" in out
+
+
+def test_the_assistants_codebase_memory_mcp_writes_to_are_here_in_its_shapes(box):
+    """Each assistant added from codebase-memory-mcp's installer: its home
+    file, the servers under mcpServers, and the one field some read."""
+    assert set(hosts.MORE) == set(hosts.FOUND_BY)
+    fixed = {"factory-droid": ("type", "stdio"), "gitlab-duo": ("type", "stdio"),
+             "rovo-dev": ("transport", "stdio")}  # fmt: skip
+    for name in hosts.MORE:
+        found = hosts.places(name, box, sys.executable)
+        for where, kind, value in found:
+            assert kind == "json" and where.startswith(("~/", "Cline in an editor"))
+            entry = value["mcpServers"]["model-context-provider"]
+            assert entry["command"] == sys.executable
+            assert entry["env"] == {"WILLOW": str(runtime.WILLOW_SOURCE)}
+            if name in fixed:
+                assert entry[fixed[name][0]] == fixed[name][1]
+            else:
+                assert set(entry) == {"command", "args", "env"}
+        # found by the folder its settings sit in; Antigravity by its CLI's,
+        # as codebase-memory-mcp finds it (cli.c:1497)
+        mark = hosts.FOUND_BY[name]
+        assert mark in hosts.MORE[name][1] or (name, mark) == (
+            "antigravity",
+            ".gemini/antigravity-cli",
+        )
+    assert len(hosts.places("cline", box, sys.executable)) == 2
+
+
+def test_write_all_makes_nothing_for_an_assistant_that_isnt_here(
+    box, tmp_path, monkeypatch
+):
+    import set_up
+
+    home = tmp_path / "home"
+    (home / ".qoder").mkdir(parents=True)  # Qoder is here; Kiro is not
+    monkeypatch.setenv("HOME", str(home))
+    set_up.write(box, "all")
+    qoder = json.loads((home / ".qoder" / "settings.json").read_text())
+    assert "model-context-provider" in qoder["mcpServers"]
+    assert not (home / ".kiro").exists() and not (home / ".tabnine").exists()
+    assert not (home / ".aws").exists()  # not even the folder above Amazon Q's
+    assert hosts.here_now("cursor")  # the hosts this began with, as before
+    code, out = run("write", "kiro", "--box", box)  # asked by name, it writes
+    assert code == 0 and "wrote" in out
+
+
+def test_a_shared_settings_file_keeps_what_it_had(box, tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    (home / ".qwen").mkdir(parents=True)
+    (home / ".qwen" / "settings.json").write_text(
+        json.dumps({"theme": "dark", "mcpServers": {"other": {"command": "x"}}})
+    )
+    monkeypatch.setenv("HOME", str(home))
+    code, out = run("write", "qwen-code", "--box", box)
+    assert code == 0, out
+    got = json.loads((home / ".qwen" / "settings.json").read_text())
+    assert got["theme"] == "dark" and set(got["mcpServers"]) == {
+        "other",
+        "model-context-provider",
+    }
+    (home / ".qwen" / "settings.json").write_text('{ // a comment\n "theme": 1 }')
+    code, out = run("write", "qwen-code", "--box", box)
+    assert "refused" in out  # JSON with comments isn't parsed, so never written

@@ -139,8 +139,10 @@ def test_a_timeline_is_narrowed_to_the_days_asked_for(box):
     march = model(box, "timeline", {"about": "mould landlord", "until": "2026-03-31"})
     assert march["lines"] == 2 and "2026-04-02" not in march["page"]
     assert "2026-04-02" in open(march["file"]).read()  # the person's copy is whole
+    made = sorted((runtime.state(box) / "made").glob("timeline-*"))
     none = model(box, "timeline", {"about": "mould landlord", "since": "2030-01-01"})
-    assert none["state"] == "empty"
+    assert none["state"] == "empty" and "file" not in none  # nothing in those days
+    assert sorted((runtime.state(box) / "made").glob("timeline-*")) == made
     for bad in ({"since": "April"}, {"until": "2026-4-1"}, {"after": "two"}):
         got = model(box, "timeline", {"about": "mould landlord", **bad})
         assert (got["state"], got["code"]) == ("refused", "timeline_refused"), bad

@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import runtime
 
-VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
+VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 
 
 #: what an argument may be, where the runtime holds it to more than a string:
@@ -181,11 +181,25 @@ def offered(box: Path) -> list[dict]:
     return runtime.call(box, "tools", door="mcp", where=here()).get("tools", [])
 
 
+#: what a tool that hands back a page replies, for a client to read as data
+#: (MCP's outputSchema, 2025-06-18 on): a state always, and the page's
+#: passages each by id, file and text. Kept short: the whole list of tools
+#: is a model's to read, and is held under a size
+OUTPUT = {"type": "object", "required": ["state"], "properties": {
+    "state": {"type": "string"},
+    "passages": {"type": "array", "items": {"type": "object", "properties": {
+        "id": {"type": "string"}, "file": {"type": "string"}, "text": {"type": "string"}}}},
+}}  # fmt: skip
+#: the tools whose replies can hold a page: the rest have no passages to give
+PAGES = ("context", "page")
+
+
 def listing(box: Path) -> list[dict]:
     """The tools as a model's client is sent them: the runtime's, in this
     door's words."""
     return [{"name": t["name"], "description": WORDS[t["name"]],
              "inputSchema": schema(t["actions"], t["name"]),
+             **({"outputSchema": OUTPUT} if t["name"] in PAGES else {}),
              "annotations": {**HINTS[t["name"]], "openWorldHint": False}}
             for t in offered(box)]  # fmt: skip
 
@@ -193,7 +207,7 @@ def listing(box: Path) -> list[dict]:
 CHANGED = {"jsonrpc": "2.0", "method": "notifications/tools/list_changed"}
 
 
-def answer(box: Path, msg: dict, ask=None) -> dict | None:
+def answer(box: Path, msg: dict, ask=None, point=None) -> dict | None:
     if not isinstance(msg, dict):
         # a batch (MCP has none since 2025-06-18), or JSON that is no request
         # at all: said, so a client isn't left waiting on an answer
@@ -221,7 +235,8 @@ def answer(box: Path, msg: dict, ask=None) -> dict | None:
         # the runtime's one way to call a tool: it finds the action's verb,
         # refuses what isn't a tool or is turned off, and writes it down
         asked = {"name": params.get("name"), "arguments": params.get("arguments")}
-        result = runtime.call(box, "tool", asked, door="mcp", ask=ask, where=here())
+        result = runtime.call(box, "tool", asked, door="mcp", ask=ask, where=here(),
+                              point=point)  # fmt: skip
         refused = result.get("state") == "refused"
         return ok({"content": [{"type": "text", "text": json.dumps(result)}],
                    "structuredContent": result, "isError": refused})  # fmt: skip
@@ -302,6 +317,45 @@ class Asker:
         raise RuntimeError("the client closed before answering")
 
 
+def can_point(caps: dict) -> bool:
+    """Whether a client said it shows the person a link (2025-11-25): an
+    `elicitation` capability naming `url`. One naming no mode means form
+    only, so it can't."""
+    asks = caps.get("elicitation")
+    return isinstance(asks, dict) and isinstance(asks.get("url"), dict)
+
+
+class Pointer:
+    """The way to show the person a link in their own assistant, MCP's URL
+    elicitation on the same pipe (2025-11-25): an elicitation/create request
+    out, the person's answer back (accept, decline or cancel). Only carries;
+    the runtime says when, what, and which address."""
+
+    def __init__(self, lines, out):
+        self.lines, self.out, self.n, self.can = lines, out, 0, False
+
+    def __call__(self, message: str, url: str, asked: str) -> str:
+        self.n += 1
+        mid = f"provider-point-{self.n}"
+        req = {"jsonrpc": "2.0", "id": mid, "method": "elicitation/create",
+               "params": {"mode": "url", "message": message, "url": url,
+                          "elicitationId": asked}}  # fmt: skip
+        print(json.dumps(req), file=self.out, flush=True)
+        for raw in self.lines:
+            if not raw.strip():
+                continue
+            msg = json.loads(raw)
+            if isinstance(msg, dict) and "id" not in msg:
+                continue  # a notification meanwhile: nothing is owed for it
+            if not isinstance(msg, dict) or msg.get("id") != mid:
+                raise RuntimeError("the client answered something else while asking")
+            if "error" in msg:
+                raise RuntimeError(str(msg["error"].get("message", msg["error"])))
+            action = (msg.get("result") or {}).get("action")
+            return action if action in ("accept", "decline", "cancel") else "unanswered"
+        raise RuntimeError("the client closed before answering")
+
+
 def main(argv: list[str]) -> int:
     if len(argv) != 2 or argv[0] != "--box":
         print("usage: mcp.py --box DIR", file=sys.stderr)
@@ -309,6 +363,7 @@ def main(argv: list[str]) -> int:
     box = Path(argv[1])
     lines = iter(sys.stdin)
     asker = Asker(lines, sys.stdout)
+    pointer = Pointer(lines, sys.stdout)
     listed = None  # the fingerprint of the tools last listed to this client
     for raw in lines:
         if not raw.strip():
@@ -323,9 +378,17 @@ def main(argv: list[str]) -> int:
             if isinstance(msg, dict) and msg.get("method") == "initialize":
                 caps = (msg.get("params") or {}).get("capabilities") or {}
                 asker.can = "sampling" in caps
-            reply = answer(box, msg, asker if asker.can else None)
+                pointer.can = can_point(caps)
+            reply = answer(box, msg, asker if asker.can else None,
+                           pointer if pointer.can else None)  # fmt: skip
         if reply is not None:
             print(json.dumps(reply), flush=True)
+        # what the person sealed or declined since their seal page was offered
+        # here: the runtime says which, and this tells their assistant
+        if pointer.can:
+            for done in runtime.settled(box):
+                print(json.dumps({"jsonrpc": "2.0", "method": "notifications/elicitation/complete",
+                                  "params": {"elicitationId": done}}), flush=True)  # fmt: skip
         # the list a client was sent, by its fingerprint: names, words,
         # schemas and hints. The person can turn a group on or off while a
         # session is open, and this door's own words change between runs; a

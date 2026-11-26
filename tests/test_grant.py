@@ -9,6 +9,7 @@ import subprocess
 import pytest
 from test_leave import seal
 
+from conftest import facts
 import runtime
 import seal_page
 
@@ -34,7 +35,7 @@ def let_in(box, where="/work/a", session="s1"):
 
 
 def test_without_a_grant_a_model_is_told_only_that_there_is_something(box):
-    assert call(box, "context", FROST) == {"state": "populated"}
+    assert facts(call(box, "context", FROST)) == {"state": "populated"}
     got = call(box, "job", "ls {pile}")
     assert (got["state"], got["code"]) == ("refused", "no_grant")
     assert "frost" not in json.dumps(got) and "garden" not in json.dumps(got)
@@ -47,7 +48,7 @@ def test_a_grant_is_asked_once_and_waits_on_the_persons_seal(box):
     (owed,) = runtime.waiting(box)["waiting"]
     assert owed["path"].startswith("grants/") and "for: /work/a" in owed["words"]
     assert runtime.what_waits(owed, {}) == "a session asking to read your files"
-    assert call(box, "context", FROST) == {"state": "populated"}  # not yet
+    assert facts(call(box, "context", FROST)) == {"state": "populated"}  # not yet
 
 
 def test_once_granted_context_answers_directly_and_nothing_waits(box):
@@ -66,7 +67,7 @@ def test_a_grant_is_for_its_own_session_and_its_own_folder(box):
     let_in(box)
     for where, session in (("/work/b", "s1"), ("/work/a", "s2"), ("", "s1")):
         got = call(box, "context", FROST, where=where, session=session)
-        assert got == {"state": "populated"}, (where, session)
+        assert facts(got) == {"state": "populated"}, (where, session)
         assert (
             call(box, "job", "ls", where=where, session=session)["code"] == "no_grant"
         )
@@ -79,13 +80,13 @@ def test_it_ends_with_the_session_and_is_never_open_again(box):
     let_in(box)
     end = {"hook_event_name": "SessionEnd", "session_id": "s1", "cwd": "/work/a"}
     assert runtime.call(box, "event", end, door="guard") == {"state": "empty"}
-    assert call(box, "context", FROST) == {"state": "populated"}
+    assert facts(call(box, "context", FROST)) == {"state": "populated"}
     (g,) = runtime.call(box, "grants", door="pipe")["grants"]
     assert g["stands"] == "ended"
     # the same session id again is a new asking, with a seal of its own to wait on
     again = call(box, "grant")
     assert again["state"] == "waiting" and again["seal"] != g["seal"]
-    assert call(box, "context", FROST) == {"state": "populated"}
+    assert facts(call(box, "context", FROST)) == {"state": "populated"}
     seal(box, again["seal"])
     assert call(box, "context", FROST)["state"] == "left"
     other = {"hook_event_name": "SessionEnd", "session_id": "nobody", "cwd": "/work/a"}
@@ -95,7 +96,7 @@ def test_it_ends_with_the_session_and_is_never_open_again(box):
 def test_the_person_stops_it_with_no_key(box):
     got = let_in(box)
     assert runtime.call(box, "stop", got["seal"], door="pipe")["state"] == "stopped"
-    assert call(box, "context", FROST) == {"state": "populated"}
+    assert facts(call(box, "context", FROST)) == {"state": "populated"}
     assert call(box, "job", "ls")["code"] == "no_grant"
     (g,) = runtime.call(box, "grants", door="pipe")["grants"]
     assert g["stands"] == "stopped"
@@ -105,18 +106,18 @@ def test_a_grant_declined_or_edited_beside_the_box_lets_no_one_in(box):
     got = call(box, "grant")
     run = runtime.willow("kernel.py", "decline", "--box", str(box), got["seal"])
     assert run.returncode == 0, run.stderr
-    assert call(box, "context", FROST) == {"state": "populated"}
+    assert facts(call(box, "context", FROST)) == {"state": "populated"}
     # a grants.json that claims a yes the kernel never gave
     f = runtime.state(box) / "grants.json"
     doc = json.loads(f.read_text())
     gid, _, _ = runtime.grant_of("/work/z", "s9")
     doc[gid] = {"seal": "proposal:" + "0" * 64, "for": "/work/z", "session": "s9"}
     f.write_text(json.dumps(doc))
-    assert call(box, "context", FROST, where="/work/z", session="s9") == {
+    assert facts(call(box, "context", FROST, where="/work/z", session="s9")) == {
         "state": "populated"
     }
     f.write_text("not json")
-    assert call(box, "context", FROST) == {"state": "populated"}
+    assert facts(call(box, "context", FROST)) == {"state": "populated"}
 
 
 def test_only_a_models_door_asks_and_only_the_persons_lists(box):

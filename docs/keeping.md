@@ -163,6 +163,14 @@ The kinds, and what each reads from the folder you point at:
 | `joplin` | a Joplin export (`.jex`), each note with its notebook and dates; the trash is left out |
 | `evernote` | Evernote exports (`.enex`), each note with its notebook, tags and dates |
 | `google-keep` | Google Keep notes from a Takeout (`.json`), each with its day and labels |
+| `mastodon` | a Mastodon or Pixelfed archive's `outbox.json`: your posts as dated lines |
+| `goodreads` | a Goodreads or StoryGraph export (`.csv`): what you read, when, and what you thought |
+| `karakeep` | a Karakeep export (`.json`): bookmarks, notes and tags |
+| `opml` | feed and podcast lists (`.opml`), a line a feed under its folder, and outliner exports |
+| `takeout` | a Google Takeout's My Activity and YouTube history, as dated lines |
+| `bookmarks` | browser bookmarks (an HTML or Firefox JSON export) and history, from a copy of its SQLite file |
+| `zotero` | a copy of `zotero.sqlite`: items, notes and annotations, each with its citation |
+| `code-graph` | codebase-memory-mcp's graph (a `.db` copy): each function, its file and line, and what it calls |
 | `mail` | email files (`.eml`) and mailboxes (`.mbox`), each message with its sender, recipients, date and subject above its body; attachments are named, never read |
 | `sms` | a phone's backup of its texts and calls (Android's SMS Backup & Restore files, or an iPhone backup's messages database), a section a person, a line a message |
 

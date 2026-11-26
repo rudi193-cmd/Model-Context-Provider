@@ -163,6 +163,12 @@ def test_a_session_and_a_sentence_are_each_said_as_what_they_are(box, browser):
     assert "Sealing writes it to" in text and "written/sessions/" in text
     shown = text.split("The file itself")[0]
     assert "\\&quot;" not in shown and "came_of" not in shown
+    # in the person's words, not the kernel's: what was asked, what was
+    # handed in, how many wait; the sentence by the files of its page
+    assert " × " not in shown and "bite" not in shown.split("<details")[0]
+    assert "asked of your files" in text and "handed in for your seal" in text
+    assert "Said of the page you sealed from garden.md" in text
+    assert "2 things wait on your seal." in text
     for w in runtime.call(box, "waiting", door="pipe")["waiting"]:
         browser.click("seal", w["seal"])
     assert runtime.call(box, "waiting", door="pipe")["state"] == "empty"
@@ -462,3 +468,24 @@ def test_a_long_word_in_a_card_breaks_rather_than_widening_the_page():
 
     (card,) = re.findall(r"\.card \{[^}]*\}", seal_page.CSS)
     assert "overflow-wrap: anywhere" in card
+
+
+def test_the_kernels_counts_are_said_in_the_persons_words():
+    said = seal_page.done_said({"bite: served": 4, "bite: empty": 2, "boot": 1,
+                                "out": 4, "proposal: pass": 5, "seal": 1})  # fmt: skip
+    assert said == ("6 questions asked of your files, 4 of them finding something; "
+                    "5 things handed in for your seal; 1 sealed")  # fmt: skip
+    assert seal_page.done_said({"bite: empty": 1}) == (
+        "1 question asked of your files, 0 of them finding something"
+    )
+    assert seal_page.done_said({"odd": 2}) == "2 × odd"  # a kind it doesn't know
+    assert seal_page.done_said({}) == ""
+
+
+def test_a_note_is_headed_as_a_note_to_keep(box, browser):
+    got = runtime.call(box, "capture", "Ring the plumber about the boiler.", door="mcp")
+    assert got["state"] == "waiting", got
+    browser.open()
+    text = browser.page()
+    assert "A note to keep" in text and "A suggestion" not in text
+    assert "1 thing waits on your seal." in text
