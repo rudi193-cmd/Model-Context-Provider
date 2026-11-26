@@ -402,6 +402,61 @@ def button(
     )
 
 
+def done_said(came: dict) -> str:
+    """What a session did, in the person's words, from session-seal's counts
+    of the kernel's rows (`bite: served`, `proposal: pass`, `seal`): the
+    questions asked of their files and how many found something, what was
+    handed in for their seal, what they sealed or declined. The kernel's
+    bookkeeping (`out`, `boot`) is left out; a kind it doesn't know is
+    said as it is."""
+
+    def n(k: str) -> int:
+        return int(came.get(k, 0) or 0)
+
+    asked = n("bite: served") + n("bite: empty") + n("bite: sealed")
+    said = []
+    if asked:
+        found = n("bite: served") + n("bite: sealed")
+        said.append(f"{asked} question{'s' * (asked != 1)} asked of your files, "
+                    f"{found} of them finding something")  # fmt: skip
+    handed = sum(int(v or 0) for k, v in came.items() if k.startswith("proposal"))
+    if handed:
+        said.append(f"{handed} thing{'s' * (handed != 1)} handed in for your seal")
+    for k, word in (("seal", "sealed"), ("decline", "declined")):
+        if n(k):
+            said.append(f"{n(k)} {word}")
+    known = {"bite: served", "bite: empty", "bite: sealed", "seal", "decline",
+             "out", "boot", "open", "words"}  # fmt: skip
+    said += [f"{v} × {k}" for k, v in sorted(came.items())
+             if k not in known and not k.startswith("proposal")]  # fmt: skip
+    return "; ".join(said)
+
+
+def page_files(box: Path, claim: str) -> list[str]:
+    """The files of the page a model's sentence was said of. The sentence's
+    claim names its scope; the scope's proposal names its passages by the
+    kernel's ids; the record's bites say where each id was served from.
+    Read here, on the person's side, never a word of the passages."""
+    scope = SUBJECT.search(claim or "")
+    cites = set(whole(box, scope.group(0)).get("cites", [])) if scope else set()
+    if not cites:
+        return []
+    files = set()
+    try:
+        lines = (box / "record.jsonl").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    for line in lines:
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        for s in row.get("served", []) if row.get("kind") == "bite" else []:
+            if isinstance(s, dict) and s.get("id") in cites:
+                files.add(str(s.get("where", "")).rsplit(":", 1)[0])
+    return sorted(files - {""})
+
+
 def card(box: Path, token: str, w: dict) -> str:
     """One thing that waits, said as what it is, with what the key would sign
     folded under it. Every word from the box or a model is escaped."""
@@ -415,7 +470,7 @@ def card(box: Path, token: str, w: dict) -> str:
             said = [str(t) for t in bundle.get("corrections", []) if isinstance(t, str)]
         except (ValueError, AttributeError):
             came, said = {}, []
-        did = ", ".join(f"{n} × {k}" for k, n in sorted(came.items()))
+        did = done_said(came)
         body = (
             '<p class="kind">A session</p>'
             f"<h2>{esc(w.get('claim') or 'A session’s actions')}</h2>"
@@ -454,6 +509,11 @@ def card(box: Path, token: str, w: dict) -> str:
             '<p class="kind">A model’s sentence</p>'
             f"<blockquote>{esc(data.strip())}</blockquote>"
             + checked(w.get("checks"))
+            + (
+                f"<p>Said of the page you sealed from {esc(', '.join(files))}.</p>"
+                if (files := page_files(box, str(w.get("claim", ""))))
+                else ""
+            )
             + f'<p class="soft">{esc(w.get("claim", ""))}. Sealing keeps it in your '
             f"record, at {esc(w.get('path', ''))}.</p>"
         )
@@ -530,11 +590,14 @@ def card(box: Path, token: str, w: dict) -> str:
         )
         sealing = "Seal: yes, for this session"
     else:
+        note = str(w.get("path", "")).startswith("captured/note-")
+        kind_said = "A note to keep" if note else "A suggestion"
+        title = "" if note else (w.get("claim") or "A suggestion")
         body = (
-            '<p class="kind">A suggestion</p>'
-            f"<h2>{esc(w.get('claim') or 'A suggestion')}</h2>"
-            f"<blockquote>{esc(data.strip()[:2000])}</blockquote>"
-            f'<p class="soft">Sealing writes it to {esc(w.get("path", ""))}.'
+            f'<p class="kind">{kind_said}</p>'
+            + (f"<h2>{esc(title)}</h2>" if title else "")
+            + f"<blockquote>{esc(data.strip()[:2000])}</blockquote>"
+            + f'<p class="soft">Sealing writes it to {esc(w.get("path", ""))}.'
             + (
                 " A model may then be given this note, withheld as a page is."
                 if str(w.get("path", "")).startswith("captured/note-")
@@ -571,6 +634,9 @@ def page(box: Path, token: str, note: tuple[str, str] = ("", "")) -> str:
             f'<section class="card">Nothing {"else " * bool(aside)}waits on your '
             "seal.</section>"
         )
+    if now:
+        parts.append(f'<p class="count">{len(now)} thing{"s" * (len(now) != 1)} '
+                     f'wait{"s" * (len(now) == 1)} on your seal.</p>')  # fmt: skip
     parts += [card(box, token, w) for w in now]
     if aside:
         rows = "".join(

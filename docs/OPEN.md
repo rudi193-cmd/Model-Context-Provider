@@ -677,6 +677,14 @@ a time. Not built with it: a button on the seal page to stop a skill
   both use, `gates_actions.py` (`describe` and `apply`; its commit
   `bfd9a3bf`), with its tests: the shape for 4 and 6 to keep the page and
   any other way in to it saying the same thing.
+  **Done 2026-11-26: 1, 2 and 5, and the count.** A session's card says
+  what was done in the person's words (`done_said`: questions asked of
+  their files and how many found something, things handed in for their
+  seal, sealed, declined; the kernel's bookkeeping left out); a model's
+  sentence names the files of the page it was said of (from the scope's
+  cites and the record's bites, never a passage's words), its claim kept
+  as it is sealed; a note is headed "A note to keep"; and a line says how
+  many things wait. 3, 4's order and 6 wait on a mock-up.
 
 - **The model's side, read as a model in a whole session (2026-11-20).**
   The MCP door driven from initialize to the shelf over a throwaway record,

@@ -4,6 +4,13 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **The seal page in the person's words.** A session's card says what was
+  done as questions asked of their files and how many found something,
+  things handed in, sealed and declined, not as the kernel's rows
+  (`4 × bite: served`); a model's sentence says which files the page it
+  was said of came from; a note is headed "A note to keep"; and the page
+  says how many things wait.
+
 - **Two rough edges off the model's tools.** A report is named in any
   case (`Todo` is `todo`), and a timeline with nothing in the days asked
   for makes no file and names none, where it wrote the whole timeline and
