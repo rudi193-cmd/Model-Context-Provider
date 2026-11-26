@@ -1141,6 +1141,11 @@ person's own checkout, which is where changes are made.
 
 - An early exit in the kernel's date reader: `on-this-day`, `coming-up`
   and `people` still take 16 to 22 seconds on the real folder there.
+  **Note (2026-11-26):** done on Willow's branch `ccr-8607467b-iah1ml`
+  (`77a99403`, vectors `e3c98033`), waiting on the owner's merge: `newest`
+  jumps to the next digit or web address, 34.6 s to 3.8 s over cpython's
+  710,290 passages with every date the same, and `stem` keeps what it
+  worked out. Not yet measured on the real folder.
 - Quoted speech in the `todo` report.
 - The privacy filter reading a run of four-digit numbers as a card.
 - What Kartikeya's scan of a job missed (written up above).
@@ -1173,9 +1178,8 @@ person's own checkout, which is where changes are made.
   `28009362` until it merges, then moves to main.
 - **The kernel's `listed()` is quadratic**: it looks back along the list
   for each line, which on a list of 5,000 files was most of a check's time.
-  index-cache reads lists with its own copy by a set, held equal to the
-  kernel's by a test; a set in the kernel would speed every box laid from
-  a list.
+  Fixed by a set on the same branch (`77a99403`), with the date reader
+  above.
 - **More of #383**, met by the boxes' stacks: the forge's `suggest` crashes
   with a traceback on a box laid with `--from`, as do `instruction-files`,
   `risky-code`, `secrets-audit`, `ref-check`, `box-health` and `digest`
