@@ -343,14 +343,17 @@ def test_what_a_model_can_put_right_itself_is_said_to_it_and_not_passed_on(box):
     """A misspelt report, an empty question, a missing argument: the model's
     own to fix, so it isn't told to tell the person. What only the person
     can fix (a seal, a setting) still is."""
-    mine = [("report", "Todo", "no_report"), ("context", " ", "no_question"),
+    mine = [("report", "todos", "no_report"), ("context", " ", "no_question"),
             ("shelf_read", "nope.md", "not_on_shelf"), ("answer", "Frost [x].", "no_page"),
             ("task_claim", "model-000000000000", "no_such_task")]  # fmt: skip
     for verb, arg, code in mine:
         got = runtime.call(box, verb, arg, door="mcp", where="/w")
         assert got["code"] == code, got
         assert got["next"] and "Tell the person" not in got["next"], got
-    assert "small letters" in runtime.call(box, "report", "Todo", door="mcp")["next"]
+    assert (
+        "Use one of these names: todo"
+        in runtime.call(box, "report", "todos", door="mcp")["next"]
+    )
     # every one names a refusal there is, and none speaks of the person's
     # own things as the model's ("your files", "you sealed")
     assert set(runtime.FOR_MODEL) <= set(runtime.PLAIN)
@@ -359,8 +362,8 @@ def test_what_a_model_can_put_right_itself_is_said_to_it_and_not_passed_on(box):
             code
         )
     # the person's own door is told as before, in the person's words
-    theirs = runtime.call(box, "report", "Todo", door="pipe")["next"]
-    assert theirs.startswith("The reports are") and "small letters" not in theirs
+    theirs = runtime.call(box, "report", "todos", door="pipe")["next"]
+    assert theirs.startswith("The reports are") and "Use one of these" not in theirs
     # a hook's host is no model: it is still told what to tell the person
     assert runtime.call(box, "context", " ", door="hook")["next"].startswith(
         "Tell the person"
