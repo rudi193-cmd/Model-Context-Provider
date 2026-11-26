@@ -629,8 +629,8 @@ a time. Not built with it: a button on the seal page to stop a skill
   [doors.md](doors.md), "Which hooks run"). Measured first, on the hooks'
   own record: on its busiest recent day, 879 rows, `hook-read-first` 371,
   the prompt hook's bites 329, `hook-handoff` 116, `out` 30 (none since
-  `seals-waiting`). Not built: a page for it on the seal page, as the tools
-  have.
+  `seals-waiting`). The seal page has a page for it too, "What runs around
+  your assistant", as the tools have.
 - ~~More importers that fit by their card, none run by hand yet: `mastodon`,
   `goodreads`, `karakeep`, `opml`, `takeout`, `bookmarks`, `zotero`.~~
   **Done 2026-11-26:** each is a `bring_in` kind, and so is `code-graph`

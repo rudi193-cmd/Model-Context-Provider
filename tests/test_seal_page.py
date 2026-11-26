@@ -466,6 +466,64 @@ def test_the_tools_page_is_held_to_the_same_table(box, browser):
     assert not (runtime.state(box) / "tools.txt").exists()
 
 
+def hook_switch(browser, act, hook):
+    return browser.ask(
+        "POST", "/act",
+        urllib.parse.urlencode({"k": browser.secret(), "act": act,
+                                "subject": hook, "at": "/hooks"}),
+        Content_Type="application/x-www-form-urlencoded",
+        Origin=f"http://127.0.0.1:{browser.port}",
+    )  # fmt: skip
+
+
+def test_the_hooks_page_lists_each_hook_and_a_click_switches_it(box, browser):
+    browser.open()
+    got, text = browser.ask("GET", "/hooks")
+    text = html.unescape(text)
+    n = len(runtime.HOOKS)
+    assert got.status == 200 and f"{n} of {n} hooks run now." in text
+    for word in ("<h2>hook-read-first</h2>", "On: always on",
+                 "On: on unless you turn it off", "What runs around your assistant"):  # fmt: skip
+        assert word in text, word
+    assert text.count("Turn this off") == n - 1 and "Turn this on" not in text
+    got, _ = hook_switch(browser, "hook_off", "hook-read-first")
+    assert got.status == 303 and got.getheader("Location") == "/hooks"
+    assert (runtime.state(box) / "hooks.txt").read_text() == "-hook-read-first\n"
+    assert "hook-read-first" not in [name for name, _ in runtime.guards(box)]
+    got, text = browser.ask("GET", "/hooks")
+    text = html.unescape(text)
+    assert "Turned off. hook-read-first isn't asked from now on" in text
+    assert f"{n - 1} of {n} hooks run now." in text and "Off: you turned it off" in text
+    hook_switch(browser, "hook_on", "hook-read-first")
+    _, text = browser.ask("GET", "/hooks")
+    assert f"{n} of {n} hooks run now." in html.unescape(text)
+    assert kinds(box).count("seal") == 0  # a switch is beside the record, and no key
+
+
+def test_the_guard_and_anything_that_is_no_hook_cannot_be_switched(box, browser):
+    browser.open()
+    for act, hook in (("hook_off", "hook-guard"), ("hook_off", "seal"),
+                      ("hook_on", "../x"), ("hook_off", "jobs"),
+                      ("turn_off", "hook-leaks")):  # fmt: skip
+        got, _ = hook_switch(browser, act, hook)
+        assert got.status == 303, (act, hook)
+        _, text = browser.ask("GET", "/hooks")
+        assert "Nothing was done:" in html.unescape(text), (act, hook)
+    assert not (runtime.state(box) / "hooks.txt").exists()
+    _, text = browser.ask("GET", "/hooks")
+    assert "<script" not in text and text.count('value="hook-guard"') == 0
+
+
+def test_the_hooks_page_is_held_to_the_same_table(box, browser):
+    got, text = browser.ask("GET", "/hooks")  # no link opened yet
+    assert got.status == 403 and "hook-read-first" not in text
+    got, _ = browser.click("hook_off", "hook-leaks", k="wrong")
+    assert got.status == 403
+    got, _ = browser.click("hook_off", "hook-leaks", origin="http://evil.example")
+    assert got.status == 403
+    assert not (runtime.state(box) / "hooks.txt").exists()
+
+
 def test_a_long_word_in_a_card_breaks_rather_than_widening_the_page():
     """A model's sentence quotes its page's seal, a 70-character id with no
     break, in a card's prose: at a phone's 390 pixels the page ran 137 too

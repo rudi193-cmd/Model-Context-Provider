@@ -15,7 +15,8 @@ The first cut, built one piece at a time on 2026-11-17, each with its tests.
   `on=` turn one off or on, kept in `hooks.txt` beside your record. The
   guard of your key and record is always on, and no model has the switch.
   A hook turned off writes nothing on the record: on a busy day,
-  `hook-read-first` alone wrote 371 of 879 rows.
+  `hook-read-first` alone wrote 371 of 879 rows. The seal page has a page
+  for it, "What runs around your assistant", a card and a button a hook.
 
 - **A long report comes in parts.** A session you let in was refused a
   report over 20,000 characters whole (`minutes`, on a real folder). It is

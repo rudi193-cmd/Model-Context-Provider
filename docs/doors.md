@@ -137,7 +137,9 @@ moved to it. A correction and a denied command have not been tried.
 ## Which hooks run
 
 Each hook around what your assistant does is on until you turn it off, the
-way the tool groups are: `provider hooks` lists them, each with what it is
+way the tool groups are. The seal page has a page for it, **What runs
+around your assistant**: a card for each hook, with what it is for, whether
+it runs and why, and a button. On your own door `provider hooks` lists them, each with what it is
 for and whether it runs, and `provider hooks off=hook-read-first` (on your
 own door, `{"hooks": {"off": ["hook-read-first"]}}`) turns one off. It is
 kept in `hooks.txt` beside your record, where the guard holds it, and no
