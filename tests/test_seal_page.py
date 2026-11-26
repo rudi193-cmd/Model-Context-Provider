@@ -93,7 +93,10 @@ def test_the_link_opens_the_page_and_shows_the_page_that_would_leave(box, browse
     assert "HttpOnly" in got.getheader("Set-Cookie")
     assert "SameSite=Strict" in got.getheader("Set-Cookie")
     text = browser.page()
-    assert "first frost comes in late October" in text and "garden.md:1" in text
+    assert "first frost comes in late October" in text
+    # read as the page reads: the file as a heading, the passage quoted, its line
+    assert '<p class="file">garden.md</p>' in text and "line 1" in text
+    assert "```" not in text.split("<details")[0] and "## garden.md" not in text
     assert "MOT" not in text  # the scope's page, not the folder
     assert subject in text  # its name on the record, under "exactly what"
     assert "Seal: share this page" in text and "Not now" in text and "Decline" in text
@@ -168,7 +171,10 @@ def test_a_session_and_a_sentence_are_each_said_as_what_they_are(box, browser):
     assert " × " not in shown and "bite" not in shown.split("<details")[0]
     assert "asked of your files" in text and "handed in for your seal" in text
     assert "Said of the page you sealed from garden.md" in text
-    assert "2 things wait on your seal." in text
+    assert (
+        "2 things wait on your seal: a model’s sentence and a session’s actions."
+        in text
+    )
     for w in runtime.call(box, "waiting", door="pipe")["waiting"]:
         browser.click("seal", w["seal"])
     assert runtime.call(box, "waiting", door="pipe")["state"] == "empty"
@@ -488,4 +494,39 @@ def test_a_note_is_headed_as_a_note_to_keep(box, browser):
     browser.open()
     text = browser.page()
     assert "A note to keep" in text and "A suggestion" not in text
-    assert "1 thing waits on your seal." in text
+    assert "1 thing waits on your seal: a note." in text
+
+
+def test_what_is_most_at_stake_comes_first_and_is_counted(box, browser):
+    runtime.call(box, "capture", "Ring the plumber about the boiler.", door="mcp")
+    a_scope(box)
+    runtime.call(box, "grant", door="mcp", where="/work/a", session="s1")
+    browser.open()
+    text = browser.page()
+    assert ("3 things wait on your seal: a session asking to read your files, "
+            "a page to share and a note.") in text  # fmt: skip
+    kinds = re.findall(r'<p class="kind">([^<]+)</p>', text)
+    assert kinds == ["A session asking to read your files", "A page to share",
+                     "A note to keep"]  # fmt: skip
+
+
+def test_one_plain_line_sits_above_the_buttons_and_the_rest_is_folded(box, browser):
+    runtime.call(box, "grant", door="mcp", where="/work/a", session="s1")
+    browser.open()
+    card = browser.page().split('<section class="card">')[1]
+    says, rest = card.split('<p class="says">')[1].split("</p>", 1)
+    assert says == ("A yes lets this session read your files, withheld, until it "
+                    "ends. You can stop it any time.")  # fmt: skip
+    assert rest.startswith("<details><summary>Exactly what you’d be sealing")
+    folded = rest.split('<div class="acts">')[0]
+    assert "You are not asked again for each one." in folded  # the whole of it, kept
+    assert "You are not asked again" not in card.split('<p class="says">')[0]
+
+
+def test_the_count_names_many_of_a_kind_by_number():
+    notes = [{"path": f"captured/note-{i}.md"} for i in range(2)]
+    page = [{"path": "written/x.md", "preview": {}}]
+    assert seal_page.counted(notes + page) == (
+        "3 things wait on your seal: a page to share and 2 notes."
+    )
+    assert seal_page.counted(notes[:1]) == "1 thing waits on your seal: a note."
