@@ -47,13 +47,33 @@ OWED: dict = {}
 OWED_FOR = 0
 
 
+#: `python SCRIPT ARGS`, but with the script's compiled code kept between
+#: runs: Python compiles a script it is handed from its source every time,
+#: and keeps a module's. This loads the script as `__main__` from its file
+#: (so its `__name__`, `__file__`, `sys.argv` and `sys.path[0]` are what a
+#: plain run gives it), by the loader that reads and writes __pycache__.
+#: A script that isn't there exits 2, as Python's own refusal does. Thousands
+#: of Willow commands a check, and two a question, each start without
+#: compiling the kernel's 66 KB again.
+LAUNCH = (
+    "import importlib.util as u,os,sys;"
+    "p=sys.argv[1];sys.argv=sys.argv[1:];"
+    "os.path.isfile(p) or (print(sys.executable+': can'+chr(39)+'t open file '+repr(p),"
+    "file=sys.stderr),sys.exit(2));"
+    "sys.path[0]=os.path.dirname(os.path.abspath(p));"
+    "s=u.spec_from_file_location('__main__',p);m=u.module_from_spec(s);"
+    "sys.modules['__main__']=m;s.loader.exec_module(m)"
+)
+
+
 def willow(*args: str) -> subprocess.CompletedProcess:
     """Run one of Willow's commands, its output caught."""
     if args[1:2] not in (("bite",), ("out",)):  # it may propose, seal or decline
         OWED.clear()
     return subprocess.run(
-        [sys.executable, *args], cwd=WILLOW, capture_output=True, text=True, check=False
-    )
+        [sys.executable, "-c", LAUNCH, *args],
+        cwd=WILLOW, capture_output=True, text=True, check=False,
+    )  # fmt: skip
 
 
 def state(box: Path) -> Path:

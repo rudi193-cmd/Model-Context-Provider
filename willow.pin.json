@@ -1,7 +1,7 @@
 {
   "_what": "The Willow this runtime was built on: its commit, and every file of what runs, by SHA-256. willow_pin.py refuses a checkout whose files differ; repin is the one way to move it.",
   "willow": "https://github.com/willow-memory/Willow",
-  "commit": "da6136ccea7c87e63975b4d3b570dd0de5f89e9b",
+  "commit": "e3c9803318f8a973b98fb3480e3228deca084e25",
   "add_ons": [
     "approved-only",
     "backup",
@@ -52,7 +52,7 @@
     "kart"
   ],
   "files": {
-    "kernel.py": "3441cebd3fdf326962136a5dc04f8989fd7dbabeb17768bfc0939a574a760ec3",
+    "kernel.py": "5eeb6379c1d6cd9ba743f7691ccc225bf6788d1c1208214020e48497bc01b010",
     "adapters/stdlib/approved-only/README.md": "cb8f040441debf3512a0452457d333daaef1aa3b80594fa9c8edc14fa74c9a3e",
     "adapters/stdlib/approved-only/approved_only.py": "3f4b4bc5ec73589893e50df7efd20dca8888fdda178b85641ff0d9b2174928b0",
     "adapters/stdlib/backup/README.md": "922410b490676971c6739a875e459ec9827880e6dd912e2c3b03b82c4beeb4f3",

@@ -4,6 +4,17 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Willow's commands start faster, and its kernel reads faster.** The
+  runtime runs each Willow command as `python SCRIPT` would, but loads the
+  script by the loader that keeps its compiled code (`runtime.LAUNCH`),
+  where Python compiled it from source every time: about 60 ms to 45 ms a
+  command, `check.py` 88 s to 81 s, a question on willow-mcp's box 0.29 s
+  to 0.25 s (past the noise). The pin moves to Willow `e3c98033`, whose
+  kernel reads the same dates, plain forms and lists faster: cpython's
+  index is built in 28 s where it took 66, byte for byte the same, and the
+  kernel's vectors made again under Python 3.14 change in nothing but the
+  kernel's hash.
+
 - **A question in a fraction of the time.** On the box over cpython's
   source a question through the runtime took 5.63 s ± 0.11 and takes
   0.68 s ± 0.03 (8.3x); on willow-mcp's, 0.96 s to 0.29 s (3.4x), each a

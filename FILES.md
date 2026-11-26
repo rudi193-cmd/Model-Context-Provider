@@ -82,6 +82,7 @@ model-context-provider/
 │   ├── test_hook.py                        the prompt hook gives a sealed page, or only whether the files hold it
 │   ├── test_hosts.py                       the hosts table, pointed at the MCP door
 │   ├── test_index.py                       a question answered from an index of the folder, kept current
+│   ├── test_launch.py                      a Willow command run as python would, its compiled code kept
 │   ├── test_leave.py                       a page leaves only once sealed, whole
 │   ├── test_listed.py                      the resources and prompts a model's door lists
 │   ├── test_local_model.py                 a model on this machine, held to the same check
