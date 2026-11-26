@@ -61,7 +61,7 @@ LAUNCH = (
     "os.path.isfile(p) or (print(sys.executable+': can'+chr(39)+'t open file '+repr(p),"
     "file=sys.stderr),sys.exit(2));"
     "sys.path[0]=os.path.dirname(os.path.abspath(p));"
-    "s=u.spec_from_file_location('__main__',p);m=u.module_from_spec(s);"
+    "s=u.spec_from_file_location('__main__',os.path.abspath(p));m=u.module_from_spec(s);"
     "sys.modules['__main__']=m;s.loader.exec_module(m)"
 )
 
