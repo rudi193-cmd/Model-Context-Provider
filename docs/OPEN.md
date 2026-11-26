@@ -918,8 +918,20 @@ the door; every item is the owner's to decide or to ship.
     walks a stack the way a night is played: each fork is "Your call" with
     its chances, the typed answer sealed or declined by the script, what
     could come next offered, ending at "That's our stack?" and one session
-    seal. **Open, the owner's:** where it lives, beside `play.py` in
-    Die-Namic (the recommendation then) or inside the forge add-on.
+    seal. ~~**Open, the owner's:** where it lives, beside `play.py` in
+    Die-Namic (the recommendation then) or inside the forge add-on.~~
+    **Ruled 2026-11-26, by the owner:** in Die-Namic, beside `play.py`, as
+    a script of its own (`box/stack_walk.py`) reusing the table's steps. It
+    asks the forge card by its command line for the base set, each fork and
+    what could come next, and the typed answer is sealed or declined as
+    `play.py` does. Not built: it waits on Willow #402 and Die-Namic's repin.
+  - **What a decision is moved into the Forge engine (2026-11-26, the
+    owner's word).** Not-now, several picks at one fork, blind forks and the
+    confidence stated from them had been built in Willow's forge card; they
+    are the engine's now (forge-play/Forge#60, released as forge-play
+    0.13.0: `willow_record` and `forks`), and the card (forge 0.6.0, on
+    Willow #402) calls them. What is about Willow stays in the card: the
+    base set, what could come next, matching words to Willow's cards.
   - **Parked:** one vocabulary for the six verdicts (yes, no, maybe,
     overwritten, changed mind, went a different direction), and how a later
     answer speaks to an earlier one. Read `docs/keeping.md`,
