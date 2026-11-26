@@ -382,3 +382,32 @@ def test_on_wsl_managed_settings_are_refused_since_they_hold_nothing(
     (line,) = setup.write(box, "managed")
     assert line.startswith("refused:") and "wslInheritsWindowsSettings" in line
     assert not (home / ".claude" / "model-context-provider-managed.json").exists()
+
+
+def test_cursors_managed_hooks_are_written_for_its_administrators_file(
+    box, tmp_path, monkeypatch
+):
+    import set_up
+
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr(set_up.sys, "platform", "linux")
+    monkeypatch.setattr(
+        set_up, "CURSOR_MANAGED", tmp_path / "etc" / "cursor" / "hooks.json"
+    )
+    lines = set_up.write_cursor_managed(box)
+    made = home / ".cursor" / "model-context-provider-managed-hooks.json"
+    hooks = json.loads(made.read_text())["hooks"]
+    assert hooks["preToolUse"][0]["failClosed"] is True
+    assert any("sudo install -D -m 644" in ln for ln in lines)
+    assert not set_up.CURSOR_MANAGED.exists()  # never written there by this
+    set_up.CURSOR_MANAGED.parent.mkdir(parents=True)
+    set_up.CURSOR_MANAGED.write_text("{}")
+    again = set_up.write_cursor_managed(box)
+    assert any(
+        ln.startswith("refused") and "by hand" in " ".join(again) for ln in again
+    )
+    assert set_up.CURSOR_MANAGED.read_text() == "{}"
+    monkeypatch.setattr(set_up.sys, "platform", "darwin")
+    assert set_up.write_cursor_managed(box)[0].startswith("refused")

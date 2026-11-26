@@ -106,7 +106,20 @@ them go Claude Code's sandbox and deny rules: no command an assistant runs
 can read your key or change your record or this code, whatever its words,
 because the system refuses it, not a guard. It changes every project in
 Claude Code (shell commands run sandboxed), and setup says how before you
-install it. To draft answers with a model on this
+install it.
+
+Cursor gets the guard door too: `--write cursor` puts it in
+`~/.cursor/hooks.json`, before a tool, a shell command and a read of a
+file, failing closed, and
+
+    python set_up.py --box BOX --write cursor-managed
+
+writes the same hooks for Cursor's administrator's file
+(`/etc/cursor/hooks.json`, Linux and WSL), with the `sudo` line. Cursor has no
+sandbox rule that refuses one path, so in Cursor the guard holds by words:
+the key in an account of its own is the guarantee there (docs/OPEN.md).
+
+To draft answers with a model on this
 machine (Ollama, llama.cpp, LM Studio…), add `--model
 http://127.0.0.1:11434/v1 NAME`. That writes `model.json` beside your record,
 and nothing else. A model off this machine is refused.

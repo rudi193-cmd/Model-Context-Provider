@@ -1,5 +1,8 @@
 """The guard door: the assistant's own hooks around what it does.
 
+Cursor runs it at preToolUse, beforeShellExecution and beforeReadFile, each
+with failClosed (hosts.py writes them); a blocked call exits 2 there too.
+
 Claude Code, in ~/.claude/settings.json (set_up.py prints it whole):
 
     {"hooks": {
@@ -28,9 +31,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import runtime
 
-#: the one moment a hook's exit code stops something
-BEFORE = "PreToolUse"
-
 
 def moment(raw: str) -> str | None:
     """Which moment the host says this is; None when it can't be read."""
@@ -48,7 +48,9 @@ def main(argv: list[str]) -> int:
         return 2
     raw = sys.stdin.read()
     name = moment(raw)
-    stops = name in (BEFORE, None)  # what can't be read can't be called safe
+    # the moments the runtime says can stop a call; what can't be read can't
+    # be called safe
+    stops = name is None or name in runtime.STOPS
     try:
         got = runtime.call(Path(argv[1]), "event", raw, door="guard")
     except Exception as why:  # noqa: BLE001 - a guard that broke lets nothing through

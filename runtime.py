@@ -4471,6 +4471,57 @@ def feed_to_model(box: Path, arg, let: bool) -> dict:
     return {**got, "by": "grant"} if got["state"] == "written" else got
 
 
+#: the moments a hook's answer can stop a tool call: Claude Code's one, and
+#: Cursor's three (its hooks reference: preToolUse, beforeShellExecution,
+#: beforeReadFile). A guard door blocks at these and nowhere else
+STOPS = frozenset(
+    {"PreToolUse", "preToolUse", "beforeShellExecution", "beforeReadFile"}
+)
+
+
+def one_shape(sent: dict) -> dict:
+    """A host's tool call as Claude Code sends one, so every guard reads it
+    the same way. Cursor's preToolUse sends tool_name and tool_input with its
+    own names (Shell, Delete) and its shell's folder as working_directory;
+    its beforeShellExecution sends the command alone, and beforeReadFile the
+    file alone. A Delete is the rm it amounts to, so every rule about a
+    command that changes what it names holds it. Cursor's conversation is the
+    session. Anything else is as it came."""
+    name = sent.get("hook_event_name")
+    if name not in ("preToolUse", "beforeShellExecution", "beforeReadFile"):
+        return sent
+    out = {**sent, "hook_event_name": "PreToolUse"}
+    if not isinstance(out.get("session_id"), str) and isinstance(
+        sent.get("conversation_id"), str
+    ):
+        out["session_id"] = sent["conversation_id"]
+    if name == "beforeShellExecution":
+        return {
+            **out,
+            "tool_name": "Bash",
+            "tool_input": {"command": sent.get("command")},
+        }
+    if name == "beforeReadFile":
+        return {
+            **out,
+            "tool_name": "Read",
+            "tool_input": {"file_path": sent.get("file_path")},
+        }
+    given = sent.get("tool_input") if isinstance(sent.get("tool_input"), dict) else {}
+    if not isinstance(out.get("cwd"), str) and isinstance(
+        given.get("working_directory"), str
+    ):
+        out["cwd"] = given["working_directory"]
+    tool = sent.get("tool_name")
+    if tool == "Shell":
+        return {**out, "tool_name": "Bash"}
+    if tool == "Delete":
+        path = given.get("file_path") or given.get("path") or given.get("target_file")
+        return {**out, "tool_name": "Bash",
+                "tool_input": {"command": "rm -- " + shlex.quote(str(path))}}  # fmt: skip
+    return out
+
+
 def event(box: Path, sent) -> dict:
     """A moment of the assistant's session, as its host sent it, decided
     here for every door that carries one.
@@ -4492,6 +4543,7 @@ def event(box: Path, sent) -> dict:
     if not isinstance(sent, dict):
         return {"state": "refused", "code": "event_unread",
                 "why": "the hook's input is not a JSON object"}  # fmt: skip
+    sent = one_shape(sent)
     name, at = sent.get("hook_event_name"), ("--box", str(box))
     note_session(box, sent)
     if isinstance(name, str) and name in capturing(box):

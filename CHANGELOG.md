@@ -4,6 +4,13 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Cursor gets the guard door.** Cursor's `preToolUse`,
+  `beforeShellExecution` and `beforeReadFile` are read as the calls they are
+  and held to the same rules, failing closed; `--write cursor` writes them,
+  and `--write cursor-managed` writes them for Cursor's administrator's file
+  with the `sudo` line. In Cursor the guard holds by words: it has no sandbox
+  rule that refuses one path.
+
 - **A check that hangs ends.** A part of the tests that runs past ten
   minutes is stopped and fails the check, saying which files it was
   running and where in them it was, from a stack dump of any one test that

@@ -1148,6 +1148,23 @@ assistant, nor for code the person runs; and on WSL, where
 `/etc/claude-code` is the person's to write, not at all. The account of
 the key's own stays the guarantee for everything else.
 
+**Cursor (2026-11-26, the owner uses it beside Claude Code here).** Its CLI on
+this machine allowed every read, write and shell command, had no guard hooks
+and its sandbox off: a Cursor session could read the key. Its sandbox has no
+rule that refuses one path (`sandbox.json`'s `readBoundary` asks, it doesn't
+refuse; `Read(...)` rules are reported not to hold), so in Cursor only words
+guard. Built: the runtime reads Cursor's `preToolUse`, `beforeShellExecution`
+and `beforeReadFile` as Claude Code's calls (`one_shape`; a `Delete` is the
+`rm` it amounts to); `hosts.py` writes the guard door for all three, failing
+closed (`failClosed`); `--write cursor-managed` writes them for
+`/etc/cursor/hooks.json`, Cursor's administrator's file. And in Willow
+(#402): `hook-guard` and `hook-leaks` read Cursor's names and shapes, which
+`hook-guard`'s card claimed and its code didn't. **The owner's order:** these
+now, then the account of the key's own as way A, then C's passkey. **Not
+yet:** installed or tried in a real Cursor session; whether Cursor's CLI
+runs `preToolUse`, and whether it runs Claude Code's own hooks (its docs say
+it can, and the page on how is a 404).
+
 **The steps, for when sealing can cross** (not to follow yet: today they
 would stop the seal page and the desktop prompt from sealing). The person
 names the account, `KEYHOLDER`:
