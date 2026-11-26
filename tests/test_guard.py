@@ -39,7 +39,7 @@ def rows(box, kind):
 
 
 def test_a_call_that_names_the_key_is_blocked_and_says_which_rule(box, tmp_path):
-    run = guard(box, before("Read", file_path=str(tmp_path / "test.key")))
+    run = guard(box, before("Read", file_path=str(box.parent / "test.key")))
     assert run.returncode == 2
     assert "rule key" in run.stderr and run.stdout == ""
 

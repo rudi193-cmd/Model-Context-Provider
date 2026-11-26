@@ -240,8 +240,8 @@ def test_a_from_that_is_the_mirror_itself_is_refused(box, vault):
     assert bring(box, "notes", mirror)["code"] == "bring_inside"
 
 
-def test_a_from_that_holds_the_pile_is_refused(box, tmp_path):
-    assert bring(box, "notes", tmp_path)["code"] == "bring_inside"
+def test_a_from_that_holds_the_pile_is_refused(box):
+    assert bring(box, "notes", box.parent)["code"] == "bring_inside"
 
 
 @pytest.mark.parametrize("name", ["", "a/b", "..", "../x", ".hidden", "a b", "x" * 65])

@@ -4,6 +4,13 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **The tests' box is made once a run.** Each test made a box with the
+  kernel's init, 624 a run. The box is now made once a test process, at a
+  fixed place, and put back as it was made before each test, at the same
+  path: a box's record names its folder by its path, so it is never moved.
+  What the runtime keeps in memory for a box starts empty each test.
+  `check.py` 71 s to 64 s; the whole suite passes in reverse order too.
+
 - **A question is one program.** The runtime ran index-cache and then the
   hook's bite, two programs a question; Willow's hook now takes `--keep`
   and brings the index current itself, checking it once. A question on
