@@ -889,6 +889,14 @@ a time. Not built with it: a button on the seal page to stop a skill
     a part of `check.py`, could be split the same way. Its runner also
     kills a worker that has said nothing for a while
     (`Lib/test/libregrtest/run_workers.py`), which `check.py`'s parts don't.
+    **Done 2026-11-26, the second half:** a part that runs past 600 s is
+    stopped and fails the check, saying which files it was running and,
+    from pytest's stack dump after 120 s on one test, the lines in this
+    folder's own files where it was (`PART_SECONDS`, `STACK_SECONDS`).
+    **Measured, and left: the first half.** In the last passing run's times
+    the tests took 342 s in all, about 43 s a part of eight, and
+    `test_grant` 35 s (then `test_share` 33, `test_guard` 26): no file
+    bounds a part now, so splitting one buys little.
   - **A change past the noise.** pyperformance compares two runs with a
     two-tailed t-test at 95% (`doc/usage.rst:555`): the rule `model-drift`
     needs for "only a change past the rig's own noise counts", and the one

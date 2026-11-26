@@ -161,13 +161,24 @@ def parts_of(py: str, root: Path, jobs: int, env: dict) -> list[list[str]] | Non
     return [p for p in out if p]
 
 
+#: how long one part of the tests may run before it is stopped: the whole
+#: of a part takes under a minute here, so a part this long has hung, and a
+#: check that waits on it never ends (seen 2026-11-26: a test that read a
+#: line that never came)
+PART_SECONDS = 600
+#: how long one test may run before pytest prints where every thread is,
+#: so a part that is stopped says where it was
+STACK_SECONDS = 120
+
+
 def run_tests(root: Path, pythons: list[str], say, jobs: int, everything: bool) -> bool:
     """The tests under each Python: in parts, at once; or, when nothing they
     read has changed since they passed, only the ones that read the docs."""
     env, book = clean_env(willow_root()), kept()
     key = inputs_key(root, pythons)
     seen = book / "model-context-provider-inputs" if book else None
-    quiet = ["-m", "pytest", "-q", "-p", "no:cacheprovider"]
+    quiet = ["-m", "pytest", "-q", "-p", "no:cacheprovider",
+             "-o", f"faulthandler_timeout={STACK_SECONDS}"]  # fmt: skip
     if not everything and seen and seen.is_file() and key in seen.read_text().split():
         got = subprocess.run([pythons[0], *quiet, *DOCS_TESTS], cwd=root, env=env,
                              capture_output=True, text=True, check=False)  # fmt: skip
@@ -193,9 +204,21 @@ def run_tests(root: Path, pythons: list[str], say, jobs: int, everything: bool) 
                 got = subprocess.run(
                     [py, *quiet, f"--basetemp={at}", f"--junitxml={at}.xml", *files],
                     cwd=root, env=env, capture_output=True, text=True, check=False,
+                    timeout=PART_SECONDS,
                 )  # fmt: skip
             except OSError as why:
                 return job, 1, f"{py} can't be run ({type(why).__name__})"
+            except subprocess.TimeoutExpired as late:
+                said = "".join(
+                    x.decode(errors="replace") if isinstance(x, bytes) else x
+                    for x in (late.stdout, late.stderr) if x
+                )  # fmt: skip
+                # where it was: the dump's lines in this folder's own files,
+                # last, so they are among the lines a failed part shows
+                where = [ln.strip() for ln in said.splitlines()
+                         if 'File "' in ln and str(root) in ln][:5]  # fmt: skip
+                return job, 1, "\n".join([said, *where, f"stopped after {PART_SECONDS} s, "
+                                           f"still running: {' '.join(files) or 'every test'}"])  # fmt: skip
             return job, got.returncode, got.stdout + got.stderr
 
         with ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:

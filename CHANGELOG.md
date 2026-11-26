@@ -4,6 +4,12 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A check that hangs ends.** A part of the tests that runs past ten
+  minutes is stopped and fails the check, saying which files it was
+  running and where in them it was, from a stack dump of any one test that
+  passes two minutes. Before, a test that waited on a line that never came
+  held the check forever.
+
 - **Which hooks run is yours to switch.** `provider hooks` lists the hooks
   around what your assistant does, each with what it is for; `off=` and
   `on=` turn one off or on, kept in `hooks.txt` beside your record. The
