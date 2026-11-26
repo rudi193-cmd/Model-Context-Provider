@@ -58,6 +58,16 @@ def test_naming_a_model_off_this_machine_is_refused_and_nothing_written(box):
     assert code == 2 and not (runtime.state(box) / "model.json").exists()
 
 
+def test_a_model_on_another_machine_of_theirs_is_told_to_tunnel_it(box):
+    code, out = run("--box", box, "--model", "http://192.168.1.20:11434/v1", "m")
+    assert code == 2 and not (runtime.state(box) / "model.json").exists()
+    assert "tunnel it" in out and "ExitOnForwardFailure=yes" in out
+    # the port it names is one nothing else uses, and naming it is allowed
+    assert "-L 21434:localhost:11434" in out
+    code, _ = run("--box", box, "--model", "http://127.0.0.1:21434/v1", "m")
+    assert code == 0
+
+
 def test_naming_a_model_on_this_machine_writes_model_json(box):
     code, out = run("--box", box, "--model", "http://127.0.0.1:11434/v1", "gemma3:4b")
     assert code == 0, out

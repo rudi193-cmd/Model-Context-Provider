@@ -945,7 +945,9 @@ PLAIN = {
                          "It works on a record made from one folder, as Willow's UI makes them; for this record, wait for Willow to read them all."),
     "report_failed": ("The report couldn't be made, so nothing was shared.",
                       "Check that WILLOW points at your Willow folder."),
-    "report_too_long": ("The report is too long to share whole, so nothing was shared.",
+    "report_refused": ("That part of the report couldn't be asked for.",
+                       "Ask for the report by its name, and for the next part with the after you were given."),
+    "report_too_long": ("A line of the report is too long to share, so nothing was shared.",
                         "Leave folders out of it: list each, one a line, in report-skip.txt beside your record, then ask again."),
     "no_resource": ("That isn't something this door lists.",
                     "It lists the reports (todo, coming-up, on-this-day, people, ref-check, pii-audit, secrets-audit, minutes), the page you last sealed, what is on this project's shelf, and the skills you named."),
@@ -1017,6 +1019,8 @@ PLAIN = {
 #: the person's to fix (a seal, a setting, a file of theirs), so a model is
 #: told to tell them. A model reads `why` beside this for which argument.
 FOR_MODEL = {
+    "report_refused": "Ask for the report by name; for its next part, pass after as "
+                      "the number the last part gave you.",
     "no_question": "Ask again with a few words about what you want to find.",
     "no_page": "Get the sealed page first (the page tool, action leave), then answer "
                "that. What you are given under a grant is not a sealed page.",
@@ -1449,24 +1453,49 @@ def report_to_model(box: Path, name, let_in: bool = False) -> dict:
     model may be told a report exists).
 
     A session the person let in is given the report as it reads now,
-    withheld and under the most that is shared at once. Any other learns
+    withheld, in parts of whole lines under the most that is shared at
+    once: `after` (the number it was given) asks for the next part, and
+    nothing else is said of the rest, never a count. Any other learns
     only that there is one, or that there is nothing to report: no line, no
     place, no count. Nothing is proposed and nothing waits: one report is
     not sealed on its own (the owner, 2026-11-18), since a seal of it went
     stale the day the report read differently. The yes is the session's."""
+    asked = name if isinstance(name, dict) else {"name": name}
+    name, after = asked.get("name"), str(asked.get("after") or "0")
+    if not after.isdigit():
+        return {"state": "refused", "code": "report_refused",
+                "why": "after is the number a part of the report was given, to ask for the next"}  # fmt: skip
     got = report(box, name, for_model=True)
     if got["state"] == "refused":
         return got
+    name = got.get("report", name)
     if got["state"] != "populated" or not let_in:  # nothing of it, and no count
         return {"state": got["state"], "report": name}
     try:
         (text,) = withhold(box, [got["text"]])
     except RuntimeError as why:  # can't withhold: nothing leaves
         return {"state": "refused", "code": "scrub_failed", "why": str(why)}
-    if len(text) > REPORT_MOST:  # said without its size: that would be a count
+    lines, start = text.splitlines(), int(after)
+    part, size = [], 0
+    for ln in lines[start:]:
+        size += len(ln) + 1
+        if size > REPORT_MOST:
+            break
+        part.append(ln)
+    if start >= len(lines):  # past its end: nothing more of it
+        return {"state": "empty", "report": name}
+    if not part:  # one line alone is over the most: said without its size
         return {"state": "refused", "code": "report_too_long",
-                "why": "the report is over the most that is shared at once"}  # fmt: skip
-    return {"state": "left", "report": name, "page": text, "by": "grant"}
+                "why": "a line of the report is over the most that is shared at once"}  # fmt: skip
+    told = {
+        "state": "left",
+        "report": name,
+        "page": "\n".join(part) + "\n",
+        "by": "grant",
+    }
+    if start + len(part) < len(lines):
+        told["after"] = start + len(part)  # ask again with this for the next part
+    return told
 
 
 #: a skill's name: one plain word, as a folder is named
@@ -5026,7 +5055,7 @@ TOOLS = {
         "answer": ("answer", ("sentence",), ()),
         "draft": ("draft", ("question",), ()),
     }),
-    "report": ("reports", {"": ("report", ("name",), ())}),
+    "report": ("reports", {"": ("report", ("name",), ("after",))}),
     "timeline": ("reports", {
         "": ("timeline", ("about",), ("since", "until", "after", "loose")),
     }),

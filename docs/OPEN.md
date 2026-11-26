@@ -586,9 +586,12 @@ a time. Not built with it: a button on the seal page to stop a skill
   - ~~`report` names are held to their exact case (`Todo` is refused).
     (The names are in the report tool's schema since 2026-11-19, so a
     model is told them before it asks; `Todo` is still refused.)~~ **Done 2026-11-26:** a name in any case.
-  - `minutes` is over the most shared at once on the real folder, and a
+  - ~~`minutes` is over the most shared at once on the real folder, and a
     report has no parts as a timeline has, so a session let in gets none
-    of it.
+    of it.~~ **Done 2026-11-26:** a report comes to a session let in in parts
+    of whole lines under the most, `after` asking for the next (the report
+    tool takes it), and nothing said of the rest, never a count; only a
+    line too long alone is refused. Not yet tried on the real folder.
   - A timeline counts front-matter lines (`metadata:`, `node_type:`) as
     lines about the matter. Willow's `timeline`, by passage.
   - (Fixed 2026-11-19: after a reconnect the client still showed the
@@ -730,6 +733,8 @@ a time. Not built with it: a button on the seal page to stop a skill
      not the line marked to do: the kernel's rank, by design. Nothing
      tells a model `report todo` is for that; the tools' words could.
   1 and 2 matter most.
+  **Done 2026-11-26: 5.** `context`'s words say to use `report todo` for
+  what is left to do.
   **Context (2026-11-26, from the boxes):** for 1, a struck answer comes back at
   `runtime.py:1777` as its checks alone, while the passages the sentence
   left uncited are in hand above it (`left`, `runtime.py:1758`): the
@@ -989,6 +994,13 @@ rig, once its fingerprint has been checked the first time (before that it
 is the first answer's word). Owed for it: a paragraph in the README,
 `set_up.py --model`'s refusal of an address off this machine saying "a
 model on another machine of yours: tunnel it", and a try end to end.
+**Done 2026-11-26: the paragraph and the refusal**, with the two holes
+below closed in what they name (`ExitOnForwardFailure`, port 21434,
+`StrictHostKeyChecking=yes`), held by `tests/test_setup.py`. **Still owed:
+the try end to end.** Tried over a tunnel to this same machine, it stopped
+at "Host key verification failed": the host key wasn't known, and taking it
+on is the person's step (the fingerprint read off the rig), so it waits for
+them at the keys.
 
 **Two holes in the tunnel as written** (found 2026-11-21, by research and
 the boxes):

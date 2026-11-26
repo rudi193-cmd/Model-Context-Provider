@@ -522,9 +522,21 @@ def write(box: Path, which: str) -> list[str]:
     return lines
 
 
+#: what to do instead when the model is on another machine of the person's
+#: own: a tunnel, so the Provider asks this machine and the wire is SSH's.
+#: Its own port, so a model already serving here can't answer in its place,
+#: and a tunnel that couldn't open says so rather than leaving that port
+#: to whatever holds it (docs/OPEN.md, "A model on the person's own rig")
+TUNNEL = (
+    "A model on another machine of yours: tunnel it to this one, "
+    "ssh -N -o ExitOnForwardFailure=yes -L 21434:localhost:11434 you@rig, "
+    "then --model http://127.0.0.1:21434/v1 NAME."
+)
+
+
 def name_model(box: Path, url: str, model: str) -> str:
     if not runtime.on_this_machine(url):
-        return f"refused: {url} is not on this machine"
+        return f"refused: {url} is not on this machine. {TUNNEL}"
     f = runtime.state(box) / "model.json"
     f.write_text(json.dumps({"url": url, "model": model}) + "\n")
     return f"wrote {f}"

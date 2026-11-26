@@ -43,6 +43,7 @@ BOUNDS = {
     ("shelf", "name"): {"pattern": "^" + runtime.SHELF_NAME.pattern + "$"},
     ("skill", "name"): {"pattern": "^" + runtime.SKILL_NAME.pattern + "$"},
     ("report", "name"): {"enum": list(runtime.REPORTS)},
+    ("report", "after"): {"pattern": "^[0-9]+$"},
     ("timeline", "since"): {"format": "date"},
     ("timeline", "until"): {"format": "date"},
     ("feed", "since"): {"format": "date"},
@@ -118,7 +119,7 @@ WORDS = {
     "context": "Ask the person's files a question. Let in (grant), you get what "
     "they hold on it, each passage with where it is from. Otherwise "
     "you get the page they sealed for that question, or only whether "
-    "their files hold it.",
+    "their files hold it. For what is left to do, use report todo.",
     "page": "The strict way, for a session not let in. read (question): whether "
     "their files hold it, never the passages. propose: ask the person to "
     "seal what the last read found, as one page. leave: the page they "
@@ -134,9 +135,9 @@ WORDS = {
     "(this date in earlier years), people (everyone their files "
     "name), ref-check (broken links), pii-audit or secrets-audit "
     "(where personal numbers or secrets sit, never the value) or "
-    "minutes (decisions, open actions). Let in, you are given it. "
-    "Otherwise you learn only whether there is one: ask to be let "
-    "in (grant).",
+    "minutes (decisions, open actions). Let in, you are given it, a "
+    "long one in parts: pass after for the next. Otherwise you learn "
+    "only whether there is one: ask to be let in (grant).",
     "timeline": "Every line of the person's files about one matter (about: a "
     "few words), oldest first, each with its file and line. Only "
     "let in. It is also written whole to a file for the person: "

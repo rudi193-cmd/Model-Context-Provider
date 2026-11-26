@@ -4,6 +4,18 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **A long report comes in parts.** A session you let in was refused a
+  report over 20,000 characters whole (`minutes`, on a real folder). It is
+  now given whole lines up to that, and asks for the next part with
+  `after`, told nothing of the rest. `context` tells a model to use
+  `report todo` for what is left to do.
+
+- **A model on another machine of yours: tunnel it.** `set_up.py --model`
+  still refuses an address off this machine, and now says how instead: an
+  SSH tunnel on a port nothing here uses, that says so if it can't open,
+  to a host key you've checked. The README says why, and what it doesn't
+  prove (which weights the rig serves).
+
 - **MCP 2026-07-28, beside the older versions.** The door answers a
   request whose `_meta` names 2026-07-28 statelessly: `server/discover`,
   `resultType` and the server named in every reply, caching hints that keep

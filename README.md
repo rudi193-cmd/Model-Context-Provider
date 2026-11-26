@@ -111,6 +111,24 @@ machine (Ollama, llama.cpp, LM Studio…), add `--model
 http://127.0.0.1:11434/v1 NAME`. That writes `model.json` beside your record,
 and nothing else. A model off this machine is refused.
 
+A model on another machine of yours (a rig in the next room, reached over
+your home network) is refused the same way: on a shared network anyone on
+it can read a page sent in plain HTTP, and another box could take the
+rig's address. Tunnel it to this machine instead, and name the tunnel:
+
+    ssh -N -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=yes \
+        -L 21434:localhost:11434 you@rig
+    python set_up.py --box BOX --model http://127.0.0.1:21434/v1 NAME
+
+The wire is SSH's, and SSH's host key says it is your rig once you have
+checked its fingerprint the first time, read off the rig's own screen
+(before that it is the first answer's word; `StrictHostKeyChecking=yes`
+refuses a key it doesn't know). Use a port nothing here uses (21434, not
+Ollama's own 11434): a model already serving on this machine would answer
+in the rig's place, and with `ExitOnForwardFailure` a tunnel that can't
+open says so instead of leaving the port to it. What it doesn't prove is
+which weights the rig serves: that is your own machine's word.
+
 Your own door, for everything a model can't do, is easiest as a command:
 
     python set_up.py --box BOX --write command

@@ -232,8 +232,8 @@ def test_with_everything_left_out_a_model_hears_only_that_there_is_nothing(chore
     assert runtime.call(chores, "report", "todo", door="pipe")["left_out"] == 2
 
 
-def test_a_report_too_long_to_read_is_never_given(chores, monkeypatch):
-    monkeypatch.setattr(runtime, "REPORT_MOST", 40)
+def test_a_report_line_too_long_to_read_is_never_given(chores, monkeypatch):
+    monkeypatch.setattr(runtime, "REPORT_MOST", 10)
     let_in(chores)
     got = given(chores, "todo")
     assert (got["state"], got["code"]) == ("refused", "report_too_long")
@@ -241,6 +241,37 @@ def test_a_report_too_long_to_read_is_never_given(chores, monkeypatch):
     assert not any(ch.isdigit() for ch in got["why"] + got["say"])  # no size said
     # their own read is never cut short
     assert runtime.call(chores, "report", "todo", door="pipe")["state"] == "populated"
+
+
+def test_a_long_report_comes_in_parts_of_whole_lines(chores, monkeypatch):
+    let_in(chores)
+    whole = given(chores, "todo")["page"].splitlines()
+    assert len(whole) > 2 and "after" not in given(chores, "todo")
+    most = max(len(ln) for ln in whole) + 1
+    monkeypatch.setattr(runtime, "REPORT_MOST", most)
+    parts, after = [], None
+    while True:
+        got = runtime.call(chores, "report", {"name": "todo", "after": after}, **LET)
+        assert got["state"] == "left" and len(got["page"]) <= most
+        parts += got["page"].splitlines()
+        if "after" not in got:
+            break
+        assert got["after"] == len(parts)  # the next part starts where this ended
+        after = str(got["after"])
+    assert parts == whole  # every line once, none cut, in order
+    for got in [got, given(chores, "todo")]:
+        assert not set(got) & {"lines", "total", "count"}  # no size said
+    past = runtime.call(chores, "report", {"name": "todo", "after": "999"}, **LET)
+    assert past == {"state": "empty", "report": "todo"}
+
+
+def test_the_report_tool_takes_after(chores):
+    let_in(chores)
+    got = runtime.call(chores, "tool", {"name": "report",
+                                        "arguments": {"name": "todo", "after": "1"}}, **LET)  # fmt: skip
+    assert got["state"] == "left"
+    first = given(chores, "todo")["page"].splitlines()
+    assert got["page"].splitlines() == first[1:]
 
 
 def test_on_this_day_is_a_report_too(box):
