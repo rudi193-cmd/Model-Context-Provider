@@ -617,8 +617,12 @@ a time. Not built with it: a button on the seal page to stop a skill
   waits is cleared (`OWED`, `runtime.py:46`): 595 times in one run of the
   tests. A read-only add-on would answer from the same `read`, `sealed` and
   `waiting` the kernel's `out` uses, without the `append`.
-- More importers that fit by their card, none run by hand yet: `mastodon`,
-  `goodreads`, `karakeep`, `opml`, `takeout`, `bookmarks`, `zotero`.
+- ~~More importers that fit by their card, none run by hand yet: `mastodon`,
+  `goodreads`, `karakeep`, `opml`, `takeout`, `bookmarks`, `zotero`.~~
+  **Done 2026-11-26:** each is a `bring_in` kind, and so is `code-graph`
+  (Willow's `codebase-memory`, codebase-memory-mcp's graph), each pinned and
+  held by a test that brings a small export in, finds it by a question,
+  and leaves the original as it was. Not yet run on a real export.
   **Context (2026-11-26, from the boxes):** each is a built Willow card at 0.1.0 that
   writes only to its `--to`: `mastodon` (an account archive's
   `outbox.json`, posts as dated lines), `goodreads` (Goodreads and
@@ -833,7 +837,9 @@ a time. Not built with it: a button on the seal page to stop a skill
     task text, single-use by the row's own state: close to step 3 of "my
     rig", and to a grant that can't be used twice. `build_lease` is
     time-boxed, where a grant here lasts "until the session ends".
-  - **codebase-memory-mcp's graph as a report.** Willow's
+  - ~~**codebase-memory-mcp's graph as a report.**~~ **Done 2026-11-26**
+    as the `bring_in` kind `code-graph`, a source the record reads rather
+    than a report. Willow's
     `codebase-memory` add-on mirrors its SQLite graph as passages (each
     function, its file and line, what it calls); for a person whose folder
     is code, a `report` of it, or a source of the record, would answer

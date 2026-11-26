@@ -4,6 +4,11 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Eight more things to bring in.** `bring_in` takes `mastodon`,
+  `goodreads`, `karakeep`, `opml`, `takeout`, `bookmarks`, `zotero` and
+  `code-graph` (codebase-memory-mcp's graph: each function, its file and
+  line, what it calls), each Willow's card for it, pinned.
+
 - **The seal page in the person's words.** A session's card says what was
   done as questions asked of their files and how many found something,
   things handed in, sealed and declined, not as the kernel's rows

@@ -936,7 +936,7 @@ PLAIN = {
     "skill_too_long": ("That skill is too long to read before you give it, so it wasn't named.",
                        "Split it into smaller skills, each a file of its own."),
     "bring_what": ("That isn't something it can bring in.",
-                   'Say what, where from and what to call it: {{"kind": "notes", "calendar", "joplin", "evernote", "google-keep", "mail" or "sms", "from": "/path/to/the/folder", "as": "a-plain-name"}}. For sms you may add "me" (your name in it) and "tz" (the time zone its messages were sent in).'),
+                   'Say what, where from and what to call it: {{"kind": "notes", "calendar", "joplin", "evernote", "google-keep", "mail", "sms", "mastodon", "goodreads", "karakeep", "opml", "takeout", "bookmarks", "zotero" or "code-graph", "from": "/path/to/the/folder", "as": "a-plain-name"}}. For sms you may add "me" (your name in it) and "tz" (the time zone its messages were sent in).'),
     "bring_name": ("That name isn't one plain folder name.",
                    "Use letters, digits, dots, dashes and underscores, starting with a letter or digit, at most 64: vault-2024."),
     "bring_no_folder": ("There's no folder of yours to bring this into.",
@@ -946,7 +946,7 @@ PLAIN = {
     "bring_exists": ("There's already a copy by that name that isn't of this folder, and it's never written over.",
                      "Choose another name, or bring in the same folder again under the same name."),
     "bring_nothing": ("There was nothing in that folder it could read, so nothing was brought in.",
-                      "Check it holds what that kind reads: a notes vault (.md files), calendar files (.ics, .vcf), a Joplin export (.jex), Evernote exports (.enex) or Google Keep notes (.json)."),
+                      "Check it holds what that kind reads: a notes vault (.md files), calendar files (.ics, .vcf), a Joplin export (.jex), Evernote exports (.enex), Google Keep notes (.json), a Mastodon archive (outbox.json), a Goodreads or StoryGraph export (.csv), a Karakeep export (.json), OPML lists (.opml), a Google Takeout's My Activity, browser bookmarks (an HTML export, or a copy of places.sqlite), a copy of zotero.sqlite, or codebase-memory-mcp's graph (.db)."),
     "bring_failed": ("The step that brings files in couldn't run, so nothing was brought in.",
                      "Check that the folder is there and that WILLOW points at your Willow folder."),
     "bring_record": ("The list of what you brought in can't be read.",
@@ -2187,7 +2187,15 @@ BRING_IN = {"notes": "adapters/stdlib/notes/notes.py",
             "evernote": "adapters/stdlib/evernote/evernote.py",
             "google-keep": "adapters/stdlib/google-keep/google_keep.py",
             "mail": "adapters/stdlib/mail/mail.py",
-            "sms": "adapters/stdlib/sms/sms.py"}  # fmt: skip
+            "sms": "adapters/stdlib/sms/sms.py",
+            "mastodon": "adapters/stdlib/mastodon/mastodon.py",
+            "goodreads": "adapters/stdlib/goodreads/goodreads.py",
+            "karakeep": "adapters/stdlib/karakeep/karakeep.py",
+            "opml": "adapters/stdlib/opml/opml.py",
+            "takeout": "adapters/stdlib/takeout/takeout.py",
+            "bookmarks": "adapters/stdlib/bookmarks/bookmarks.py",
+            "zotero": "adapters/stdlib/zotero/zotero.py",
+            "code-graph": "adapters/stdlib/codebase-memory/codebase_memory.py"}  # fmt: skip
 #: what a kind's importer may also be told, each one plain line: a phone
 #: backup's own name for the person, and the time zone its messages were sent in
 BRING_ALSO = {"sms": ("me", "tz")}
