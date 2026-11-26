@@ -1,7 +1,7 @@
 {
   "_what": "The Willow this runtime was built on: its commit, and every file of what runs, by SHA-256. willow_pin.py refuses a checkout whose files differ; repin is the one way to move it.",
   "willow": "https://github.com/willow-memory/Willow",
-  "commit": "9db2472a7860b48475505904a5224acf12c3d6a4",
+  "commit": "12ea88df8b9e5d6f7c0d10d1cc56c964cc5fd735",
   "add_ons": [
     "approved-only",
     "backup",
@@ -42,6 +42,7 @@
     "ref-check",
     "removed",
     "rss-out",
+    "seals-waiting",
     "secrets-audit",
     "sentence-check",
     "session-seal",
@@ -126,8 +127,8 @@
     "adapters/stdlib/ref-check/ref_check.py": "eea553bcd5416bf9882c3ec924e058b53c6d5bf3dc6cd0cf1851281f780b2198",
     "adapters/stdlib/removed/README.md": "30a53c79710195f2aec1bbe87285b1a55a5811c60ce6bd0649f4914d517e4d1a",
     "adapters/stdlib/removed/removed.py": "9e397c79f601597b482d02ffd1f3e05f412a86f4819267e5ceb0d88e24d8f2ed",
-    "adapters/stdlib/rss-out/README.md": "7ef2e078f21d39384d04ff264cfa53e3c02af0b211061db0f3d9b86e0cfe7337",
-    "adapters/stdlib/rss-out/rss_out.py": "4336a185ded03dd90cb68ac56f52ffcb79238f3119fcee312598b794c2218a0b",
+    "adapters/stdlib/rss-out/README.md": "a6c8e65241d2581b96cc3da319d4e202a381731bab8af82203b68e0a52971d72",
+    "adapters/stdlib/rss-out/rss_out.py": "2fd7c54eeabd793580bfe61f2f37c765997ae8b51ac0344a80c55d24ff4d9ae7",
     "adapters/stdlib/secrets-audit/README.md": "b3358a19220932fa439fcfd9b4a51643cfe5272c4e86b0c8f7e88dd6c5233bce",
     "adapters/stdlib/secrets-audit/secrets_audit.py": "acbee87340f920486e5b013f79eaed4c8e412a5f2673c44d2d8aba21e8950692",
     "adapters/stdlib/sentence-check/LICENSE-willows-grove": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
@@ -174,6 +175,8 @@
     "adapters/stdlib/zotero/README.md": "89ee4f5927cf8bfb90cdae3fa3139a093838f8dc17c6f0c978f5150126638e1a",
     "adapters/stdlib/zotero/zotero.py": "6a75097bd4d929817a3695a401db25b44cabd230728fa0893dc1f75ec551b398",
     "adapters/stdlib/codebase-memory/README.md": "50ddd6bf5a74b31d25521dbb562635f81867b1132bb256ac7271bc172792a15e",
-    "adapters/stdlib/codebase-memory/codebase_memory.py": "0981915e83aace75b11361ed9406f59653b786a0d4e18c6291644fb1f613bdef"
+    "adapters/stdlib/codebase-memory/codebase_memory.py": "0981915e83aace75b11361ed9406f59653b786a0d4e18c6291644fb1f613bdef",
+    "adapters/stdlib/seals-waiting/README.md": "a690eb035e69605d96c34f6018b19d42dc2cee3e3fcc84688fd67282f30bb39e",
+    "adapters/stdlib/seals-waiting/seals_waiting.py": "ea74bf82b476eb9e97e99a0e832290cdc3cc6e604a35ce91446971bfe876f0df"
   }
 }

@@ -617,6 +617,10 @@ a time. Not built with it: a button on the seal page to stop a skill
   waits is cleared (`OWED`, `runtime.py:46`): 595 times in one run of the
   tests. A read-only add-on would answer from the same `read`, `sealed` and
   `waiting` the kernel's `out` uses, without the `append`.
+  **Done 2026-11-26:** Willow's `seals-waiting` (new on the branch, its
+  mutants all killed and every demo folder held) is that add-on, and the
+  runtime asks it instead of `out`: asking what waits writes nothing on the
+  record. The switch for which hooks are on is still open.
 - ~~More importers that fit by their card, none run by hand yet: `mastodon`,
   `goodreads`, `karakeep`, `opml`, `takeout`, `bookmarks`, `zotero`.~~
   **Done 2026-11-26:** each is a `bring_in` kind, and so is `code-graph`
@@ -651,6 +655,8 @@ a time. Not built with it: a button on the seal page to stop a skill
   `milestones` is left: it reads a child's notes, not these.
 - Willow's `rss-out` can write inside the record's folder; the runtime
   refuses that, the add-on itself does not.
+  **Done 2026-11-26:** `rss-out` refuses a feed inside the box or a folder
+  it reads (Willow's branch, `75aa36dc`).
   **Context (2026-11-26, from the boxes):** still so: `rss_out.py` opens `--to` with
   `O_CREAT | O_EXCL` wherever it names (lines 147 to 157), with no check
   that it is outside the folder the box reads. index-cache's `within` is a
@@ -1290,8 +1296,10 @@ separation from the person's side ("uid separation: OK"). It needs Python
 - **Willow's branch `ccr-8607467b-iah1ml`, to main** (2026-11-25):
   `index-cache --from @LIST` and `--box`, a check that reads again only
   the files whose details on disk moved, and claude-code's hook answering
-  a box laid from several places from its index. The pin is on its
-  `28009362` until it merges, then moves to main.
+  a box laid from several places from its index; since then scan reading
+  only what a question needs, the kernel's faster reads, the hook's
+  `--keep`, `rss-out`'s refusal and the new `seals-waiting`. The pin is on
+  its `12ea88df` until it merges, then moves to main.
 - **The kernel's `listed()` is quadratic**: it looks back along the list
   for each line, which on a list of 5,000 files was most of a check's time.
   Fixed by a set on the same branch (`77a99403`), with the date reader

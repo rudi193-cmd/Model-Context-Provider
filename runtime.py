@@ -68,7 +68,8 @@ LAUNCH = (
 
 def willow(*args: str) -> subprocess.CompletedProcess:
     """Run one of Willow's commands, its output caught."""
-    if args[1:2] not in (("bite",), ("out",)):  # it may propose, seal or decline
+    # it may propose, seal or decline; asking what waits never does
+    if args[1:2] not in (("bite",), ("out",)) and args[:1] != (SEALS_WAITING,):
         OWED.clear()
     return subprocess.run(
         [sys.executable, "-c", LAUNCH, *args],
@@ -156,9 +157,15 @@ def waiting(box: Path) -> dict:
     return got
 
 
+#: what waits, said as kernel.py out says it, with no row added to the record
+SEALS_WAITING = "adapters/stdlib/seals-waiting/seals_waiting.py"
+
+
 def waiting_now(box: Path) -> dict:
-    """What waits, asked of the kernel now."""
-    run = willow("kernel.py", "out", "--box", str(box))
+    """What waits, asked now, with nothing written: Willow's seals-waiting
+    says what `kernel.py out` says but appends no row, where `out` appended
+    one an ask (595 in one run of the tests)."""
+    run = willow(SEALS_WAITING, "--box", str(box))
     if run.returncode == 2:
         return {"state": "refused", "code": "record_broken", "why": run.stderr.strip()}
     out = []

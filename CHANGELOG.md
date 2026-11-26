@@ -4,6 +4,13 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Asking what waits no longer writes on the record.** The runtime asked
+  `kernel.py out`, which appends a row each time: 595 in one run of the
+  tests, and most of a busy record's rows. It asks Willow's new
+  `seals-waiting`, which says the same and appends nothing. The pin moves
+  to Willow `12ea88df`, which also has `rss-out` refusing a feed written
+  inside the record's folder.
+
 - **Your assistant hears when you've sealed.** After your seal page was
   offered in your assistant, sealing or declining it there is told to the
   assistant on its next request (MCP's `notifications/elicitation/complete`).
