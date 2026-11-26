@@ -4,6 +4,11 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **The boxes, one project a repository.** `boxes/lay.py` lays each
+  repository as Willow's `projects` and `handover` read a project: its box,
+  its stacks and the runs of them in one folder. `handover` then says
+  where each repository's stacks stand, with nothing built for it.
+
 - **Eight more things to bring in.** `bring_in` takes `mastodon`,
   `goodreads`, `karakeep`, `opml`, `takeout`, `bookmarks`, `zotero` and
   `code-graph` (codebase-memory-mcp's graph: each function, its file and

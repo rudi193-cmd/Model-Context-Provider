@@ -645,6 +645,10 @@ a time. Not built with it: a button on the seal page to stop a skill
   repository (its box, `orient.md`, `owes.md`, `ask.md`, its runs),
   `handover` would say where each repository's stacks stand, with nothing
   built.
+  **Done 2026-11-26:** `lay.py` lays each repository so; `projects --home
+  WORK` lists every one's record, stacks and last runs, and `handover
+  --project WORK/NAME` says what each stack flagged, with the run's file.
+  `milestones` is left: it reads a child's notes, not these.
 - Willow's `rss-out` can write inside the record's folder; the runtime
   refuses that, the add-on itself does not.
   **Context (2026-11-26, from the boxes):** still so: `rss_out.py` opens `--to` with

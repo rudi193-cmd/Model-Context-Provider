@@ -70,7 +70,18 @@ files the box reads (`index-cache --from @LIST`, on Willow's branch
 `ccr-8607467b-iah1ml` until it merges); a Willow without it indexes the
 repository's folder instead, a little wider than the list.
 
-Each stack's page is `WORK/runs/NAME/STACK.md`. To ask one more question:
+Each repository is a project of its own, as Willow's `projects` and
+`handover` read one: `WORK/NAME/box`, its stacks as `WORK/NAME/STACK.md`,
+each as it ran in `WORK/NAME/runs/STACK/`, and its page in
+`WORK/NAME/pages/STACK.md`. So
+
+    python $WILLOW/adapters/stdlib/projects/projects.py --home WORK
+    python $WILLOW/adapters/stdlib/handover/handover.py --project WORK/NAME
+
+list every repository's record, stacks and last runs, and say where one
+stands: each step flagged, with the file of the run that says so.
+
+To ask one more question:
 
     I=WORK/indexes/NAME
     python $WILLOW/adapters/stdlib/fair-merge/fair_merge.py --index $I/NAME \
@@ -78,7 +89,7 @@ Each stack's page is `WORK/runs/NAME/STACK.md`. To ask one more question:
         --words WORK/code-words.txt "your question"
 
 That answers in about a second. The box itself still answers the kernel's
-way (`kernel.py bite --box WORK/boxes/NAME`), reading every file: about
+way (`kernel.py bite --box WORK/NAME/box`), reading every file: about
 twelve seconds on willow-mcp and a minute and a half on cpython.
 
 ## What waits on the person

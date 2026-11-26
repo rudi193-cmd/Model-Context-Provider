@@ -11,16 +11,24 @@ folder holding this checkout), it makes, under WORK:
     mirrors/NAME/history    its commit messages, dated by the commit
     mirrors/NAME/graph      its call graph, when --cbm names a built
                             codebase-memory-mcp (graphdb/NAME holds the graph)
-    boxes/NAME              the record, laid from the list and the mirrors
+    NAME/                   the repository's project, as Willow's projects
+                            and handover read one (the box, its stacks, the
+                            runs of them):
+    NAME/box                the record, laid from the list and the mirrors
     keys/NAME.key           its key: the kernel writes it, and this never
                             opens it
     indexes/NAME/SOURCE     an index of each source, kept by index-cache and
                             rebuilt only when a file in it changed; the code's
                             is of its list, as the box reads it (a Willow
                             before index-cache --from @LIST: its folder)
-    runs/NAME/STACK.md      each stack's page, and STACK/ as it ran
+    NAME/STACK.md           each stack, {repo} and {indexes} filled in
+    NAME/runs/STACK/        each stack as it ran (the stack add-on's --to)
+    NAME/pages/STACK.md     each stack's page
 
---across lays one more box, boxes/across, from every repository's list and
+so `projects --home WORK` lists every repository's record, stacks and runs,
+and `handover` says where one stands.
+
+--across lays one more project, across/, from every repository's list and
 mirrors, and runs stacks/across.md over it.
 
 A box that is already there is used as it is: its sources are pointers, so
@@ -163,19 +171,20 @@ def lay(
     willow: Path, work: Path, name: str, sources: list[str], again: bool
 ) -> Path | None:
     """The box, laid from sources; one already there is used as it is."""
-    box = work / "boxes" / name
+    box = work / name / "box"
     if (box / "kernel.json").exists():
         if not again:
             say(name, f"box already laid, used as it is: {box}")
             return box
-        box = box.with_name(f"{name}-{time.strftime('%Y%m%d-%H%M%S')}")
+        box = box.with_name(f"box-{time.strftime('%Y%m%d-%H%M%S')}")
     keys = work / "keys"
     keys.mkdir(parents=True, exist_ok=True)
     keys.chmod(0o700)
     cmd = [sys.executable, str(willow / "kernel.py"), "init", "--box", str(box)]
     for source in sources:
         cmd += ["--from", source]
-    cmd += ["--key", str(keys / f"{box.name}.key"), "--words", str(words(work))]
+    key = keys / f"{name}{box.name[3:]}.key"  # NAME.key, NAME-STAMP.key beside
+    cmd += ["--key", str(key), "--words", str(words(work))]
     code, last = run(cmd, willow)
     say(name, f"box: {last or code}")
     return box if code == 0 else None
@@ -195,22 +204,23 @@ def stack(
     words list. A repository's own questions (stacks/ask/NAME.md) run as
     "ask"."""
     stem = "ask" if page.parent.name == "ask" else page.stem
-    runs = work / "runs" / name
-    runs.mkdir(parents=True, exist_ok=True)
+    project = work / name
+    (project / "runs").mkdir(parents=True, exist_ok=True)
+    (project / "pages").mkdir(exist_ok=True)
     text = page.read_text(encoding="utf-8")
     if repo is not None:
         text = text.replace("{repo}", str(repo))
     given = " ".join(f"--index {i}" for i in indexes)
     text = text.replace("{indexes}", f"{given} --words {words(work)}")
-    filled = runs / f"{stem}.stack.md"
+    filled = project / f"{stem}.md"
     filled.write_text(text, encoding="utf-8")
     cmd = willow_tool(willow, "stack") + ["--box", str(box), "--stack", str(filled)]
-    ran = runs / stem
+    ran = project / "runs" / stem
     if ran.exists():
         shutil.rmtree(ran)
     cmd += ["--to", str(ran)]
     got = subprocess.run(cmd, cwd=willow, capture_output=True, text=True, check=False)
-    (runs / f"{stem}.md").write_text(got.stdout, encoding="utf-8")
+    (project / "pages" / f"{stem}.md").write_text(got.stdout, encoding="utf-8")
     tail = (got.stdout.strip().splitlines() or [""])[-1]
     say(name, f"stack {stem}: exit {got.returncode}, {tail}")
     return got.returncode in (0, 42)
@@ -282,7 +292,7 @@ def main(argv: list[str]) -> int:
             page = STACKS / "across.md"
             ok = stack(willow, work, "across", box, page, None, indexes) and ok
     print(
-        f"lay: {'done' if ok else 'done, with some left out'}; pages under {work / 'runs'}"
+        f"lay: {'done' if ok else 'done, with some left out'}; each repository's project under {work}"
     )
     return 0 if ok else 1
 
