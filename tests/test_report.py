@@ -422,3 +422,12 @@ def test_a_record_of_several_places_is_told_a_report_reads_one_folder(tmp_path):
         assert "Traceback" not in json.dumps(got), got
     # a report that reads the record's passages is made as on any record
     assert runtime.call(box, "report", "todo", door="pipe")["state"] != "refused"
+
+
+def test_a_report_is_named_in_any_case(box):
+    """Todo, TODO and todo are one report: a model or a person need not
+    know the case it is spelled in."""
+    for name in ("Todo", "TODO", " todo "):
+        got = runtime.call(box, "report", name, door="pipe")
+        assert got.get("code") != "no_report", (name, got)
+    assert runtime.call(box, "report", "Nope", door="pipe")["code"] == "no_report"

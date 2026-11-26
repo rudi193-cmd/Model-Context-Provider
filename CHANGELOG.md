@@ -4,6 +4,11 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Two rough edges off the model's tools.** A report is named in any
+  case (`Todo` is `todo`), and a timeline with nothing in the days asked
+  for makes no file and names none, where it wrote the whole timeline and
+  named it.
+
 - **A model is told what to do next, not only when it is refused.** A
   struck sentence says what failed and names the passage, on its page but
   not cited, that holds each word it added; a reply that waits says on

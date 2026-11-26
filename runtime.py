@@ -1013,7 +1013,7 @@ FOR_MODEL = {
                      "piece of work goes on the project's shelf (the shelf tool).",
     "not_on_shelf": "List the shelf (the shelf tool, action list) and use a name "
                     "from there.",
-    "no_report": "Use one of these names exactly, in small letters: todo, coming-up, "
+    "no_report": "Use one of these names: todo, coming-up, "
                  "on-this-day, people, ref-check, pii-audit, secrets-audit, minutes.",
     "task_refused": "Say it in other words: an empty or very long task isn't kept, "
                     "and the same task is only handed in once.",
@@ -1346,6 +1346,8 @@ def report(box: Path, name, for_model: bool = False) -> dict:
     Reading needs no grant, so this is the person's to read as it is. For a
     model, a report of places only (PLACES_ONLY) is given without what
     each row found."""
+    if isinstance(name, str):  # its name in any case: Todo is todo
+        name = name.strip().lower()
     script = REPORTS.get(name) if isinstance(name, str) else None
     if script is None:
         return {"state": "refused", "code": "no_report",
@@ -4238,11 +4240,6 @@ def timeline_to_model(box: Path, arg, let: bool) -> dict:
     slug = re.sub(r"[^a-z0-9]+", "-", got["about"].lower()).strip("-")[:40] or "matter"
     same = [p for p in sorted(out.glob(f"timeline-{slug}-*.txt")) if out.is_dir()
             and p.read_text() == got["text"]]  # fmt: skip
-    kept = same[-1] if same else made_at(box, None, f"timeline-{slug}.txt")
-    if not same:
-        fd = os.open(kept, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
-            f.write(got["text"])
     # the session's part: the lines in the dates it asked for, from the line
     # it asked to start after, as many whole lines as are given at once
     head, _, body = got["text"].partition("\n\n")
@@ -4262,8 +4259,13 @@ def timeline_to_model(box: Path, arg, let: bool) -> dict:
         if size > REPORT_MOST and part:
             break
         part.append(ln)
-    if not part:
-        return {"state": "empty", "about": got["about"], "file": str(kept)}
+    if not part:  # nothing in those days: no file made, none named
+        return {"state": "empty", "about": got["about"]}
+    kept = same[-1] if same else made_at(box, None, f"timeline-{slug}.txt")
+    if not same:
+        fd = os.open(kept, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+            f.write(got["text"])
     try:
         said = withhold(box, [head, *part])
     except RuntimeError as why:  # can't withhold: nothing leaves

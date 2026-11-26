@@ -580,12 +580,12 @@ a time. Not built with it: a button on the seal page to stop a skill
   - (Fixed the same day: a refusal a model can put right itself now says
     so to it, with no "Tell the person"; `timeline`'s says what each
     argument is.)
-  - `timeline` with `since` says `empty` when no line falls in those days,
+  - ~~`timeline` with `since` says `empty` when no line falls in those days,
     yet writes the whole timeline to a file (150 KB here) and names it.
-    Each asking leaves a file in `made/`.
-  - `report` names are held to their exact case (`Todo` is refused).
+    Each asking leaves a file in `made/`.~~ **Done 2026-11-26:** an empty answer makes no file and names none.
+  - ~~`report` names are held to their exact case (`Todo` is refused).
     (The names are in the report tool's schema since 2026-11-19, so a
-    model is told them before it asks; `Todo` is still refused.)
+    model is told them before it asks; `Todo` is still refused.)~~ **Done 2026-11-26:** a name in any case.
   - `minutes` is over the most shared at once on the real folder, and a
     report has no parts as a timeline has, so a session let in gets none
     of it.
