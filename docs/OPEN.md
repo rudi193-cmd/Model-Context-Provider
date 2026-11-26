@@ -819,7 +819,10 @@ a time. Not built with it: a button on the seal page to stop a skill
     `basic/patterns/subscriptions.mdx` under `docs/specification/2026-07-28`;
     the door's code they would change is `doors/mcp.py:223` (initialize),
     `:289` (`Asker`, sampling) and `:328` (`Pointer`, the seal page).
-  - **Tell the client when the seal is made.** URL elicitation has
+  - ~~**Tell the client when the seal is made.**~~ **Done 2026-11-26:** on
+    the next request after the person seals or declines what they were
+    shown, the door sends it (`runtime.settled`, from the record's own
+    rows). URL elicitation has
     `notifications/elicitation/complete` for when the out-of-band part is
     done. The runtime could send it when the person seals or declines
     what they were pointed at, so their assistant can say so; it needs a

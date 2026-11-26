@@ -383,6 +383,12 @@ def main(argv: list[str]) -> int:
                            pointer if pointer.can else None)  # fmt: skip
         if reply is not None:
             print(json.dumps(reply), flush=True)
+        # what the person sealed or declined since their seal page was offered
+        # here: the runtime says which, and this tells their assistant
+        if pointer.can:
+            for done in runtime.settled(box):
+                print(json.dumps({"jsonrpc": "2.0", "method": "notifications/elicitation/complete",
+                                  "params": {"elicitationId": done}}), flush=True)  # fmt: skip
         # the list a client was sent, by its fingerprint: names, words,
         # schemas and hints. The person can turn a group on or off while a
         # session is open, and this door's own words change between runs; a

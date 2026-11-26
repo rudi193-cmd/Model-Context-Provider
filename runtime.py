@@ -5338,7 +5338,54 @@ def point_person(box: Path, got: dict, door: str, point) -> dict:
     except RuntimeError:
         action = "unanswered"
     sent(box, door or "unknown", "point", {"state": action})
+    f = state(box) / POINTED
+    try:
+        known = json.loads(f.read_text())
+    except (OSError, ValueError):
+        known = {}
+    known[asked] = got["seal"]
+    f.write_text(json.dumps(known) + "\n")
     return {**got, "pointed": action}
+
+
+#: each seal page offered in the person's assistant, by its elicitation id,
+#: and what it was for, until the person seals or declines it
+POINTED = "pointed.json"
+
+
+def settled(box: Path) -> list[str]:
+    """The ids of the seal pages offered whose thing the person has sealed or
+    declined since, each said once: MCP's notifications/elicitation/complete
+    is how a door tells their assistant. Read from the record's own seal and
+    decline rows; nothing is asked of the kernel, and nothing is written to
+    the record. Each is written down on the sent log."""
+    f = state(box) / POINTED
+    try:
+        known = json.loads(f.read_text())
+    except (OSError, ValueError):
+        return []
+    if not isinstance(known, dict) or not known:
+        return []
+    done: dict[str, str] = {}
+    try:
+        lines = (box / "record.jsonl").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    for line in lines:
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if row.get("kind") in ("seal", "decline") and isinstance(
+            row.get("subject"), str
+        ):
+            done[row["subject"]] = row["kind"]
+    out = [k for k, subject in known.items() if subject in done]
+    for k in out:
+        sent(box, "mcp", "point_done", {"state": done[known.pop(k)]})
+    if out:
+        f.write_text(json.dumps(known) + "\n")
+    return out
 
 
 def call(

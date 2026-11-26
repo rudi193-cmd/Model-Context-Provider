@@ -4,6 +4,10 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Your assistant hears when you've sealed.** After your seal page was
+  offered in your assistant, sealing or declining it there is told to the
+  assistant on its next request (MCP's `notifications/elicitation/complete`).
+
 - **The boxes, one project a repository.** `boxes/lay.py` lays each
   repository as Willow's `projects` and `handover` read a project: its box,
   its stacks and the runs of them in one folder. `handover` then says

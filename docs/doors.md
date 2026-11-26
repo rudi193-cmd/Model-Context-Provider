@@ -154,6 +154,12 @@ since that is the only time there is an address to give.
   assistant, a model's shell, another program, gets a 403. That is the
   rule the protocol sets (no link that lets in on its own), and why a
   model can't use the address to seal.
+- **Your assistant hears when you've settled it.** Once you seal or
+  decline what you were shown, the door tells your assistant on its next
+  request (`notifications/elicitation/complete`, with the id it was
+  shown under), so it can say so. The runtime finds it in your record's own
+  seal and decline rows, asks the kernel nothing, and writes it on the sent
+  log.
 - **It is the runtime's call, not the door's.** The door carries the
   request and the answer, as it carries sampling; the runtime decides when
   a reply points at all and says what you are shown.

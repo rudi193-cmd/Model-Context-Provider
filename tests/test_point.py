@@ -188,3 +188,50 @@ def test_the_seal_page_says_where_it_is_while_it_runs(box):
         run.wait(timeout=10)
     assert runtime.page_url(box) is None
     assert not (runtime.state(box) / runtime.PAGE_AT).exists()
+
+
+def test_once_the_person_seals_their_assistant_is_told_once(box, page):
+    from test_leave import seal
+
+    got, seen = pointed(box)
+    assert runtime.settled(box) == []  # not yet sealed
+    seal(box, got["seal"])
+    assert runtime.settled(box) == [seen[0]["asked"]]
+    assert runtime.settled(box) == []  # said once
+    assert [
+        r["state"] for r in runtime.sent_log(box)["rows"] if r["verb"] == "point_done"
+    ] == ["seal"]
+
+
+def test_a_decline_is_settled_too(box, page):
+    got, seen = pointed(box)
+    run = runtime.willow("kernel.py", "decline", "--box", str(box), got["seal"])
+    assert run.returncode == 0, run.stderr
+    assert runtime.settled(box) == [seen[0]["asked"]]
+
+
+def test_over_the_wire_the_next_request_after_the_seal_carries_the_notice(
+    box, page, monkeypatch, capsys
+):
+    from test_leave import seal
+
+    def lines():
+        yield json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                          "params": {"protocolVersion": "2025-11-25", "capabilities": LINKS}}) + "\n"  # fmt: skip
+        yield json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                          "params": {"name": "grant", "arguments": {}}}) + "\n"  # fmt: skip
+        yield json.dumps({"jsonrpc": "2.0", "id": "provider-point-1",
+                          "result": {"action": "accept"}}) + "\n"  # fmt: skip
+        for w in runtime.call(box, "waiting", door="pipe")["waiting"]:
+            seal(box, w["seal"])  # the person, on their page, between requests
+        yield json.dumps({"jsonrpc": "2.0", "id": 3, "method": "ping"}) + "\n"
+
+    monkeypatch.setattr(sys, "stdin", lines())
+    monkeypatch.chdir(box.parent)
+    assert door.main(["--box", str(box)]) == 0
+    out = [json.loads(x) for x in capsys.readouterr().out.splitlines()]
+    done = [m for m in out if m.get("method") == "notifications/elicitation/complete"]
+    asked = [m for m in out if m.get("method") == "elicitation/create"]
+    assert len(done) == 1 and asked
+    assert done[0]["params"]["elicitationId"] == asked[0]["params"]["elicitationId"]
+    assert out.index(done[0]) > [i for i, m in enumerate(out) if m.get("id") == 3][0]
