@@ -287,6 +287,18 @@ so none is lost. A box is ticked when it is built.
   this machine (skills, plugins, hooks), what each can touch, and what
   changed since last looked. The audit half of the guard gap below.
   - **Needs:** building in Willow first; it is only an idea there.
+  - **Context (2026-11-26, from the boxes):** the idea is in Willow's
+    `adapters/planned.json` as `my-installs` (0.0.1, Privacy and safety,
+    role `guards`, writes nothing, no network). Most of the map it needs is
+    already in hand: `hosts.py` knows where 24 assistants keep their MCP
+    settings, and codebase-memory-mcp's installer knows where about forty
+    keep their hooks and skills too (`src/cli/cli.c` and
+    `src/cli/agent_clients.c` there: Qoder's and Devin's hooks in their
+    settings file, Copilot CLI's under `~/.copilot/hooks/`, Factory's in
+    `~/.factory/hooks.json`, skills under `~/.agents/skills/`). Willow's
+    `install-scripts` (0.1.1, the scripts a package would run on install)
+    is the nearest built card. "What changed since you last looked" is
+    index-cache's manifest of details and hashes, over those files.
 - [ ] **Socratic** (the owner: "making the news recently"). On Willow's
   list as an idea: "asks you questions about your own notes instead of
   answering, each citing the passage it asked from". The owner's own
@@ -607,6 +619,16 @@ a time. Not built with it: a button on the seal page to stop a skill
   `waiting` the kernel's `out` uses, without the `append`.
 - More importers that fit by their card, none run by hand yet: `mastodon`,
   `goodreads`, `karakeep`, `opml`, `takeout`, `bookmarks`, `zotero`.
+  **Context (2026-11-26, from the boxes):** each is a built Willow card at 0.1.0 that
+  writes only to its `--to`: `mastodon` (an account archive's
+  `outbox.json`, posts as dated lines), `goodreads` (Goodreads and
+  StoryGraph exports), `karakeep` (its JSON export), `opml` (feed and
+  podcast lists, outliner exports), `takeout` (Google's My Activity and
+  YouTube history), `bookmarks` (HTML and Firefox exports, and history from
+  a copy of its SQLite file) and `zotero` (a copy of `zotero.sqlite`, with
+  each item's citation). Wiring one is a line in `BRING_IN`
+  (`runtime.py:2182`, as `mail` and `sms` are), its card added to the pin
+  (`willow_pin.py repin --add NAME`), and a test that brings one in.
 - Not looked at: `milestones`, `projects`, `handover`. `pile-store` was
   measured and left out (no gain on the real folder).
   **Context (2026-11-26, from the boxes):** `milestones` (0.1.1, uses `habits`) is a
