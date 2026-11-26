@@ -6,7 +6,7 @@ since grown into the project's working list: what the owner threw in
 along the way, what was found when each line was held to the code, and
 the owner's rulings. A box is ticked when the thing is built here. A line
 starting **Note** was added afterwards: what was found, and what it still
-needs. Last held to the code on 2026-11-21. What is still open is
+needs. Last held to the code on 2026-11-26. What is still open is
 gathered at the end, under "Open now".
 
 ## Handoff: Model-Context-Provider (MCP → Provider)
@@ -657,10 +657,9 @@ a time. Not built with it: a button on the seal page to stop a skill
   refuses that, the add-on itself does not.
   **Done 2026-11-26:** `rss-out` refuses a feed inside the box or a folder
   it reads (Willow's branch, `75aa36dc`).
-  **Context (2026-11-26, from the boxes):** still so: `rss_out.py` opens `--to` with
-  `O_CREAT | O_EXCL` wherever it names (lines 147 to 157), with no check
-  that it is outside the folder the box reads. index-cache's `within` is a
-  check of that kind, by strings.
+  (Before that, `rss_out.py` opened `--to` with `O_CREAT | O_EXCL`
+  wherever it named, with no check that it was outside the folder the box
+  reads.) On Willow's main since #401.
 
 - **The seal page, read as the person on a phone (2026-11-20).** From its
   own HTML rendered over a throwaway record, at 390 pixels, in headless
@@ -812,7 +811,7 @@ a time. Not built with it: a button on the seal page to stop a skill
     `contextModification` (its `hook_augment.c`). `doors/hook.py --host`
     speaks three dialects now; the first five may need only the Claude
     one, each to be tried.
-  - **MCP 2026-07-28, the move to plan.** The door speaks 2025-11-25 and
+  - ~~**MCP 2026-07-28, the move to plan.**~~ The door speaks 2025-11-25 and
     older; the newest version makes the protocol stateless. No
     `initialize`: each request carries its version and the client's
     capabilities in `_meta`, and a server answers `server/discover`.
@@ -826,6 +825,15 @@ a time. Not built with it: a button on the seal page to stop a skill
     the pointing both ride on server-initiated requests, so both change
     shape. Not urgent: clients still speak the older versions.
     (`docs/specification/2026-07-28/changelog.mdx` in the spec.)
+    **Done 2026-11-26**, beside the older versions, not in place of them
+    ([doors.md](doors.md), "The protocol's two versions"): discover,
+    `resultType`, caching hints, the new error codes, multi round-trip
+    requests for sampling and the seal page (the state signed by a key of
+    the process's own, bound to the request, half an hour, once), and
+    `subscriptions/listen` for the tools. Not built: the tasks extension
+    (below), `resourceSubscriptions` and `promptsListChanged` (nothing here
+    sends either yet). Not yet tried with a real client that speaks
+    2026-07-28.
     **Context (2026-11-26, from the boxes):** the spec pages are `basic/patterns/mrtr.mdx`
     (multi round-trip requests), `server/discover.mdx` and
     `basic/patterns/subscriptions.mdx` under `docs/specification/2026-07-28`;
@@ -873,6 +881,66 @@ a time. Not built with it: a button on the seal page to stop a skill
     two-tailed t-test at 95% (`doc/usage.rst:555`): the rule `model-drift`
     needs for "only a change past the rig's own noise counts", and the one
     a "measure it" study would use.
+
+### Beside this repo (carried in from two handoffs, 2026-11-26)
+
+What the handoffs of 2026-11-21 and 2026-11-25 left open that this list
+didn't hold. Most of it is Willow's or Die-Namic's work, with the Provider as
+the door; every item is the owner's to decide or to ship.
+
+- **The forge played at the table, through the Provider's door** (the
+  owner's direction, 2026-11-21: "a yes in session, is a yes"). Three
+  pieces, each with its own job: Die-Namic's table (`box/play.py`) is how a
+  person walks in and types their own answer; the Provider is the door and
+  the yes; Willow's forge (`adapters/deps/forge`) offers a base set, then
+  what could come next, "until they've completed their goal".
+  - **Proposed, not started:** one script in the shape of `play.py` that
+    walks a stack the way a night is played: each fork is "Your call" with
+    its chances, the typed answer sealed or declined by the script, what
+    could come next offered, ending at "That's our stack?" and one session
+    seal. **Open, the owner's:** where it lives, beside `play.py` in
+    Die-Namic (the recommendation then) or inside the forge add-on.
+  - **Parked:** one vocabulary for the six verdicts (yes, no, maybe,
+    overwritten, changed mind, went a different direction), and how a later
+    answer speaks to an earlier one. Read `docs/keeping.md`,
+    `docs/sharing.md`, `docs/doors.md`, `docs/base-jarvis.md` and this list
+    before proposing anything.
+- **Built, not committed, on Willow's branch `retire`:** the `retire` add-on
+  (a sealed answer set aside only on the person's seal; the kernel still
+  serves it, so readers must ask `set_aside`); in the forge, `defaults.txt`
+  (todo, coming-up, duplicates, contradictions and people in every stack,
+  never a fork option), not-now as every fork's other way out, multi-pick
+  (`--choose WORD=A,B`) and `next`; and `ui/search-words.txt`. Only `next`'s
+  tests were run after its last change; mutants, real data and the guard
+  have not been run on any of it. It ships on the owner's word.
+- **Gaps written down then, not fixed:**
+  - no add-on builds the table of what follows what from session maps;
+  - `latent` was refused in three large parts for passing its 0.5 GiB limit;
+  - the flow mapper runs by hand;
+  - a sealed stack cannot grow: the kernel serves the first seal for its words;
+  - nothing honours a retirement yet;
+  - the forge fills each step's arguments from the add-on's contract test
+    (sample files and ports); a step that needs something from the person
+    should ask for it.
+- **Boxes that point rather than copy** (Willow #399, `init --from` and
+  `gather --point`). A box can switch only when every step reads it through
+  the kernel: the 53 add-ons on `kernel.folder()` and the steps given
+  `--from STACK/pile/...` refuse a box with sources, and teaching them
+  `kernel.pile_of_box` is what makes more boxes switchable. Not started; it
+  needs the owner's word. Die-Namic's `boxes/*/rebuild.sh` still copy each
+  repository at its pinned commit.
+- **Willow branches left for the owner:** `addons/pile-store-sources` (5
+  commits) and `pools/run-memory` (32), never pushed: keep, push or drop;
+  `addons/words-later-set-aside` (on GitHub, "built and working, and refused
+  by the guard"), which one stack still needs for its `words-layers` step;
+  and the pushed `die-namic/engines`, which Willow's main holds all of:
+  delete or keep.
+- **A small model's judging, measured 2026-11-21** (the escalation
+  benchmark's own aggregate): models of 3B and up were right 87.5 to 100% of
+  the time judging one claim against one chunk that settles it, and
+  confident anyway 60 to 100% of the time when the chunk doesn't;
+  `qwen3:4b`, the model Willow's `model-sentence` asks by default, scored
+  20%. A lead for that card's default, the owner's to weigh.
 
 ### A model on the person's own rig (designed 2026-11-21, not built)
 
@@ -1269,8 +1337,8 @@ separation from the person's side ("uid separation: OK"). It needs Python
 
 - An early exit in the kernel's date reader: `on-this-day`, `coming-up`
   and `people` still take 16 to 22 seconds on the real folder there.
-  **Note (2026-11-26):** done on Willow's branch `ccr-8607467b-iah1ml`
-  (`77a99403`, vectors `e3c98033`), waiting on the owner's merge: `newest`
+  **Note (2026-11-26):** done, on Willow's main since #401 (`77a99403`,
+  vectors `e3c98033`), and the pin is on it (`e118af87`): `newest`
   jumps to the next digit or web address, 34.6 s to 3.8 s over cpython's
   710,290 passages with every date the same, and `stem` keeps what it
   worked out. Not yet measured on the real folder.
@@ -1283,33 +1351,32 @@ separation from the person's side ("uid separation: OK"). It needs Python
   is on `0c07be1`, and `tests/test_guard.py` holds it through the guard
   door. A script the model writes to get round it still gets through: keep
   the key where the account the assistant runs as can't read it.
-- **#90, a search of the key's folder.** Fixed on Willow's
-  `ccr-9265087c-pvfpcl` (`6310940`, `hook-guard` 0.2.1), not on main yet:
+- ~~**#90, a search of the key's folder.**~~ Fixed (`6310940`, `hook-guard`
+  0.2.1), on Willow's main and in the pin (`e118af87`):
   a Grep over the key's folder or one above it, and a recursive Glob there
   that could name the key, are refused; a search whose own filter leaves
   the key out is let by. Its shell twin is fixed beside it (`ce79466`): a
   glob the shell expands to the key (`cat` of a star in its folder) and a
   recursive read of its folder or one above it (`grep -r`, `rg`, `cp -r`,
   `rsync -a`, `zip -r`, `tar` making an archive). The Provider's guard,
-  hook and session tests pass on both. The pin moves when they land.
+  hook and session tests pass on it.
 - ~~**The same Willow branch's other two.**~~ Done in #387 with it:
   `gh-json` 0.2.0, and the contract test that holds every add-on to
   "refuse or read" on a box of sources (#383, 37 strict xfails to fix).
-- **`starter.py copy` names `init --words`.** Fixed on Willow's
-  `ccr-9265087c-pvfpcl` (`9ee4693`, `starter-words` 0.1.1), not on main
-  yet: the copy names `kernel.py words` for a record already made, beside
+- ~~**`starter.py copy` names `init --words`.**~~ Fixed (`9ee4693`,
+  `starter-words` 0.1.1), on Willow's main: the copy names `kernel.py words` for a record already made, beside
   `init --words` for a new one.
-- **Willow's branch `ccr-8607467b-iah1ml`, to main** (2026-11-25):
+- ~~**Willow's branch `ccr-8607467b-iah1ml`, to main** (2026-11-25):~~
   `index-cache --from @LIST` and `--box`, a check that reads again only
   the files whose details on disk moved, and claude-code's hook answering
   a box laid from several places from its index; since then scan reading
   only what a question needs, the kernel's faster reads, the hook's
-  `--keep`, `rss-out`'s refusal and the new `seals-waiting`. The pin is on
-  its `12ea88df` until it merges, then moves to main.
-- **The kernel's `listed()` is quadratic**: it looks back along the list
-  for each line, which on a list of 5,000 files was most of a check's time.
-  Fixed by a set on the same branch (`77a99403`), with the date reader
-  above.
+  `--keep`, `rss-out`'s refusal and the new `seals-waiting`. **Merged
+  2026-11-26** as willow-memory/Willow#401; the pin is on that commit of
+  main, `e118af87`.
+- ~~**The kernel's `listed()` is quadratic**~~: it looked back along the
+  list for each line, which on a list of 5,000 files was most of a check's
+  time. Fixed by a set (`77a99403`, in #401), with the date reader above.
 - **More of #383**, met by the boxes' stacks: the forge's `suggest` crashes
   with a traceback on a box laid with `--from`, as do `instruction-files`,
   `risky-code`, `secrets-audit`, `ref-check`, `box-health` and `digest`

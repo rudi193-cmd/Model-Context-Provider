@@ -4,6 +4,18 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **MCP 2026-07-28, beside the older versions.** The door answers a
+  request whose `_meta` names 2026-07-28 statelessly: `server/discover`,
+  `resultType` and the server named in every reply, caching hints that keep
+  nothing, `-32022` for a version it doesn't speak and `-32602` for a
+  resource not found. A sentence from the client's model and the seal page
+  shown to you go out in the reply and come back on a retry (multi
+  round-trip requests), carried by a state signed with this process's own
+  key, bound to the request, good for half an hour and once. A retry after
+  the seal page never runs the request again, and says whether you've
+  sealed it since. `subscriptions/listen` hears when the tools change. A
+  client that opens with `initialize` is spoken to as before.
+
 - **The seal page, laid out for a phone.** A page to share reads as it
   reads: each file a small heading, each passage a quote with its line under
   it, where it showed the page's own markup; the page that leaves is the

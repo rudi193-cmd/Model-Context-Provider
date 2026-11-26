@@ -88,6 +88,7 @@ model-context-provider/
 │   ├── test_listed.py                      the resources and prompts a model's door lists
 │   ├── test_local_model.py                 a model on this machine, held to the same check
 │   ├── test_made.py                        a timeline of one matter, and a feed of what was sealed
+│   ├── test_modern.py                      the MCP door as 2026-07-28 has it: no handshake, asked again on a retry
 │   ├── test_pin.py                         the sent log's end, pinned where the runtime can't reach
 │   ├── test_passages.py                    a page given to a model, also as its passages: id, file and text
 │   ├── test_plain.py                       every refusal in plain words, with one next step

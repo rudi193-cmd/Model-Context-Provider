@@ -11,7 +11,10 @@ the commit willow.pin.json pins, made from it (willow_pin.py).
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
+import hmac
 import ipaddress
 import json
 import os
@@ -813,16 +816,28 @@ def draft(box: Path, question: str, ask=None, door: str = "") -> dict:
     if ask is None:
         return {"state": "refused",
                 "code": "no_model", "why": "no model to ask: the client can't sample, and no model.json names one"}  # fmt: skip
-    got = context(box, question)
-    if got["state"] != "left":
-        return {"state": got["state"], "asked": False}
-    to = getattr(ask, "to", f"the client's model, through the {door} door")
-    sent(box, door or "unknown", "sample", {**got, "to": to})
-    prompt = f"Their question: {question}\n\nThe page:\n{got['page']}"
+    # a retry of a request the client's model answered in between (MCP's
+    # multi round-trip requests): the page it was sent and how many tries it
+    # has had come back held by this process's own key, so the kernel isn't
+    # asked again and nothing new goes on the sent log
+    resume = getattr(ask, "resume", None)
+    if resume is not None and resume.get("question") == question:
+        prompt, tries = str(resume["prompt"]), int(resume["tries"])
+    else:
+        got = context(box, question)
+        if got["state"] != "left":
+            return {"state": got["state"], "asked": False}
+        to = getattr(ask, "to", f"the client's model, through the {door} door")
+        sent(box, door or "unknown", "sample", {**got, "to": to})
+        prompt, tries = f"Their question: {question}\n\nThe page:\n{got['page']}", 0
     said = {}
-    for _ in range(2):
+    for tries in range(tries, 2):
         try:
             text = str(ask(DRAFT_SYSTEM, prompt)).strip()
+        except Later as later:  # to be asked over a retry: what it needs then
+            later.keep = {"kind": "sample", "question": question,
+                          "prompt": prompt, "tries": tries}  # fmt: skip
+            raise
         except Exception as why:  # noqa: BLE001 - a client that fails asks nothing more
             return {
                 "state": "refused",
@@ -5346,6 +5361,13 @@ def point_person(box: Path, got: dict, door: str, point) -> dict:
     asked = hashlib.sha256(f"{time.time_ns()} {url}".encode()).hexdigest()[:32]
     try:
         action = point(message, url, asked)
+    except Later as later:
+        # offered in the reply itself, the answer to come on a retry (MCP's
+        # multi round-trip requests): written down now, as it leaves; the
+        # reply is kept for the retry, which never runs the verb again
+        sent(box, door or "unknown", "point", {"state": "offered"})
+        later.keep = {"kind": "point", "got": got}
+        raise
     except RuntimeError:
         action = "unanswered"
     sent(box, door or "unknown", "point", {"state": action})
@@ -5377,11 +5399,24 @@ def settled(box: Path) -> list[str]:
         return []
     if not isinstance(known, dict) or not known:
         return []
+    done = seals_settled(box)
+    out = [k for k, subject in known.items() if subject in done]
+    for k in out:
+        sent(box, "mcp", "point_done", {"state": done[known.pop(k)]})
+    if out:
+        f.write_text(json.dumps(known) + "\n")
+    return out
+
+
+def seals_settled(box: Path) -> dict[str, str]:
+    """What the person has sealed or declined, by what it was for: seal or
+    decline, from the record's own rows. Nothing is asked of the kernel and
+    nothing written."""
     done: dict[str, str] = {}
     try:
         lines = (box / "record.jsonl").read_text(encoding="utf-8").splitlines()
     except OSError:
-        return []
+        return done
     for line in lines:
         try:
             row = json.loads(line)
@@ -5391,11 +5426,107 @@ def settled(box: Path) -> list[str]:
             row.get("subject"), str
         ):
             done[row["subject"]] = row["kind"]
-    out = [k for k, subject in known.items() if subject in done]
-    for k in out:
-        sent(box, "mcp", "point_done", {"state": done[known.pop(k)]})
-    if out:
-        f.write_text(json.dumps(known) + "\n")
+    return done
+
+
+# ── a request asked again: MCP's multi round-trip requests (2026-07-28) ─────
+class Later(Exception):
+    """Something the person's assistant is to be asked in the reply itself,
+    its answer to come back on a retry of the same request: a sentence from
+    its model (`sample`) or the seal page shown to the person (`point`).
+    `asked` is what to ask, for the door to carry; `keep` is what the retry
+    needs, which the runtime fills in and holds (later_state)."""
+
+    def __init__(self, kind: str, asked: dict):
+        super().__init__(kind)
+        self.kind, self.asked, self.keep = kind, asked, {}
+
+
+class LaterAsk:
+    """The client's model, asked over a retry rather than on the same pipe:
+    called once with the answer the retry carried, it gives that; called
+    without one, it says the model is to be asked (Later). `resume` is what
+    the last reply kept, opened by later_open."""
+
+    to = "the client's model, asked in a reply"
+
+    def __init__(self, resume: dict | None = None, heard: str | None = None):
+        self.resume, self.heard = resume, heard
+
+    def __call__(self, system: str, user: str) -> str:
+        if self.heard is not None:
+            heard, self.heard = self.heard, None
+            return heard
+        raise Later("sample", {"system": system, "user": user})
+
+
+class LaterPoint:
+    """The seal page offered in the reply itself (URL elicitation over a
+    retry): never answered on the spot, so it is always Later."""
+
+    def __call__(self, message: str, url: str, asked: str) -> str:
+        raise Later("point", {"message": message, "url": url})
+
+
+#: this process's own key for what a reply keeps for its retry: made when it
+#: starts and never written anywhere, so a state is good only for the
+#: process that made it. Never the person's key, which this code never reads
+LATER_KEY = os.urandom(32)
+LATER_SECONDS = 1800  # how long a reply's state holds for its retry
+LATER_USED: set[str] = set()  # each state holds once
+
+
+def asked_digest(asked) -> str:
+    return hashlib.sha256(json.dumps(asked, sort_keys=True).encode()).hexdigest()
+
+
+def later_state(asked, keep: dict) -> str:
+    """What a reply keeps for its retry, as one opaque string, bound to the
+    request it answers (its tool and arguments), with an end and a nonce,
+    and signed by this process's own key."""
+    body = json.dumps({"keep": keep, "for": asked_digest(asked),
+                       "until": time.time() + LATER_SECONDS,
+                       "nonce": os.urandom(12).hex()}).encode()  # fmt: skip
+    mac = hmac.new(LATER_KEY, body, "sha256").digest()
+    b64 = base64.urlsafe_b64encode
+    return b64(body).decode() + "." + b64(mac).decode()
+
+
+def later_open(text, asked) -> dict | None:
+    """What a reply kept, if `text` is a state this process made, for this
+    same request, not past its end, and not used before; else None. A
+    retry's state comes through the client, so nothing in it is trusted
+    until it holds."""
+    if not isinstance(text, str) or text.count(".") != 1:
+        return None
+    a, b = text.split(".")
+    try:
+        body, mac = base64.urlsafe_b64decode(a), base64.urlsafe_b64decode(b)
+    except (ValueError, binascii.Error):
+        return None
+    if not hmac.compare_digest(hmac.new(LATER_KEY, body, "sha256").digest(), mac):
+        return None
+    got = json.loads(body)
+    if got["for"] != asked_digest(asked) or time.time() > got["until"]:
+        return None
+    if got["nonce"] in LATER_USED:
+        return None
+    LATER_USED.add(got["nonce"])
+    return got["keep"]
+
+
+def point_answered(box: Path, got: dict, action, door: str = "") -> dict:
+    """A retry after the person was offered their seal page in their
+    assistant: the reply it was offered with, what they answered (accept,
+    decline or cancel), and whether they have sealed or declined it on the
+    page since, which is how their assistant learns it now. The verb is never
+    run again. Written down on the sent log."""
+    action = action if action in ("accept", "decline", "cancel") else "unanswered"
+    sent(box, door or "unknown", "point", {"state": action})
+    out = {**got, "pointed": action}
+    done = seals_settled(box).get(str(got.get("seal")))
+    if done:
+        out["settled"] = {"seal": "sealed", "decline": "declined"}[done]
     return out
 
 

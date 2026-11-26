@@ -164,6 +164,39 @@ since that is the only time there is an address to give.
   request and the answer, as it carries sampling; the runtime decides when
   a reply points at all and says what you are shown.
 
+## The protocol's two versions (2026-07-28 and before)
+
+The MCP door speaks both, chosen by how each request comes. A client that
+opens with `initialize` (2025-11-25 and before) is spoken to as above, on
+the same pipe. A request whose own `_meta` names 2026-07-28 has no
+handshake and no session: it says its version and its client's
+capabilities itself, and every reply says its kind (`resultType`) and
+names the server. `server/discover` says which versions there are.
+Nothing a client may keep is kept for long (`ttlMs` 0), and none of it is
+for a cache between (`cacheScope` private): what you hold can change at
+any moment, and it is yours.
+
+- **What the client is to be asked goes out in the reply.** A sentence
+  from its model (`page draft`) and your seal page shown to you come back
+  as a request for input (`input_required`), and the client sends the same
+  request again with the answer. What the runtime needs for that retry
+  (the page it sent, how many tries the sentence has had, or the reply your
+  page was offered with) rides along as `requestState`, signed with a key
+  this process makes when it starts and never writes down, never your key.
+  It holds only for the request it was made for, for half an hour, once.
+  The kernel isn't asked again and the page goes on the sent log once.
+- **A retry after your seal page never runs the request again.** It gives
+  back the reply it was offered with, what you answered, and whether you
+  have sealed or declined it on the page since (`settled`), which is how
+  your assistant learns it in this version: there is no notice of it.
+- **Changes come on a stream the client opens.** `subscriptions/listen`
+  with `toolsListChanged` is told, tagged with its id, when the tools on
+  offer change (you turned a group on or off), and ends with a result when
+  the client closes the pipe.
+- Not spoken: the tasks extension, and logging. Sampling is deprecated in
+  2026-07-28 and still works; it is how a draft is written when you name
+  no model on this machine.
+
 A page given to a model also comes as data: beside `page`, `passages`
 holds each one's id, file and text as the page has them, withheld as it
 is, so a model cites by id without taking the markup apart. A session let

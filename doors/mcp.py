@@ -4,6 +4,11 @@ Willow's adapters/stdlib/mcp-lite/server.py).
 
     python doors/mcp.py --box DIR
 
+It speaks both eras of the protocol, chosen by how each request comes: one
+opened with initialize (2025-11-25 and before), the client asked on the same
+pipe; and one whose own _meta names 2026-07-28, with no session, where what
+the client is to be asked goes out in the reply and comes back on a retry.
+
 Its tools are the ones the runtime offers a model: its verbs, grouped, in
 the families the person has on. There is no tool to seal: sealing is the
 person's, with their key, outside any door.
@@ -18,7 +23,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import runtime
 
+#: the versions opened with initialize, one session a process (legacy)
 VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
+#: the versions with no handshake, each request saying its own in _meta
+#: (2026-07-28 on): this door speaks both, chosen by how a request comes
+MODERN = ("2026-07-28",)
+SPEC = "io.modelcontextprotocol/"
+SERVER = {"name": "model-context-provider"}
 
 
 #: what an argument may be, where the runtime holds it to more than a string:
@@ -207,7 +218,184 @@ def listing(box: Path) -> list[dict]:
 CHANGED = {"jsonrpc": "2.0", "method": "notifications/tools/list_changed"}
 
 
+def era(msg: dict) -> str | None:
+    """The version a request says it speaks in its own _meta (2026-07-28
+    on), or None for one that says none, which is spoken to as it was
+    opened (initialize)."""
+    meta = (msg.get("params") or {}).get("_meta") if isinstance(msg, dict) else None
+    said = meta.get(SPEC + "protocolVersion") if isinstance(meta, dict) else None
+    return said if isinstance(said, str) else None
+
+
+def is_modern(msg) -> bool:
+    """Whether a message is spoken to as 2026-07-28: its _meta says so, or
+    it asks what this server is (server/discover, which is that version's
+    own, and its probe for a client that speaks both)."""
+    if not isinstance(msg, dict):
+        return False
+    return era(msg) in MODERN or msg.get("method") == "server/discover"
+
+
+def caps_of(msg: dict) -> dict:
+    """The capabilities a modern request says its client has, for this
+    request alone."""
+    meta = (msg.get("params") or {}).get("_meta") or {}
+    caps = meta.get(SPEC + "clientCapabilities") if isinstance(meta, dict) else None
+    return caps if isinstance(caps, dict) else {}
+
+
+#: the results a client may keep a while (2026-07-28's caching): none, since
+#: the person can turn tools off, seal or remove things at any moment, and
+#: what they hold is theirs alone, never for a cache between
+CACHEABLE = ("server/discover", "tools/list", "prompts/list", "resources/list",
+             "resources/templates/list", "resources/read")  # fmt: skip
+#: what the door answers a client that asks what it is (server/discover),
+#: and what initialize says it can do
+CAPABILITIES = {"tools": {"listChanged": True}, "resources": {}, "prompts": {}}
+#: the one key a retry's answer is filed under, for each thing asked later
+INPUT = {"sample": "draft", "point": "seal-page"}
+
+
 def answer(box: Path, msg: dict, ask=None, point=None) -> dict | None:
+    """One message's reply, or None when nothing is owed. A request whose
+    _meta says 2026-07-28 is answered as that version asks, statelessly;
+    anything else as the version initialize opened."""
+    said = era(msg)
+    if is_modern(msg):
+        return modern(box, msg)
+    if said is not None and said not in VERSIONS and "id" in msg:
+        return {"jsonrpc": "2.0", "id": msg["id"],
+                "error": {"code": -32022, "message": "Unsupported protocol version",
+                          "data": {"supported": [*MODERN, *VERSIONS], "requested": said}}}  # fmt: skip
+    return legacy(box, msg, ask, point)
+
+
+def modern(box: Path, msg: dict) -> dict | None:
+    """A request as 2026-07-28 has it: no session, its version and its
+    client's capabilities in its own _meta, every result saying its kind,
+    the server named in each. What the runtime would ask the client on the
+    same pipe (a sentence from its model, the seal page shown to the
+    person) goes out in the reply instead, as a request for input, and
+    comes back on a retry (multi round-trip requests)."""
+    if "id" not in msg:
+        return None
+    mid, method, params = msg["id"], msg.get("method"), msg.get("params") or {}
+    caps = caps_of(msg)
+
+    def ok(result: dict) -> dict:
+        meta = {**result.get("_meta", {}),
+                SPEC + "serverInfo": {**SERVER, "version": runtime.version()}}  # fmt: skip
+        result = {"resultType": "complete", **result, "_meta": meta}
+        if method in CACHEABLE and result["resultType"] == "complete":
+            result = {**result, "ttlMs": 0, "cacheScope": "private"}
+        return {"jsonrpc": "2.0", "id": mid, "result": result}
+
+    if method == "server/discover":
+        return ok({"supportedVersions": [*MODERN, *VERSIONS],
+                   "capabilities": CAPABILITIES, "instructions": INSTRUCTIONS})  # fmt: skip
+    if method == "tools/call":
+        asked = {"name": params.get("name"), "arguments": params.get("arguments")}
+        ask = runtime.LaterAsk() if "sampling" in caps else None
+        pointer = runtime.LaterPoint() if can_point(caps) else None
+        if "requestState" in params:  # a retry: what the last reply kept
+            keep = runtime.later_open(params.get("requestState"), asked)
+            if keep is None:
+                return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32602,
+                        "message": "requestState didn't hold: send the request again without it"}}  # fmt: skip
+            given = params.get("inputResponses") or {}
+            given = given.get(INPUT[keep["kind"]]) if isinstance(given, dict) else None
+            if keep["kind"] == "point":
+                action = given.get("action") if isinstance(given, dict) else None
+                return ok(
+                    tool_result(runtime.point_answered(box, keep["got"], action, "mcp"))
+                )
+            ask = runtime.LaterAsk(keep, sampled(given))
+        try:
+            result = runtime.call(box, "tool", asked, door="mcp", ask=ask, where=here(),
+                                  point=pointer)  # fmt: skip
+        except runtime.Later as later:
+            return ok(input_required(later, asked))
+        return ok(tool_result(result))
+    if method == "tools/list":
+        return ok({"tools": listing(box)})
+    if method in LISTS:
+        verb, key = LISTS[method]
+        got = runtime.call(box, verb, door="mcp", where=here())
+        return ok({key: got.get(key, [])})
+    if method == "resources/templates/list":
+        return ok({"resourceTemplates": []})
+    if method == "resources/read":
+        got = runtime.call(box, "resource", params.get("uri"), door="mcp", where=here())
+        if got.get("state") == "refused":
+            return wrong(mid, -32602, got)  # 2026-07-28: not found is invalid params
+        return ok(read_result(params.get("uri"), got))
+    if method == "prompts/get":
+        return prompt_got(box, mid, params, ok)
+    if method == "subscriptions/listen":
+        # the stream stays open: its acknowledgement now, and its result
+        # only when it ends (the door's main loop holds it)
+        wants = (params.get("notifications") or {}).get("toolsListChanged") is True
+        return {"jsonrpc": "2.0", "method": "notifications/subscriptions/acknowledged",
+                "params": {"_meta": {SPEC + "subscriptionId": mid},
+                           "notifications": {"toolsListChanged": True} if wants else {}}}  # fmt: skip
+    return {"jsonrpc": "2.0", "id": mid,
+            "error": {"code": -32601, "message": f"method not found: {method}"}}  # fmt: skip
+
+
+def sampled(given) -> str | None:
+    """The text of a client's model's answer (a CreateMessageResult), or
+    None when the retry carried none, so it is asked again."""
+    if not isinstance(given, dict):
+        return None
+    content = given.get("content")
+    parts = content if isinstance(content, list) else [content or {}]
+    return "".join(str(c.get("text", "")) for c in parts if isinstance(c, dict))
+
+
+def input_required(later, asked: dict) -> dict:
+    """The runtime's question for the client, as 2026-07-28's request for
+    input, with what the retry needs kept by the runtime's own key."""
+    if later.kind == "sample":
+        req = {"method": "sampling/createMessage",
+               "params": {"messages": [{"role": "user", "content": {
+                              "type": "text", "text": later.asked["user"]}}],
+                          "systemPrompt": later.asked["system"], "maxTokens": 400,
+                          "temperature": 0}}  # fmt: skip
+    else:
+        req = {"method": "elicitation/create",
+               "params": {"mode": "url", "message": later.asked["message"],
+                          "url": later.asked["url"]}}  # fmt: skip
+    return {"resultType": "input_required", "inputRequests": {INPUT[later.kind]: req},
+            "requestState": runtime.later_state(asked, later.keep)}  # fmt: skip
+
+
+def tool_result(result: dict) -> dict:
+    refused = result.get("state") == "refused"
+    return {"content": [{"type": "text", "text": json.dumps(result)}],
+            "structuredContent": result, "isError": refused}  # fmt: skip
+
+
+def read_result(uri, got: dict) -> dict:
+    # the page or the words when it was given one; else what it was told
+    text = got.get("page") or got.get("says")
+    kind = "text/plain" if text else "application/json"
+    return {"contents": [{"uri": str(uri), "mimeType": kind,
+                          "text": text or json.dumps(got)}]}  # fmt: skip
+
+
+def prompt_got(box: Path, mid, params: dict, ok) -> dict:
+    asked = {"name": params.get("name"), "arguments": params.get("arguments")}
+    got = runtime.call(box, "prompt", asked, door="mcp", where=here())
+    if got.get("state") == "refused":
+        return wrong(mid, -32602, got)
+    return ok({"description": got["description"],
+               "messages": [{"role": "user",
+                             "content": {"type": "text", "text": got["text"]}}]})  # fmt: skip
+
+
+def legacy(box: Path, msg: dict, ask=None, point=None) -> dict | None:
+    """A request as 2025-11-25 and before have it: opened with initialize,
+    the client asked on the same pipe."""
     if not isinstance(msg, dict):
         # a batch (MCP has none since 2025-06-18), or JSON that is no request
         # at all: said, so a client isn't left waiting on an answer
@@ -223,9 +411,8 @@ def answer(box: Path, msg: dict, ask=None, point=None) -> dict | None:
     if method == "initialize":
         asked = params.get("protocolVersion")
         return ok({"protocolVersion": asked if asked in VERSIONS else VERSIONS[0],
-                   "capabilities": {"tools": {"listChanged": True}, "resources": {},
-                                    "prompts": {}},
-                   "serverInfo": {"name": "model-context-provider", "version": runtime.version()},
+                   "capabilities": CAPABILITIES,
+                   "serverInfo": {**SERVER, "version": runtime.version()},
                    "instructions": INSTRUCTIONS})  # fmt: skip
     if method == "ping":
         return ok({})
@@ -237,9 +424,7 @@ def answer(box: Path, msg: dict, ask=None, point=None) -> dict | None:
         asked = {"name": params.get("name"), "arguments": params.get("arguments")}
         result = runtime.call(box, "tool", asked, door="mcp", ask=ask, where=here(),
                               point=point)  # fmt: skip
-        refused = result.get("state") == "refused"
-        return ok({"content": [{"type": "text", "text": json.dumps(result)}],
-                   "structuredContent": result, "isError": refused})  # fmt: skip
+        return ok(tool_result(result))
     if method in LISTS:
         verb, key = LISTS[method]
         got = runtime.call(box, verb, door="mcp", where=here())
@@ -251,19 +436,9 @@ def answer(box: Path, msg: dict, ask=None, point=None) -> dict | None:
         got = runtime.call(box, "resource", uri, door="mcp", ask=ask, where=here())
         if got.get("state") == "refused":
             return wrong(mid, -32002, got)
-        # the page or the words when it was given one; else what it was told
-        text = got.get("page") or got.get("says")
-        kind = "text/plain" if text else "application/json"
-        return ok({"contents": [{"uri": str(uri), "mimeType": kind,
-                                 "text": text or json.dumps(got)}]})  # fmt: skip
+        return ok(read_result(uri, got))
     if method == "prompts/get":
-        asked = {"name": params.get("name"), "arguments": params.get("arguments")}
-        got = runtime.call(box, "prompt", asked, door="mcp", where=here())
-        if got.get("state") == "refused":
-            return wrong(mid, -32602, got)
-        return ok({"description": got["description"],
-                   "messages": [{"role": "user",
-                                 "content": {"type": "text", "text": got["text"]}}]})  # fmt: skip
+        return prompt_got(box, mid, params, ok)
     return {"jsonrpc": "2.0", "id": mid,
             "error": {"code": -32601, "message": f"method not found: {method}"}}  # fmt: skip
 
@@ -365,6 +540,9 @@ def main(argv: list[str]) -> int:
     asker = Asker(lines, sys.stdout)
     pointer = Pointer(lines, sys.stdout)
     listed = None  # the fingerprint of the tools last listed to this client
+    #: each open subscriptions/listen (2026-07-28) that asked to hear of the
+    #: tools changing, by its request id, with the list it last heard of
+    listening: dict = {}
     for raw in lines:
         if not raw.strip():
             continue
@@ -381,8 +559,18 @@ def main(argv: list[str]) -> int:
                 pointer.can = can_point(caps)
             reply = answer(box, msg, asker if asker.can else None,
                            pointer if pointer.can else None)  # fmt: skip
+        if is_modern(msg) and msg.get("method") == "subscriptions/listen":
+            if reply and reply["params"]["notifications"]:
+                # what this stream has heard of, taken before it is told it is
+                # open, so a change the moment after is one it hears of
+                listening[msg["id"]] = runtime.tools_fingerprint(listing(box))
         if reply is not None:
             print(json.dumps(reply), flush=True)
+        if isinstance(msg, dict) and msg.get("method") == "notifications/cancelled":
+            listening.pop((msg.get("params") or {}).get("requestId"), None)
+        if is_modern(msg):
+            heard(box, msg, reply, listening)
+            continue
         # what the person sealed or declined since their seal page was offered
         # here: the runtime says which, and this tells their assistant
         if pointer.can:
@@ -405,7 +593,26 @@ def main(argv: list[str]) -> int:
         elif listed is not None and now != listed:
             listed = runtime.tools_told(box, now)
             print(json.dumps(CHANGED), flush=True)
+    # input closed: each stream still open ends with its result, so the
+    # client knows it ended and wasn't cut
+    for sid in listening:
+        print(json.dumps({"jsonrpc": "2.0", "id": sid, "result": {
+            "resultType": "complete", "_meta": {SPEC + "subscriptionId": sid}}}), flush=True)  # fmt: skip
     return 0
+
+
+def heard(box: Path, msg: dict, reply, listening: dict) -> None:
+    """After a modern message: each open stream that asked is told, tagged
+    with its id, when the tools it last heard of are no longer the tools
+    there are."""
+    if msg.get("method") == "subscriptions/listen" or not listening:
+        return
+    now = runtime.tools_fingerprint(listing(box))
+    for sid, last in listening.items():
+        if last != now:
+            listening[sid] = now
+            print(json.dumps({"jsonrpc": "2.0", "method": "notifications/tools/list_changed",
+                              "params": {"_meta": {SPEC + "subscriptionId": sid}}}), flush=True)  # fmt: skip
 
 
 if __name__ == "__main__":
