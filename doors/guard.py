@@ -17,7 +17,10 @@ At each of those moments it hands the runtime what the host sent and takes
 back what the runtime decided. Before a tool call that is allowed or
 blocked: a blocked call exits 2, which is how the host is told to stop it,
 with the reason on standard error. A call the runtime couldn't judge is
-blocked too. At any other moment it never blocks: it exits 0, and prints
+blocked too. Where the person turned kart-shell on, an allowed shell
+command is handed back to the host as the one to run instead (Claude Code's
+updatedInput, Cursor's updated_input): the same command through
+doors/shell.py, which runs it in Kart's sandbox. At any other moment it never blocks: it exits 0, and prints
 only what the runtime says to hand over (where the last session ended, how
 much waits on the person's seal).
 """
@@ -63,6 +66,13 @@ def main(argv: list[str]) -> int:
     if state == "refused":
         print(f"{got.get('say', '')} {got.get('next', '')}".strip(), file=sys.stderr)
         return 2 if stops else 0
+    if state == "allowed" and isinstance(got.get("input"), dict):
+        # the call is to run with this input instead: a shell command, through
+        # the sandbox's door. Claude Code's word for it, then Cursor's
+        out = ({"hookSpecificOutput": {"hookEventName": name, "updatedInput": got["input"]}}
+               if name == "PreToolUse" else {"updated_input": got["input"]})  # fmt: skip
+        sys.stdout.write(json.dumps(out, ensure_ascii=False) + "\n")
+        return 0
     if state == "handed" and name == "SessionStart":
         out = {"hookSpecificOutput": {"hookEventName": name,
                                       "additionalContext": got["says"]}}  # fmt: skip

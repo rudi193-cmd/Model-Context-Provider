@@ -1,7 +1,7 @@
 {
   "_what": "The Willow this runtime was built on: its commit, and every file of what runs, by SHA-256. willow_pin.py refuses a checkout whose files differ; repin is the one way to move it.",
   "willow": "https://github.com/willow-memory/Willow",
-  "commit": "f93b0e5887ebad56de2f1437ca6311adec78c9e4",
+  "commit": "3ebccf8a960e676143e0d0e37903a880262fc3af",
   "add_ons": [
     "approved-only",
     "backup",
@@ -156,8 +156,8 @@
     "adapters/stdlib/todo/todo.py": "a873476219165f0921aade96b18c258d2a5a3e25a93cca4b9c0d120108d9949a",
     "adapters/stdlib/what-changed/README.md": "a3390ebca1ca4c829731b1accd75f52d1e368f66d6abfccf1b31b01406a74e5c",
     "adapters/stdlib/what-changed/what_changed.py": "2b0fdd8c7c386352a2b403ec818ca77f8973b021ecbd6a95b3e20f4c4375cb94",
-    "adapters/deps/kart/README.md": "9736696f1f0d7857d48fb5d0cb7f8e4226c50b59dc2e0e9748d55eff2bed26c5",
-    "adapters/deps/kart/kart.py": "6ba4f838ac025ab2873a440ee486df6dcc28f7ed2b60beab6d15a79c875b5237",
+    "adapters/deps/kart/README.md": "7ca97e7f430233d6b7eb09b1615bbc2eabe178a9db3603d78bd94ac8b5884ef2",
+    "adapters/deps/kart/kart.py": "bc41e1d4e95cb06ae3f5bad917ebee50539cc3166def227fc83ff83adb0f138e",
     "adapters/deps/kart/requirements-floor.txt": "d04d431fa4e26567611c60c8ca21ba35315ac5199a80e3a2ef1c427a4becc9a8",
     "adapters/deps/kart/requirements.txt": "f57c5eaf4102118b7bd6f3889303498e6854935f9df3bd36c899fa39165f6160",
     "adapters/stdlib/mastodon/README.md": "99451f54b36ab3fba8410c82c7c720ce3750077d123ae6b266ed15fd70c5f9c5",
