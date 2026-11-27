@@ -1178,7 +1178,42 @@ closed (`failClosed`); `--write cursor-managed` writes them for
 now, then the account of the key's own as way A, then C's passkey. **Not
 yet:** installed or tried in a real Cursor session; whether Cursor's CLI
 runs `preToolUse`, and whether it runs Claude Code's own hooks (its docs say
-it can, and the page on how is a 404).
+it can, and the page on how is a 404). Cursor's user hooks were written here
+2026-11-26 (`--write cursor`); the administrator's copy waits on the owner's
+sudo.
+
+**The order since (the owner, 2026-11-26).** Account A alone breaks every
+question (`sealed()` reads the key to check each seal), so the key pair
+(Willow's `docs/design/key-pair.md`) comes before any account of its own.
+And before the key pair: **the assistant's shell runs in Kart.**
+
+**The Kart shell (the owner's picture, 2026-11-26, not built).** Every shell
+command an assistant runs goes through a Kart sandbox: the project folder
+writable, the key and the record never mounted, network only on a signed
+request. What makes it reachable:
+- the guard door rewrites a shell call rather than only judging it: Claude
+  Code's `PreToolUse` takes an `updatedInput`, Cursor's `preToolUse` an
+  `updated_input`; the command runs inside Kart, and the assistant sees its
+  output and exit code as before;
+- Kartikeya's sandbox is set by a policy file (`$KART_SANDBOX_CONFIG`, then
+  `$WILLOW_HOME/kart-sandbox.json`, then its default: willow-mcp's
+  `kart-lift-spec.md`), so a writable project folder is a policy line;
+  Willow's `kart` card today mounts the folder read-only, one scratch, no
+  network, no environment but `PATH`, `LANG` and `HOME`, and never the box or
+  the key;
+- network is already a request in Kartikeya (0.0.2 on: a host authorizer for
+  every network row; willow-mcp's is an Ed25519-signed envelope over the exact
+  task's hash, an expiry and a one-use nonce, its B-37): the key pair is what
+  signs the person's yes to one.
+To build, in order: a policy for this mode (project writable; home and system
+read-only; the box, its key, `BOX.runtime`, the Provider's live checkout and
+the pinned Willow never in it; no network; few variables); a synchronous
+`kart shell` in Willow's card, no seal per command, since it is the
+session's own shell; the rewrite in the runtime, for both assistants; tests
+that a command inside can't see the key, the record or the network. The file
+tools stay guarded by words, with Claude Code's deny rules once installed:
+Kart covers what words couldn't, code that builds its own paths. Then the
+key pair, then signed network requests through it.
 
 **The steps, for when sealing can cross** (not to follow yet: today they
 would stop the seal page and the desktop prompt from sealing). The person
