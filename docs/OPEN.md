@@ -1215,9 +1215,9 @@ tools stay guarded by words, with Claude Code's deny rules once installed:
 Kart covers what words couldn't, code that builds its own paths. Then the
 key pair, then signed network requests through it.
 
-**Built 2026-11-26, not merged, not pinned, not seen in a real client.**
-- *Willow, branch `addons/kart-shell` (kart 0.1.4), uncommitted in its
-  worktree:* `kart.py shell --box --project --command [--cwd] [--hide]
+**Built 2026-11-26, pinned, not turned on, not seen in a real client.**
+- *Willow, kart 0.1.4 (willow-memory/Willow#403, merged, pinned here at
+  `3ebccf8a960e`):* `kart.py shell --box --project --command [--cwd] [--hide]
   [--hold] [--timeout]` and `policy --project`. The project writable; home,
   /usr and /etc read-only; a private /tmp; no network; PATH, LANG and HOME.
   Kartikeya's policy only lists what to mount, so home is mounted *around*
@@ -1225,7 +1225,7 @@ key pair, then signed network requests through it.
   read-only wherever it is, the project too. The command goes in as a file,
   since Kartikeya splits a task's fenced blocks into steps. One line of JSON
   back; no seal, no proposal, no row.
-- *Here, branch `dev`, uncommitted:* the hook `kart-shell`, **off unless
+- *Here:* the hook `kart-shell`, **off unless
   turned on** (the first hook that is); `before_tool` hands an allowed shell
   command back as the same command through `doors/shell.py` (Claude Code's
   `updatedInput`, whole; Cursor's `updated_input`); the door runs it by
@@ -1235,11 +1235,12 @@ key pair, then signed network requests through it.
   door; only a door written for this box and this session's project counts.
   With it on, Cursor's `beforeShellExecution` blocks a command that didn't
   come through the door, since it can't be handed one there.
-- *Until the pin moves* the door answers 126, nothing ran: the pinned kart
-  has no `shell`. `tests/test_kart_shell.py` skips its one test through the
-  real sandbox until then; run by hand against the branch it passed (exit
-  code and output as the command's, the key, the record, `BOX.runtime`, this
-  checkout and the network not there, no row).
+- *Through the real sandbox,* `tests/test_kart_shell.py` holds the door to
+  the command's own exit code and output, the project written, the record
+  and `BOX.runtime` not there and no row; by hand the key, this checkout and
+  the network were not there either. On this machine Willow's own gate for
+  kart fails under its write guard, on main too: Kartikeya writes into the
+  `kart.slice` resource group set up here.
 - *Not known, to be seen in a real session:* whether Claude Code keeps its
   own permission prompt when a hook gives `updatedInput` with no
   `permissionDecision` (its hooks page doesn't say; none is sent, so no
