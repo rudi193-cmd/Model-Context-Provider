@@ -358,8 +358,14 @@ so none is lost. A box is ticked when it is built.
   - **Note:** the fifteen Willow commits this pin stands on (the hook
     add-ons, `todo`, `people`, `hook-guard`, `kart`, `timeline`, `removed`) are
     willow-memory/Willow#379, opened 2026-11-18 and merged 2026-11-19.
-- [ ] **Quoted speech in the todo report.** About a dozen of the 91 lines
+- [x] **Quoted speech in the todo report.** About a dozen of the 91 lines
   are the owner quoted saying "I need to…" in a past session, not tasks.
+  - **Done 2026-11-26, on the owner's word** (Willow `todo` 0.1.3, #402, in
+    the pin): a mark inside quotation marks is someone's words, not a thing
+    to do; a line that opens with who said it (`Mum: "don't forget the
+    bins"`) still counts, the owner's ruling, and an open checkbox always
+    does. On the real record, 283 lines before and 253 after, each of the 30
+    left out quoted words or a page about the marks.
   - **Needs:** the owner's yes; it is a change to Willow's `todo`, and it
     would also drop a real task that happens to be quoted.
   - **Context (2026-11-26, from the boxes):** Willow's `who-said` already reads a
@@ -460,8 +466,12 @@ so none is lost. A box is ticked when it is built.
 - [ ] **From putting kart through its paces (2026-11-18):**
   - Kartikeya's scan of a job missed a listening socket and a printed
     secret. Written up for the owner; not this project's code.
-  - The privacy filter turns a run of four-digit numbers into
-    `[withheld: card]`, so a job that prints years or sizes reads oddly.
+  - ~~The privacy filter turns a run of four-digit numbers into
+    `[withheld: card]`, so a job that prints years or sizes reads oddly.~~
+    **Done 2026-11-26** (Willow `privacy` 0.1.2, #402, in the pin): a card is
+    a card network's first digits and the Luhn check, grouped or not; every
+    run of four years from 1900 to 2199 is left, and `hook-leaks`, which
+    reads the same shapes, no longer refuses one.
   - [x] A job's output is given up to 20,000 characters; a smaller default,
     with more on asking, would cost less. Done: `job` and `job_result` give
     4,000 characters (`JOB_GIVEN`), cut at a whole line, and say so in
@@ -961,12 +971,17 @@ the door; every item is the owner's to decide or to ship.
   `kernel.pile_of_box` is what makes more boxes switchable. Not started; it
   needs the owner's word. Die-Namic's `boxes/*/rebuild.sh` still copy each
   repository at its pinned commit.
-- **Willow branches left for the owner:** `addons/pile-store-sources` (5
+- ~~**Willow branches left for the owner:** `addons/pile-store-sources` (5
   commits) and `pools/run-memory` (32), never pushed: keep, push or drop;
   `addons/words-later-set-aside` (on GitHub, "built and working, and refused
   by the guard"), which one stack still needs for its `words-layers` step;
   and the pushed `die-namic/engines`, which Willow's main holds all of:
-  delete or keep.
+  delete or keep.~~ **Settled 2026-11-26, the owner's word:**
+  `die-namic/engines` deleted (main holds all its add-ons);
+  `pile-store-sources` dropped (superseded by `gather --point` and
+  `index-cache`); `pools/run-memory` pushed; `words-later-set-aside` kept
+  until `words-later` is wanted or not. The stack's `words-layers` step is
+  on Willow's main as `word-layers`.
 - **A small model's judging, measured 2026-11-21** (the escalation
   benchmark's own aggregate): models of 3B and up were right 87.5 to 100% of
   the time judging one claim against one chunk that settles it, and
@@ -1163,7 +1178,42 @@ closed (`failClosed`); `--write cursor-managed` writes them for
 now, then the account of the key's own as way A, then C's passkey. **Not
 yet:** installed or tried in a real Cursor session; whether Cursor's CLI
 runs `preToolUse`, and whether it runs Claude Code's own hooks (its docs say
-it can, and the page on how is a 404).
+it can, and the page on how is a 404). Cursor's user hooks were written here
+2026-11-26 (`--write cursor`); the administrator's copy waits on the owner's
+sudo.
+
+**The order since (the owner, 2026-11-26).** Account A alone breaks every
+question (`sealed()` reads the key to check each seal), so the key pair
+(Willow's `docs/design/key-pair.md`) comes before any account of its own.
+And before the key pair: **the assistant's shell runs in Kart.**
+
+**The Kart shell (the owner's picture, 2026-11-26, not built).** Every shell
+command an assistant runs goes through a Kart sandbox: the project folder
+writable, the key and the record never mounted, network only on a signed
+request. What makes it reachable:
+- the guard door rewrites a shell call rather than only judging it: Claude
+  Code's `PreToolUse` takes an `updatedInput`, Cursor's `preToolUse` an
+  `updated_input`; the command runs inside Kart, and the assistant sees its
+  output and exit code as before;
+- Kartikeya's sandbox is set by a policy file (`$KART_SANDBOX_CONFIG`, then
+  `$WILLOW_HOME/kart-sandbox.json`, then its default: willow-mcp's
+  `kart-lift-spec.md`), so a writable project folder is a policy line;
+  Willow's `kart` card today mounts the folder read-only, one scratch, no
+  network, no environment but `PATH`, `LANG` and `HOME`, and never the box or
+  the key;
+- network is already a request in Kartikeya (0.0.2 on: a host authorizer for
+  every network row; willow-mcp's is an Ed25519-signed envelope over the exact
+  task's hash, an expiry and a one-use nonce, its B-37): the key pair is what
+  signs the person's yes to one.
+To build, in order: a policy for this mode (project writable; home and system
+read-only; the box, its key, `BOX.runtime`, the Provider's live checkout and
+the pinned Willow never in it; no network; few variables); a synchronous
+`kart shell` in Willow's card, no seal per command, since it is the
+session's own shell; the rewrite in the runtime, for both assistants; tests
+that a command inside can't see the key, the record or the network. The file
+tools stay guarded by words, with Claude Code's deny rules once installed:
+Kart covers what words couldn't, code that builds its own paths. Then the
+key pair, then signed network requests through it.
 
 **The steps, for when sealing can cross** (not to follow yet: today they
 would stop the seal page and the desktop prompt from sealing). The person
@@ -1398,8 +1448,21 @@ separation from the person's side ("uid separation: OK"). It needs Python
   jumps to the next digit or web address, 34.6 s to 3.8 s over cpython's
   710,290 passages with every date the same, and `stem` keeps what it
   worked out. Not yet measured on the real folder.
-- Quoted speech in the `todo` report.
-- The privacy filter reading a run of four-digit numbers as a card.
+- ~~Quoted speech in the `todo` report.~~ Done, above.
+- ~~The privacy filter reading a run of four-digit numbers as a card.~~
+  Done, above.
+- **Also in #402** (2026-11-26, merged and in the pin): `hook-guard` 0.2.2
+  read a word that starts with a tilde naming no user, with a glob
+  character in it, by asking for a home that isn't there, crashed, and so
+  refused the command; such a word is read as written now. `hook-guard` and
+  `hook-leaks` read Cursor's calls. Willow's test timings were refreshed, a
+  week stale, which had let `strip` run past its 900 s on main.
+- **The seal by a key pair** (the owner's ruling, 2026-11-26): Willow's
+  `docs/design/key-pair.md` on branch `kernel/key-pair`, not built. Account
+  A alone breaks every question, since `sealed()` reads the key to check
+  each seal; with a key pair, the public half checks and the private half
+  stays with the keyholder. Old seals sit as sealed, vouched for by one
+  `rekey` row, and until it `seal` signs beside them.
 - What Kartikeya's scan of a job missed (written up above).
 - ~~**#91's fix, to main.**~~ Done 2026-11-21: willow-memory/Willow#387
   merged `hook-guard` 0.2.0, whose `seal` rule refuses a command that runs
