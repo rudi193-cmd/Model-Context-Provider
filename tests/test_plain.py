@@ -181,10 +181,14 @@ def scenario(code, box, tmp_path_factory, monkeypatch):
         return runtime.call(box, "shelf_list", door="mcp", where="/w")
     if code == "tool_refused":
         return runtime.call(box, "tool", {"name": "shelf"}, door="mcp")
+    if code == "hooks_refused":
+        return runtime.call(box, "hooks", {"off": ["hook-guard"]}, door="pipe")
     if code == "tools_refused":
         return runtime.call(box, "tools", {"off": ["core"]}, door="pipe")
     if code == "remove_refused":
         return runtime.call(box, "remove", {"kind": "made"}, door="pipe")
+    if code == "report_refused":
+        return runtime.call(box, "report", {"name": "todo", "after": "x"}, door="mcp")
     if code == "timeline_refused":
         return runtime.call(box, "timeline", " ", door="pipe")
     if code == "feed_refused":

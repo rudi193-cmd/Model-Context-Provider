@@ -16,6 +16,11 @@ record, and only when you name a model.
     python set_up.py --box BOX --write managed    Claude Code's hooks, for its
                                                   managed settings, and the line
                                                   that installs them
+    python set_up.py --box BOX --write cursor-managed
+                                                  Cursor's hooks, guard door and
+                                                  all, for its administrator's
+                                                  file, and the line that
+                                                  installs it
 """
 
 from __future__ import annotations
@@ -461,6 +466,45 @@ def write_managed(box: Path) -> list[str]:
     ]
 
 
+#: where Cursor reads hooks an administrator set (its hooks reference,
+#: "Enterprise"), on Linux and WSL: a file only root writes, so an assistant
+#: running as the person can't switch the guard door off by editing it
+CURSOR_MANAGED = Path("/etc/cursor/hooks.json")
+
+
+def write_cursor_managed(box: Path) -> list[str]:
+    """Cursor's hooks for this record, the guard door failing closed among
+    them, as the file Cursor reads from its administrator's folder, and the
+    line that installs it. That folder is root's, so this never writes
+    there: the person runs the line, with sudo. Only Linux and WSL, where
+    Cursor's docs name the place; a file there already is someone's, so it is
+    never written over: merge by hand."""
+    if not sys.platform.startswith("linux"):
+        return ["refused: Cursor's docs name its administrator's hooks file for Linux "
+                "and WSL only (/etc/cursor/hooks.json); elsewhere, --write cursor puts "
+                "the same hooks in ~/.cursor/hooks.json"]  # fmt: skip
+    made = Path.home() / ".cursor" / "model-context-provider-managed-hooks.json"
+    made.parent.mkdir(parents=True, exist_ok=True)
+    made.write_text(json.dumps(hosts.cursor_hooks(box), indent=2) + "\n")
+    to = CURSOR_MANAGED
+    if to.exists():
+        return [f"wrote {made}: Cursor's hooks for your record, the guard door among them.",
+                f"refused: {to} is there already, and is someone's: merge {made}'s hooks into it",
+                "by hand, as root, rather than have it written over."]  # fmt: skip
+    return [
+        f"wrote {made}: Cursor's hooks for your record, the guard door among them,",
+        "failing closed (a guard that can't answer is a No). Read it, then install it",
+        "in a terminal of your own (it needs your administrator password):",
+        "",
+        f"    sudo install -D -m 644 {shlex.quote(str(made))} {shlex.quote(str(to))}",
+        "",
+        "Then an assistant in Cursor can't switch the guard door off by editing your",
+        "settings. It guards by words, as every hook does: Cursor's shell has no rule",
+        "that refuses one path, so a command an assistant builds can still get past it.",
+        "The key in an account of its own is the guarantee that doesn't (docs/OPEN.md).",
+    ]
+
+
 COMMAND = "provider"
 
 
@@ -501,6 +545,8 @@ def write(box: Path, which: str) -> list[str]:
         return write_command(box)
     if which == "managed":
         return write_managed(box)
+    if which == "cursor-managed":
+        return write_cursor_managed(box)
     if which == "claude-code":
         return write_claude_hooks(box)
     if which == "all":
@@ -522,9 +568,21 @@ def write(box: Path, which: str) -> list[str]:
     return lines
 
 
+#: what to do instead when the model is on another machine of the person's
+#: own: a tunnel, so the Provider asks this machine and the wire is SSH's.
+#: Its own port, so a model already serving here can't answer in its place,
+#: and a tunnel that couldn't open says so rather than leaving that port
+#: to whatever holds it (docs/OPEN.md, "A model on the person's own rig")
+TUNNEL = (
+    "A model on another machine of yours: tunnel it to this one, "
+    "ssh -N -o ExitOnForwardFailure=yes -L 21434:localhost:11434 you@rig, "
+    "then --model http://127.0.0.1:21434/v1 NAME."
+)
+
+
 def name_model(box: Path, url: str, model: str) -> str:
     if not runtime.on_this_machine(url):
-        return f"refused: {url} is not on this machine"
+        return f"refused: {url} is not on this machine. {TUNNEL}"
     f = runtime.state(box) / "model.json"
     f.write_text(json.dumps({"url": url, "model": model}) + "\n")
     return f"wrote {f}"

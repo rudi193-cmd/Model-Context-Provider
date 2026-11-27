@@ -11,7 +11,10 @@ the commit willow.pin.json pins, made from it (willow_pin.py).
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
+import hmac
 import ipaddress
 import json
 import os
@@ -813,16 +816,28 @@ def draft(box: Path, question: str, ask=None, door: str = "") -> dict:
     if ask is None:
         return {"state": "refused",
                 "code": "no_model", "why": "no model to ask: the client can't sample, and no model.json names one"}  # fmt: skip
-    got = context(box, question)
-    if got["state"] != "left":
-        return {"state": got["state"], "asked": False}
-    to = getattr(ask, "to", f"the client's model, through the {door} door")
-    sent(box, door or "unknown", "sample", {**got, "to": to})
-    prompt = f"Their question: {question}\n\nThe page:\n{got['page']}"
+    # a retry of a request the client's model answered in between (MCP's
+    # multi round-trip requests): the page it was sent and how many tries it
+    # has had come back held by this process's own key, so the kernel isn't
+    # asked again and nothing new goes on the sent log
+    resume = getattr(ask, "resume", None)
+    if resume is not None and resume.get("question") == question:
+        prompt, tries = str(resume["prompt"]), int(resume["tries"])
+    else:
+        got = context(box, question)
+        if got["state"] != "left":
+            return {"state": got["state"], "asked": False}
+        to = getattr(ask, "to", f"the client's model, through the {door} door")
+        sent(box, door or "unknown", "sample", {**got, "to": to})
+        prompt, tries = f"Their question: {question}\n\nThe page:\n{got['page']}", 0
     said = {}
-    for _ in range(2):
+    for tries in range(tries, 2):
         try:
             text = str(ask(DRAFT_SYSTEM, prompt)).strip()
+        except Later as later:  # to be asked over a retry: what it needs then
+            later.keep = {"kind": "sample", "question": question,
+                          "prompt": prompt, "tries": tries}  # fmt: skip
+            raise
         except Exception as why:  # noqa: BLE001 - a client that fails asks nothing more
             return {
                 "state": "refused",
@@ -930,7 +945,9 @@ PLAIN = {
                          "It works on a record made from one folder, as Willow's UI makes them; for this record, wait for Willow to read them all."),
     "report_failed": ("The report couldn't be made, so nothing was shared.",
                       "Check that WILLOW points at your Willow folder."),
-    "report_too_long": ("The report is too long to share whole, so nothing was shared.",
+    "report_refused": ("That part of the report couldn't be asked for.",
+                       "Ask for the report by its name, and for the next part with the after you were given."),
+    "report_too_long": ("A line of the report is too long to share, so nothing was shared.",
                         "Leave folders out of it: list each, one a line, in report-skip.txt beside your record, then ask again."),
     "no_resource": ("That isn't something this door lists.",
                     "It lists the reports (todo, coming-up, on-this-day, people, ref-check, pii-audit, secrets-audit, minutes), the page you last sealed, what is on this project's shelf, and the skills you named."),
@@ -970,6 +987,8 @@ PLAIN = {
                  "You choose which tools a model is offered: provider tools lists them, and provider tools on=GROUP turns one on."),
     "tool_refused": ("That tool wasn't called in a way it takes, so nothing was done.",
                      "The reason it gave names the action or the argument that was missing: call it again with that."),
+    "hooks_refused": ("That isn't a hook that can be turned on or off, so nothing was changed.",
+                      "See them with: provider hooks. hook-guard is always on."),
     "tools_refused": ("That isn't a group of tools, so nothing was changed.",
                       "See the groups and which are on (provider tools, or the seal page's tools page), then name the ones to turn on or off."),
     "remove_refused": ("Nothing was removed.",
@@ -1002,6 +1021,8 @@ PLAIN = {
 #: the person's to fix (a seal, a setting, a file of theirs), so a model is
 #: told to tell them. A model reads `why` beside this for which argument.
 FOR_MODEL = {
+    "report_refused": "Ask for the report by name; for its next part, pass after as "
+                      "the number the last part gave you.",
     "no_question": "Ask again with a few words about what you want to find.",
     "no_page": "Get the sealed page first (the page tool, action leave), then answer "
                "that. What you are given under a grant is not a sealed page.",
@@ -1434,24 +1455,49 @@ def report_to_model(box: Path, name, let_in: bool = False) -> dict:
     model may be told a report exists).
 
     A session the person let in is given the report as it reads now,
-    withheld and under the most that is shared at once. Any other learns
+    withheld, in parts of whole lines under the most that is shared at
+    once: `after` (the number it was given) asks for the next part, and
+    nothing else is said of the rest, never a count. Any other learns
     only that there is one, or that there is nothing to report: no line, no
     place, no count. Nothing is proposed and nothing waits: one report is
     not sealed on its own (the owner, 2026-11-18), since a seal of it went
     stale the day the report read differently. The yes is the session's."""
+    asked = name if isinstance(name, dict) else {"name": name}
+    name, after = asked.get("name"), str(asked.get("after") or "0")
+    if not after.isdigit():
+        return {"state": "refused", "code": "report_refused",
+                "why": "after is the number a part of the report was given, to ask for the next"}  # fmt: skip
     got = report(box, name, for_model=True)
     if got["state"] == "refused":
         return got
+    name = got.get("report", name)
     if got["state"] != "populated" or not let_in:  # nothing of it, and no count
         return {"state": got["state"], "report": name}
     try:
         (text,) = withhold(box, [got["text"]])
     except RuntimeError as why:  # can't withhold: nothing leaves
         return {"state": "refused", "code": "scrub_failed", "why": str(why)}
-    if len(text) > REPORT_MOST:  # said without its size: that would be a count
+    lines, start = text.splitlines(), int(after)
+    part, size = [], 0
+    for ln in lines[start:]:
+        size += len(ln) + 1
+        if size > REPORT_MOST:
+            break
+        part.append(ln)
+    if start >= len(lines):  # past its end: nothing more of it
+        return {"state": "empty", "report": name}
+    if not part:  # one line alone is over the most: said without its size
         return {"state": "refused", "code": "report_too_long",
-                "why": "the report is over the most that is shared at once"}  # fmt: skip
-    return {"state": "left", "report": name, "page": text, "by": "grant"}
+                "why": "a line of the report is over the most that is shared at once"}  # fmt: skip
+    told = {
+        "state": "left",
+        "report": name,
+        "page": "\n".join(part) + "\n",
+        "by": "grant",
+    }
+    if start + len(part) < len(lines):
+        told["after"] = start + len(part)  # ask again with this for the next part
+    return told
 
 
 #: a skill's name: one plain word, as a folder is named
@@ -1992,6 +2038,69 @@ def hooked(sent: dict, *args: str) -> subprocess.CompletedProcess:
     )  # fmt: skip
 
 
+#: the hooks around what an assistant does, by name, and what each is for.
+#: Each is on unless the person turns it off (hooks.txt beside the box, a
+#: name a line, a minus before it for off), as the tool groups are. The
+#: guard of the key and the record, and of the person's own doors, never is
+HOOKS = {
+    "hook-guard": "the key, the record and the runtime's own files beside it: always on",
+    "hook-leaks": "a secret in what the assistant writes",
+    "hook-shell": "the commands you deny in deny.txt, when there is one",
+    "hook-read-first": "an edit of a file the assistant hasn't read",
+    "hook-errors": "a command that already failed twice, and each failed one kept",
+    "hook-feedback": "a correction you make (no, wrong, I said), kept for the session's seal",
+    "hook-handoff": "where the last session ended, told to the next",
+    "prompt-context": "whether your files hold something on each prompt",
+}
+HOOKS_ALWAYS = ("hook-guard",)
+
+
+def hooks_said(box: Path) -> dict:
+    """What the person said of each hook in hooks.txt beside the box."""
+    f = state(box) / "hooks.txt"
+    out = {}
+    for line in f.read_text().splitlines() if f.is_file() else []:
+        word = line.strip()
+        name = word.lstrip("-")
+        if name in HOOKS and name not in HOOKS_ALWAYS:
+            out[name] = not word.startswith("-")
+    return out
+
+
+def hooks_on(box: Path) -> dict:
+    """Each hook, and whether it runs: as the person said, else on."""
+    said = hooks_said(box)
+    return {h: h in HOOKS_ALWAYS or said.get(h, True) for h in HOOKS}
+
+
+def hooks_set(box: Path, arg) -> dict:
+    """The person's switch for the hooks: {"on": [HOOK, ...], "off": [HOOK,
+    ...]}, kept in hooks.txt beside the box; anything else lists them, each
+    with what it is for and whether it runs. Fewer hooks, fewer rows on the
+    record; hook-guard is never off."""
+    if isinstance(arg, dict) and set(arg) & {"on", "off"}:
+        turn = {}
+        for key, value in (("on", True), ("off", False)):
+            named = arg.get(key) or []
+            for h in [named] if isinstance(named, str) else named:
+                if h not in HOOKS or h in HOOKS_ALWAYS or turn.get(h, value) != value:
+                    return {"state": "refused", "code": "hooks_refused",
+                            "why": f"{h!r}: name a hook other than hook-guard, once; one of "
+                                   f"{', '.join(x for x in HOOKS if x not in HOOKS_ALWAYS)}"}  # fmt: skip
+                turn[h] = value
+        said = {**hooks_said(box), **turn}
+        (state(box) / "hooks.txt").write_text(
+            "".join(f"{'' if on else '-'}{h}\n" for h, on in sorted(said.items()))
+        )
+    on, said = hooks_on(box), hooks_said(box)
+    return {"state": "listed", "hooks": [
+        {"hook": h, "what": what, "on": on[h],
+         "why": ("always on" if h in HOOKS_ALWAYS
+                 else ("you turned it on" if said[h] else "you turned it off") if h in said
+                 else "on unless you turn it off")}
+        for h, what in HOOKS.items()]}  # fmt: skip
+
+
 def guards(box: Path) -> list[tuple[str, tuple[str, ...]]]:
     """Willow's guards on a tool call, in the order they are asked. Each
     judges by fixed rule, never by what the assistant meant: the key, the
@@ -2010,7 +2119,8 @@ def guards(box: Path) -> list[tuple[str, tuple[str, ...]]]:
         out.append(("hook-shell", (HOOK_SHELL, "run", "--rules", str(deny))))
     out += [("hook-read-first", (HOOK_READ_FIRST, "run", *at)),
             ("hook-errors", (HOOK_ERRORS, "run", *at))]  # fmt: skip
-    return out
+    on = hooks_on(box)  # what the person turned off isn't asked
+    return [(name, argv) for name, argv in out if on[name]]
 
 
 #: the person's own doors: what runs them is the person's, never a model's
@@ -3090,7 +3200,10 @@ def context_hooked(box: Path, question: str, where, session) -> dict:
     """What a prompt hook is given: context(), and when the files hold the
     question for a session that asked to be let in, that it did. The door
     then says to ask with the context tool, which gives what that session
-    may have, rather than that nothing is given. No passage either way."""
+    may have, rather than that nothing is given. No passage either way. A
+    person who turned prompt-context off is asked nothing at a prompt."""
+    if not hooks_on(box)["prompt-context"]:
+        return {"state": "off"}
     got = context(box, question)
     if got["state"] == "populated" and grant_asked(box, where, session):
         return {**got, "asked": True}
@@ -4358,6 +4471,57 @@ def feed_to_model(box: Path, arg, let: bool) -> dict:
     return {**got, "by": "grant"} if got["state"] == "written" else got
 
 
+#: the moments a hook's answer can stop a tool call: Claude Code's one, and
+#: Cursor's three (its hooks reference: preToolUse, beforeShellExecution,
+#: beforeReadFile). A guard door blocks at these and nowhere else
+STOPS = frozenset(
+    {"PreToolUse", "preToolUse", "beforeShellExecution", "beforeReadFile"}
+)
+
+
+def one_shape(sent: dict) -> dict:
+    """A host's tool call as Claude Code sends one, so every guard reads it
+    the same way. Cursor's preToolUse sends tool_name and tool_input with its
+    own names (Shell, Delete) and its shell's folder as working_directory;
+    its beforeShellExecution sends the command alone, and beforeReadFile the
+    file alone. A Delete is the rm it amounts to, so every rule about a
+    command that changes what it names holds it. Cursor's conversation is the
+    session. Anything else is as it came."""
+    name = sent.get("hook_event_name")
+    if name not in ("preToolUse", "beforeShellExecution", "beforeReadFile"):
+        return sent
+    out = {**sent, "hook_event_name": "PreToolUse"}
+    if not isinstance(out.get("session_id"), str) and isinstance(
+        sent.get("conversation_id"), str
+    ):
+        out["session_id"] = sent["conversation_id"]
+    if name == "beforeShellExecution":
+        return {
+            **out,
+            "tool_name": "Bash",
+            "tool_input": {"command": sent.get("command")},
+        }
+    if name == "beforeReadFile":
+        return {
+            **out,
+            "tool_name": "Read",
+            "tool_input": {"file_path": sent.get("file_path")},
+        }
+    given = sent.get("tool_input") if isinstance(sent.get("tool_input"), dict) else {}
+    if not isinstance(out.get("cwd"), str) and isinstance(
+        given.get("working_directory"), str
+    ):
+        out["cwd"] = given["working_directory"]
+    tool = sent.get("tool_name")
+    if tool == "Shell":
+        return {**out, "tool_name": "Bash"}
+    if tool == "Delete":
+        path = given.get("file_path") or given.get("path") or given.get("target_file")
+        return {**out, "tool_name": "Bash",
+                "tool_input": {"command": "rm -- " + shlex.quote(str(path))}}  # fmt: skip
+    return out
+
+
 def event(box: Path, sent) -> dict:
     """A moment of the assistant's session, as its host sent it, decided
     here for every door that carries one.
@@ -4379,6 +4543,7 @@ def event(box: Path, sent) -> dict:
     if not isinstance(sent, dict):
         return {"state": "refused", "code": "event_unread",
                 "why": "the hook's input is not a JSON object"}  # fmt: skip
+    sent = one_shape(sent)
     name, at = sent.get("hook_event_name"), ("--box", str(box))
     note_session(box, sent)
     if isinstance(name, str) and name in capturing(box):
@@ -4390,7 +4555,10 @@ def event(box: Path, sent) -> dict:
         shelve(box, sent.get("cwd"), {"name": f"event-{name}-{tag}.json", "text": text}, "guard")  # fmt: skip
     if name == "PreToolUse":
         return own_doors_guard(sent) or judged(sent, guards(box))
+    on = hooks_on(box)
     if name in ("PostToolUse", "PostToolUseFailure"):
+        if not on["hook-errors"]:
+            return {"state": "empty"}
         return judged(sent, [("hook-errors", (HOOK_ERRORS, "run", *at))])
     says = []
     if name == "SessionEnd":
@@ -4406,7 +4574,7 @@ def event(box: Path, sent) -> dict:
         elif asked.get("state") == "granted":
             says.append("Model Context Provider: the person has let this session read "
                         "from their files while it works in this folder.")  # fmt: skip
-    if name == "UserPromptSubmit":
+    if name == "UserPromptSubmit" and on["hook-feedback"]:
         # a correction of the person's is kept for the session's one seal,
         # not handed in on its own (the owner's word, 2026-11-20)
         mine = state(box) / "corrections.txt"
@@ -4419,7 +4587,7 @@ def event(box: Path, sent) -> dict:
         elif run.returncode != 0:
             return {"state": "refused", "code": "guard_failed",
                     "why": f"hook-feedback: {run.stderr.strip()[-300:]}"}  # fmt: skip
-    if name in ("Stop", "SessionStart", "UserPromptSubmit"):
+    if name in ("Stop", "SessionStart", "UserPromptSubmit") and on["hook-handoff"]:
         run = hooked(sent, HOOK_HANDOFF, "run", *at)
         if run.returncode != 0:
             return {"state": "refused", "code": "guard_failed",
@@ -4480,6 +4648,7 @@ VERBS = {
         # and what changed in their own folder since it was last looked at
         # which groups of tools a model is offered: theirs to switch
         "tools": lambda box, arg, **kw: tools_set(box, arg),
+        "hooks": lambda box, arg, **kw: hooks_set(box, arg),
         "stored": lambda box, arg, **kw: stored(box, arg),
         "remove": lambda box, arg, **kw: remove(box, arg),
         "archive": lambda box, arg, **kw: remove(box, arg, archive=True),
@@ -5011,7 +5180,7 @@ TOOLS = {
         "answer": ("answer", ("sentence",), ()),
         "draft": ("draft", ("question",), ()),
     }),
-    "report": ("reports", {"": ("report", ("name",), ())}),
+    "report": ("reports", {"": ("report", ("name",), ("after",))}),
     "timeline": ("reports", {
         "": ("timeline", ("about",), ("since", "until", "after", "loose")),
     }),
@@ -5346,6 +5515,13 @@ def point_person(box: Path, got: dict, door: str, point) -> dict:
     asked = hashlib.sha256(f"{time.time_ns()} {url}".encode()).hexdigest()[:32]
     try:
         action = point(message, url, asked)
+    except Later as later:
+        # offered in the reply itself, the answer to come on a retry (MCP's
+        # multi round-trip requests): written down now, as it leaves; the
+        # reply is kept for the retry, which never runs the verb again
+        sent(box, door or "unknown", "point", {"state": "offered"})
+        later.keep = {"kind": "point", "got": got}
+        raise
     except RuntimeError:
         action = "unanswered"
     sent(box, door or "unknown", "point", {"state": action})
@@ -5377,11 +5553,24 @@ def settled(box: Path) -> list[str]:
         return []
     if not isinstance(known, dict) or not known:
         return []
+    done = seals_settled(box)
+    out = [k for k, subject in known.items() if subject in done]
+    for k in out:
+        sent(box, "mcp", "point_done", {"state": done[known.pop(k)]})
+    if out:
+        f.write_text(json.dumps(known) + "\n")
+    return out
+
+
+def seals_settled(box: Path) -> dict[str, str]:
+    """What the person has sealed or declined, by what it was for: seal or
+    decline, from the record's own rows. Nothing is asked of the kernel and
+    nothing written."""
     done: dict[str, str] = {}
     try:
         lines = (box / "record.jsonl").read_text(encoding="utf-8").splitlines()
     except OSError:
-        return []
+        return done
     for line in lines:
         try:
             row = json.loads(line)
@@ -5391,11 +5580,107 @@ def settled(box: Path) -> list[str]:
             row.get("subject"), str
         ):
             done[row["subject"]] = row["kind"]
-    out = [k for k, subject in known.items() if subject in done]
-    for k in out:
-        sent(box, "mcp", "point_done", {"state": done[known.pop(k)]})
-    if out:
-        f.write_text(json.dumps(known) + "\n")
+    return done
+
+
+# ── a request asked again: MCP's multi round-trip requests (2026-07-28) ─────
+class Later(Exception):
+    """Something the person's assistant is to be asked in the reply itself,
+    its answer to come back on a retry of the same request: a sentence from
+    its model (`sample`) or the seal page shown to the person (`point`).
+    `asked` is what to ask, for the door to carry; `keep` is what the retry
+    needs, which the runtime fills in and holds (later_state)."""
+
+    def __init__(self, kind: str, asked: dict):
+        super().__init__(kind)
+        self.kind, self.asked, self.keep = kind, asked, {}
+
+
+class LaterAsk:
+    """The client's model, asked over a retry rather than on the same pipe:
+    called once with the answer the retry carried, it gives that; called
+    without one, it says the model is to be asked (Later). `resume` is what
+    the last reply kept, opened by later_open."""
+
+    to = "the client's model, asked in a reply"
+
+    def __init__(self, resume: dict | None = None, heard: str | None = None):
+        self.resume, self.heard = resume, heard
+
+    def __call__(self, system: str, user: str) -> str:
+        if self.heard is not None:
+            heard, self.heard = self.heard, None
+            return heard
+        raise Later("sample", {"system": system, "user": user})
+
+
+class LaterPoint:
+    """The seal page offered in the reply itself (URL elicitation over a
+    retry): never answered on the spot, so it is always Later."""
+
+    def __call__(self, message: str, url: str, asked: str) -> str:
+        raise Later("point", {"message": message, "url": url})
+
+
+#: this process's own key for what a reply keeps for its retry: made when it
+#: starts and never written anywhere, so a state is good only for the
+#: process that made it. Never the person's key, which this code never reads
+LATER_KEY = os.urandom(32)
+LATER_SECONDS = 1800  # how long a reply's state holds for its retry
+LATER_USED: set[str] = set()  # each state holds once
+
+
+def asked_digest(asked) -> str:
+    return hashlib.sha256(json.dumps(asked, sort_keys=True).encode()).hexdigest()
+
+
+def later_state(asked, keep: dict) -> str:
+    """What a reply keeps for its retry, as one opaque string, bound to the
+    request it answers (its tool and arguments), with an end and a nonce,
+    and signed by this process's own key."""
+    body = json.dumps({"keep": keep, "for": asked_digest(asked),
+                       "until": time.time() + LATER_SECONDS,
+                       "nonce": os.urandom(12).hex()}).encode()  # fmt: skip
+    mac = hmac.new(LATER_KEY, body, "sha256").digest()
+    b64 = base64.urlsafe_b64encode
+    return b64(body).decode() + "." + b64(mac).decode()
+
+
+def later_open(text, asked) -> dict | None:
+    """What a reply kept, if `text` is a state this process made, for this
+    same request, not past its end, and not used before; else None. A
+    retry's state comes through the client, so nothing in it is trusted
+    until it holds."""
+    if not isinstance(text, str) or text.count(".") != 1:
+        return None
+    a, b = text.split(".")
+    try:
+        body, mac = base64.urlsafe_b64decode(a), base64.urlsafe_b64decode(b)
+    except (ValueError, binascii.Error):
+        return None
+    if not hmac.compare_digest(hmac.new(LATER_KEY, body, "sha256").digest(), mac):
+        return None
+    got = json.loads(body)
+    if got["for"] != asked_digest(asked) or time.time() > got["until"]:
+        return None
+    if got["nonce"] in LATER_USED:
+        return None
+    LATER_USED.add(got["nonce"])
+    return got["keep"]
+
+
+def point_answered(box: Path, got: dict, action, door: str = "") -> dict:
+    """A retry after the person was offered their seal page in their
+    assistant: the reply it was offered with, what they answered (accept,
+    decline or cancel), and whether they have sealed or declined it on the
+    page since, which is how their assistant learns it now. The verb is never
+    run again. Written down on the sent log."""
+    action = action if action in ("accept", "decline", "cancel") else "unanswered"
+    sent(box, door or "unknown", "point", {"state": action})
+    out = {**got, "pointed": action}
+    done = seals_settled(box).get(str(got.get("seal")))
+    if done:
+        out["settled"] = {"seal": "sealed", "decline": "declined"}[done]
     return out
 
 

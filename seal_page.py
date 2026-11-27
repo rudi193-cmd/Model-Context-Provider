@@ -78,7 +78,7 @@ import runtime  # noqa: E402
 
 SUBJECT = re.compile(r"proposal:[0-9a-f]{64}")
 ACTS = ("seal", "decline", "later", "back", "stop", "turn_on", "turn_off")
-PAGES = ("/", "/shared", "/status", "/promises", "/tools")
+PAGES = ("/", "/shared", "/status", "/promises", "/tools", "/hooks")
 MOST = 8192  # bytes of a form; ours are a few hundred
 
 HEADERS = {
@@ -261,6 +261,14 @@ def decide(box: Path, act: str, subject: str) -> dict:
         if got.get("state") != "listed":
             return got
         return {"state": "switched", "family": subject, "on": act == "turn_on"}
+    if act in ("hook_on", "hook_off"):  # a hook: the runtime's switch
+        if subject not in runtime.HOOKS or subject in runtime.HOOKS_ALWAYS:
+            return {"state": "refused", "why": "that isn't a hook that can be switched"}
+        asked = {"on" if act == "hook_on" else "off": [subject]}
+        got = runtime.call(box, "hooks", asked, door="page")
+        if got.get("state") != "listed":
+            return got
+        return {"state": "hooked", "hook": subject, "on": act == "hook_on"}
     if act not in ACTS or not SUBJECT.fullmatch(subject):
         return {"state": "refused", "why": "that isn't something this page does"}
     if act in ("later", "back", "stop"):  # the runtime's, and no key
@@ -301,6 +309,14 @@ def note_of(got: dict) -> tuple[str, str]:
                     "now on; a client that is open is told the list changed."), ""  # fmt: skip
         return (f"Turned off. A model that asks for the {got['family']} tools is "
                 "refused from now on, by any door."), ""  # fmt: skip
+    if state == "hooked":
+        if got.get("on"):
+            return (
+                f"Turned on. {got['hook']} runs again from the next moment it is for.",
+                "",
+            )
+        return (f"Turned off. {got['hook']} isn't asked from now on, and writes "
+                "nothing on your record."), ""  # fmt: skip
     say = " ".join(x for x in (got.get("say"), got.get("next")) if x)
     return "Nothing was done: " + (say or got.get("why") or "refused") + ".", "refused"
 
@@ -729,7 +745,8 @@ def shell(box: Path, token: str, at: str, parts: list[str]) -> str:
     titles = {"/": "Waiting on your seal", "/shared": "What you’ve shared",
               "/status": "How things stand",
               "/promises": "What a model can never do",
-              "/tools": "What a model is offered"}  # fmt: skip
+              "/tools": "What a model is offered",
+              "/hooks": "What runs around your assistant"}  # fmt: skip
     nav = " · ".join(
         f"<strong>{esc(t)}</strong>" if href == at else f'<a href="{href}">{esc(t)}</a>'
         for href, t in titles.items()
@@ -861,6 +878,42 @@ def tools_page(box: Path, token: str, note: tuple[str, str] = ("", "")) -> str:
     return shell(box, token, "/tools", parts)
 
 
+def hooks_page(box: Path, token: str, note: tuple[str, str] = ("", "")) -> str:
+    """Which hooks run around what the assistant does: the runtime's `hooks`,
+    a card for each with what it is for, whether it runs and why, and a
+    button to switch it. The switch is the runtime's, kept beside the
+    record; no key is needed, and the guard of the key has no button."""
+    parts = []
+    if note[0]:
+        parts.append(f'<section class="card note {esc(note[1])}">{esc(note[0])}</section>')  # fmt: skip
+    got = runtime.call(box, "hooks", door="page")
+    if got.get("state") == "refused":
+        say = " ".join(x for x in (got.get("say"), got.get("next")) if x)
+        parts.append(f'<section class="card note refused">{esc(say)}</section>')
+    hooks = got.get("hooks", [])
+    if hooks:
+        n = sum(1 for h in hooks if h["on"])
+        parts.append(
+            f'<section class="card">{n} of {len(hooks)} hooks run now. Each one '
+            "that runs writes on your record when it acts, so fewer means fewer "
+            "rows; a hook turned off is a guard you no longer have. The guard of "
+            "your key and record is always on.</section>"
+        )
+    for h in hooks:
+        switch = ""
+        if h["hook"] not in runtime.HOOKS_ALWAYS:
+            switch = '<div class="acts">' + button(
+                token, "hook_off" if h["on"] else "hook_on", h["hook"],
+                "Turn this off" if h["on"] else "Turn this on", at="/hooks",
+            ) + "</div>"  # fmt: skip
+        parts.append(
+            f'<section class="card"><p class="kind">{"On" if h["on"] else "Off"}'
+            f": {esc(h['why'])}</p><h2>{esc(h['hook'])}</h2>"
+            f"<p>{esc(h['what'][:1].upper() + h['what'][1:])}.</p>{switch}</section>"
+        )
+    return shell(box, token, "/hooks", parts)
+
+
 def promises_page(box: Path, token: str, note: tuple[str, str] = ("", "")) -> str:
     """What a model can never do, from the code itself: the runtime's
     `promises`, each part a card. It only shows; nothing on it changes anything."""
@@ -942,7 +995,8 @@ def handler(box: Path, secret: str):
             self.server.last = time.monotonic()
             note, Page.note = Page.note, ("", "")
             show = {"/": page, "/shared": shared_page, "/status": status_page,
-                    "/promises": promises_page, "/tools": tools_page}  # fmt: skip
+                    "/promises": promises_page, "/tools": tools_page,
+                    "/hooks": hooks_page}  # fmt: skip
             self.say(200, show[url.path](box, secret, note))
 
         def do_POST(self):

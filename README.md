@@ -106,10 +106,41 @@ them go Claude Code's sandbox and deny rules: no command an assistant runs
 can read your key or change your record or this code, whatever its words,
 because the system refuses it, not a guard. It changes every project in
 Claude Code (shell commands run sandboxed), and setup says how before you
-install it. To draft answers with a model on this
+install it.
+
+Cursor gets the guard door too: `--write cursor` puts it in
+`~/.cursor/hooks.json`, before a tool, a shell command and a read of a
+file, failing closed, and
+
+    python set_up.py --box BOX --write cursor-managed
+
+writes the same hooks for Cursor's administrator's file
+(`/etc/cursor/hooks.json`, Linux and WSL), with the `sudo` line. Cursor has no
+sandbox rule that refuses one path, so in Cursor the guard holds by words:
+the key in an account of its own is the guarantee there (docs/OPEN.md).
+
+To draft answers with a model on this
 machine (Ollama, llama.cpp, LM Studio…), add `--model
 http://127.0.0.1:11434/v1 NAME`. That writes `model.json` beside your record,
 and nothing else. A model off this machine is refused.
+
+A model on another machine of yours (a rig in the next room, reached over
+your home network) is refused the same way: on a shared network anyone on
+it can read a page sent in plain HTTP, and another box could take the
+rig's address. Tunnel it to this machine instead, and name the tunnel:
+
+    ssh -N -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=yes \
+        -L 21434:localhost:11434 you@rig
+    python set_up.py --box BOX --model http://127.0.0.1:21434/v1 NAME
+
+The wire is SSH's, and SSH's host key says it is your rig once you have
+checked its fingerprint the first time, read off the rig's own screen
+(before that it is the first answer's word; `StrictHostKeyChecking=yes`
+refuses a key it doesn't know). Use a port nothing here uses (21434, not
+Ollama's own 11434): a model already serving on this machine would answer
+in the rig's place, and with `ExitOnForwardFailure` a tunnel that can't
+open says so instead of leaving the port to it. What it doesn't prove is
+which weights the rig serves: that is your own machine's word.
 
 Your own door, for everything a model can't do, is easiest as a command:
 

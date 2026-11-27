@@ -397,3 +397,57 @@ def test_the_sessions_card_lists_its_corrections_escaped(box):
     card = seal_page.card(box, "tok", w)
     assert "What you said to correct the assistant" in card
     assert "no, the &lt;b&gt;other&lt;/b&gt; bed" in card and "<b>other</b>" not in card
+
+
+# ── Cursor: its own event names and tool names, held to the same rules ─────
+
+
+def cursor(event, **fields):
+    return {"hook_event_name": event, "conversation_id": "c1",
+            "cursor_version": "2.0", **fields}  # fmt: skip
+
+
+def test_cursors_three_moments_are_judged_and_can_stop_a_call(box, tmp_path):
+    """Cursor's preToolUse (its shell is Shell, its folder working_directory),
+    beforeShellExecution (the command alone) and beforeReadFile (the file
+    alone), from its hooks reference: each is read as the call it is, and a
+    call that breaks a rule exits 2, which Cursor takes as deny."""
+    key = box.parent / "test.key"
+    for sent in (
+        cursor("preToolUse", tool_name="Read", tool_input={"file_path": str(key)}),
+        cursor("preToolUse", tool_name="Shell",
+               tool_input={"command": f"cat {key}", "working_directory": str(tmp_path)}),
+        cursor("beforeShellExecution", command=f"cat {key}", cwd=str(tmp_path)),
+        cursor("beforeReadFile", file_path=str(key), content=""),
+        cursor("preToolUse", tool_name="Delete", tool_input={"file_path": str(box / "record.jsonl")}),
+    ):  # fmt: skip
+        run = guard(box, sent)
+        assert run.returncode == 2, (sent, run.stderr)
+    ok = cursor("beforeShellExecution", command="ls -la", cwd=str(tmp_path))
+    assert guard(box, ok).returncode == 0
+
+
+def test_cursors_shell_running_the_persons_own_door_is_blocked(box, tmp_path):
+    sent = cursor("preToolUse", tool_name="Shell",
+                  tool_input={"command": f"python3 {ROOT / 'doors' / 'pipe.py'} --box {box}",
+                              "working_directory": str(tmp_path)})  # fmt: skip
+    run = guard(box, sent)
+    assert run.returncode == 2 and "door" in run.stderr
+
+
+def test_a_cursor_call_reads_as_claude_codes_and_anything_else_as_it_came():
+    got = runtime.one_shape(cursor("preToolUse", tool_name="Delete",
+                                   tool_input={"file_path": "/w/a b.txt"}))  # fmt: skip
+    assert (
+        got["tool_name"] == "Bash"
+        and got["tool_input"]["command"] == "rm -- '/w/a b.txt'"
+    )
+    assert got["hook_event_name"] == "PreToolUse" and got["session_id"] == "c1"
+    claude = before("Bash", command="ls")
+    assert runtime.one_shape(claude) is claude
+    assert runtime.STOPS >= {
+        "PreToolUse",
+        "preToolUse",
+        "beforeShellExecution",
+        "beforeReadFile",
+    }

@@ -338,6 +338,20 @@ def session_command(host: str, box: Path) -> str:
     return " ".join([env_s, *map(shlex.quote, parts)])
 
 
+def guard_command(box: Path) -> str:
+    """Shell command for the guard door (doors/guard.py)."""
+    import shlex
+
+    parts = [sys.executable or "python3", str(HERE / "doors" / "guard.py"),
+             "--box", str(box.resolve())]  # fmt: skip
+    return " ".join([f"WILLOW={runtime.WILLOW_SOURCE}", *map(shlex.quote, parts)])
+
+
+#: the tools Cursor's preToolUse is asked about: the ones that read a file by
+#: name, change or delete one, or run a command (its hooks reference's names)
+CURSOR_GUARDED = "Shell|Read|Write|Delete|Grep"
+
+
 def hook_settings(host: str, box: Path) -> dict:
     """The hooks object to paste for a host that can inject context."""
     event = HOOK_HOSTS[host][2]
@@ -353,16 +367,23 @@ def hook_settings(host: str, box: Path) -> dict:
 
 
 def cursor_hooks(box: Path) -> dict:
-    """Cursor's hooks.json: session start/end for the person, and a nudge
-    after this server's MCP tools when something waits on their seal."""
+    """Cursor's hooks.json: session start/end for the person, a nudge after
+    this server's MCP tools when something waits on their seal, and the guard
+    door before a tool, a shell command or a read of a file. The guard fails
+    closed (failClosed): Cursor otherwise lets a call through when its hook
+    crashes, times out or says nothing."""
     cmd = session_command("cursor", box)
     entry = {"command": cmd, "timeout": 60}
+    gate = {"command": guard_command(box), "timeout": 60, "failClosed": True}
     return {
         "version": 1,
         "hooks": {
             "sessionStart": [entry],
             "sessionEnd": [entry],
             "afterMCPExecution": [{**entry, "matcher": "model-context-provider"}],
+            "preToolUse": [{**gate, "matcher": CURSOR_GUARDED}],
+            "beforeShellExecution": [gate],
+            "beforeReadFile": [gate],
         },
     }
 
@@ -526,14 +547,21 @@ def write_cursor_hooks(box: Path) -> list[str]:
             e
             for e in have
             if not (
-                isinstance(e, dict) and "doors/session.py" in str(e.get("command", ""))
+                isinstance(e, dict)
+                and any(
+                    d in str(e.get("command", ""))
+                    for d in ("doors/session.py", "doors/guard.py")
+                )
             )
         ]
         hooks[event] = kept + entries
     out["hooks"] = hooks
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(out, indent=2) + "\n")
-    return [f"wrote {path} (sessionStart, sessionEnd, afterMCPExecution)"]
+    return [
+        f"wrote {path} (sessionStart, sessionEnd, afterMCPExecution, and the guard: "
+        "preToolUse, beforeShellExecution, beforeReadFile)"
+    ]
 
 
 def main(argv: list[str]) -> int:

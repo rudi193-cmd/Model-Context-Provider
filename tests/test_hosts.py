@@ -78,8 +78,15 @@ def test_write_cursor_merges_mcp_and_hooks(box, tmp_path, monkeypatch):
     hooks = json.loads((home / ".cursor" / "hooks.json").read_text())
     assert "sessionStart" in hooks["hooks"] and "sessionEnd" in hooks["hooks"]
     assert "afterMCPExecution" in hooks["hooks"]
+    # the guard door before a tool, a shell command and a read, failing closed
+    for event in ("preToolUse", "beforeShellExecution", "beforeReadFile"):
+        (gate,) = hooks["hooks"][event]
+        assert "doors/guard.py" in gate["command"] and gate["failClosed"] is True
+    assert hooks["hooks"]["preToolUse"][0]["matcher"] == "Shell|Read|Write|Delete|Grep"
     code2, out2 = run("write", "cursor", "--box", box)
     assert code2 == 0 and "already set" in out2
+    again = json.loads((home / ".cursor" / "hooks.json").read_text())
+    assert all(len(again["hooks"][e]) == 1 for e in ("preToolUse", "beforeReadFile"))
 
 
 def test_write_refuses_a_different_entry(box, tmp_path, monkeypatch):

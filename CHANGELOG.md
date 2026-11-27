@@ -4,6 +4,51 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **Cursor gets the guard door.** Cursor's `preToolUse`,
+  `beforeShellExecution` and `beforeReadFile` are read as the calls they are
+  and held to the same rules, failing closed; `--write cursor` writes them,
+  and `--write cursor-managed` writes them for Cursor's administrator's file
+  with the `sudo` line. In Cursor the guard holds by words: it has no sandbox
+  rule that refuses one path.
+
+- **A check that hangs ends.** A part of the tests that runs past ten
+  minutes is stopped and fails the check, saying which files it was
+  running and where in them it was, from a stack dump of any one test that
+  passes two minutes. Before, a test that waited on a line that never came
+  held the check forever.
+
+- **Which hooks run is yours to switch.** `provider hooks` lists the hooks
+  around what your assistant does, each with what it is for; `off=` and
+  `on=` turn one off or on, kept in `hooks.txt` beside your record. The
+  guard of your key and record is always on, and no model has the switch.
+  A hook turned off writes nothing on the record: on a busy day,
+  `hook-read-first` alone wrote 371 of 879 rows. The seal page has a page
+  for it, "What runs around your assistant", a card and a button a hook.
+
+- **A long report comes in parts.** A session you let in was refused a
+  report over 20,000 characters whole (`minutes`, on a real folder). It is
+  now given whole lines up to that, and asks for the next part with
+  `after`, told nothing of the rest. `context` tells a model to use
+  `report todo` for what is left to do.
+
+- **A model on another machine of yours: tunnel it.** `set_up.py --model`
+  still refuses an address off this machine, and now says how instead: an
+  SSH tunnel on a port nothing here uses, that says so if it can't open,
+  to a host key you've checked. The README says why, and what it doesn't
+  prove (which weights the rig serves).
+
+- **MCP 2026-07-28, beside the older versions.** The door answers a
+  request whose `_meta` names 2026-07-28 statelessly: `server/discover`,
+  `resultType` and the server named in every reply, caching hints that keep
+  nothing, `-32022` for a version it doesn't speak and `-32602` for a
+  resource not found. A sentence from the client's model and the seal page
+  shown to you go out in the reply and come back on a retry (multi
+  round-trip requests), carried by a state signed with this process's own
+  key, bound to the request, good for half an hour and once. A retry after
+  the seal page never runs the request again, and says whether you've
+  sealed it since. `subscriptions/listen` hears when the tools change. A
+  client that opens with `initialize` is spoken to as before.
+
 - **The seal page, laid out for a phone.** A page to share reads as it
   reads: each file a small heading, each passage a quote with its line under
   it, where it showed the page's own markup; the page that leaves is the

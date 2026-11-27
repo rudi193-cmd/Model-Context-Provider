@@ -256,6 +256,23 @@ def test_parts_run_at_once_and_their_times_are_kept_for_the_next_cut(
     assert not ok and "assert 1 == 2" in said
 
 
+def test_a_part_that_hangs_is_stopped_and_says_where_it_was(small, monkeypatch):
+    monkeypatch.setattr(
+        check, "parts_of",
+        lambda py, root, jobs, env: [["tests/test_files.py"], ["tests/test_code.py"]],
+    )  # fmt: skip
+    monkeypatch.setattr(check, "PART_SECONDS", 8)
+    monkeypatch.setattr(check, "STACK_SECONDS", 2)
+    (small / "tests" / "test_code.py").write_text(
+        "import time\n\ndef test_code():\n    time.sleep(60)\n"
+    )
+    began = check.time.monotonic()
+    ok, said = ran(small)
+    assert not ok and check.time.monotonic() - began < 40
+    assert "stopped after 8 s, still running: tests/test_code.py" in said
+    assert "test_code.py" in said.split("stopped after")[0]  # where it hung
+
+
 def test_willows_test_shards_cuts_every_file_into_exactly_one_part(small):
     """The cut is Willow's own; here it is only held to giving each test
     file once. With no Willow add-on to ask, the tests are one run."""

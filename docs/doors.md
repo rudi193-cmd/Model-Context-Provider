@@ -134,6 +134,33 @@ payload was kept with `capture`, the fix went to Willow (`hook-errors`
 0.1.2, commit `14efe16d`, not yet in a Willow pull request), and the pin
 moved to it. A correction and a denied command have not been tried.
 
+## Which hooks run
+
+Each hook around what your assistant does is on until you turn it off, the
+way the tool groups are. The seal page has a page for it, **What runs
+around your assistant**: a card for each hook, with what it is for, whether
+it runs and why, and a button. On your own door `provider hooks` lists them, each with what it is
+for and whether it runs, and `provider hooks off=hook-read-first` (on your
+own door, `{"hooks": {"off": ["hook-read-first"]}}`) turns one off. It is
+kept in `hooks.txt` beside your record, where the guard holds it, and no
+door that faces a model has the switch.
+
+| Hook | What it is for |
+|---|---|
+| `hook-guard` | the key, the record and the runtime's own files beside it: always on |
+| `hook-leaks` | a secret in what the assistant writes |
+| `hook-shell` | the commands you deny in `deny.txt`, when there is one |
+| `hook-read-first` | an edit of a file the assistant hasn't read |
+| `hook-errors` | a command that already failed twice, and each failed one kept |
+| `hook-feedback` | a correction you make, kept for the session's seal |
+| `hook-handoff` | where the last session ended, told to the next |
+| `prompt-context` | whether your files hold something on each prompt |
+
+Fewer hooks, fewer rows on your record. On a busy day here (879 rows),
+`hook-read-first` wrote 371 of them, the prompt's questions 329 and
+`hook-handoff` 116. A hook turned off is a guard you no longer have:
+`hook-read-first` off lets an assistant edit a file it never read.
+
 ## Your seal page, in your assistant
 
 When a model asks for something that waits on your seal (a session's yes,
@@ -163,6 +190,39 @@ since that is the only time there is an address to give.
 - **It is the runtime's call, not the door's.** The door carries the
   request and the answer, as it carries sampling; the runtime decides when
   a reply points at all and says what you are shown.
+
+## The protocol's two versions (2026-07-28 and before)
+
+The MCP door speaks both, chosen by how each request comes. A client that
+opens with `initialize` (2025-11-25 and before) is spoken to as above, on
+the same pipe. A request whose own `_meta` names 2026-07-28 has no
+handshake and no session: it says its version and its client's
+capabilities itself, and every reply says its kind (`resultType`) and
+names the server. `server/discover` says which versions there are.
+Nothing a client may keep is kept for long (`ttlMs` 0), and none of it is
+for a cache between (`cacheScope` private): what you hold can change at
+any moment, and it is yours.
+
+- **What the client is to be asked goes out in the reply.** A sentence
+  from its model (`page draft`) and your seal page shown to you come back
+  as a request for input (`input_required`), and the client sends the same
+  request again with the answer. What the runtime needs for that retry
+  (the page it sent, how many tries the sentence has had, or the reply your
+  page was offered with) rides along as `requestState`, signed with a key
+  this process makes when it starts and never writes down, never your key.
+  It holds only for the request it was made for, for half an hour, once.
+  The kernel isn't asked again and the page goes on the sent log once.
+- **A retry after your seal page never runs the request again.** It gives
+  back the reply it was offered with, what you answered, and whether you
+  have sealed or declined it on the page since (`settled`), which is how
+  your assistant learns it in this version: there is no notice of it.
+- **Changes come on a stream the client opens.** `subscriptions/listen`
+  with `toolsListChanged` is told, tagged with its id, when the tools on
+  offer change (you turned a group on or off), and ends with a result when
+  the client closes the pipe.
+- Not spoken: the tasks extension, and logging. Sampling is deprecated in
+  2026-07-28 and still works; it is how a draft is written when you name
+  no model on this machine.
 
 A page given to a model also comes as data: beside `page`, `passages`
 holds each one's id, file and text as the page has them, withheld as it
