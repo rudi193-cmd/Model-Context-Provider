@@ -4,6 +4,14 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **kart-shell: an assistant's shell commands, run in Kart's sandbox.** A
+  hook that is off unless you turn it on. With it on, each shell command the
+  guards allowed is handed back to the host as the same command through
+  `doors/shell.py`, which runs it by Willow's `kart shell`: the project
+  writable, home read-only, no network, and the box, its key, `BOX.runtime`
+  and this checkout never mounted. It needs a pinned Willow whose kart has
+  `shell`; until then the door says nothing ran.
+
 - **Cursor gets the guard door.** Cursor's `preToolUse`,
   `beforeShellExecution` and `beforeReadFile` are read as the calls they are
   and held to the same rules, failing closed; `--write cursor` writes them,

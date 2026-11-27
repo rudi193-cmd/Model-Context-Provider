@@ -2051,8 +2051,12 @@ HOOKS = {
     "hook-feedback": "a correction you make (no, wrong, I said), kept for the session's seal",
     "hook-handoff": "where the last session ended, told to the next",
     "prompt-context": "whether your files hold something on each prompt",
-}
+    "kart-shell": "every shell command run in Kart's sandbox: the project writable, "
+                  "no key, no record, no network",
+}  # fmt: skip
 HOOKS_ALWAYS = ("hook-guard",)
+#: off until the person turns it on: it changes what every command can reach
+HOOKS_OFF = ("kart-shell",)
 
 
 def hooks_said(box: Path) -> dict:
@@ -2068,9 +2072,10 @@ def hooks_said(box: Path) -> dict:
 
 
 def hooks_on(box: Path) -> dict:
-    """Each hook, and whether it runs: as the person said, else on."""
+    """Each hook, and whether it runs: as the person said, else on, but the
+    few that are off until they turn them on."""
     said = hooks_said(box)
-    return {h: h in HOOKS_ALWAYS or said.get(h, True) for h in HOOKS}
+    return {h: h in HOOKS_ALWAYS or said.get(h, h not in HOOKS_OFF) for h in HOOKS}
 
 
 def hooks_set(box: Path, arg) -> dict:
@@ -2097,6 +2102,7 @@ def hooks_set(box: Path, arg) -> dict:
         {"hook": h, "what": what, "on": on[h],
          "why": ("always on" if h in HOOKS_ALWAYS
                  else ("you turned it on" if said[h] else "you turned it off") if h in said
+                 else "off unless you turn it on" if h in HOOKS_OFF
                  else "on unless you turn it off")}
         for h, what in HOOKS.items()]}  # fmt: skip
 
@@ -2226,6 +2232,156 @@ def judged(sent: dict, asked: list[tuple[str, tuple[str, ...]]]) -> dict:
             return {"state": "refused", "code": "guard_failed",
                     "why": f"{name}: {why[-300:] or run.returncode}"}  # fmt: skip
     return {"state": "allowed"}
+
+
+# ── the Kart shell: an assistant's commands, run in the sandbox ─────────────
+#: the door a command is rewritten to go through (doors/shell.py)
+SHELL_DOOR = HERE / "doors" / "shell.py"
+SHELL_SECONDS = 120  # how long a command may run, where the host doesn't say
+SHELL_LATER = 1800  # one the host runs in the background
+SHELL_WORDS = ("--box", "--project", "--cwd", "--timeout", "--command")
+
+
+def shell_project(sent: dict) -> str | None:
+    """The folder a session works in, which the sandbox lets it write: the
+    project its host started it in (Claude Code's CLAUDE_PROJECT_DIR, the
+    first of Cursor's workspace_roots), else the folder the call came from."""
+    roots = sent.get("workspace_roots")
+    first = roots[0] if isinstance(roots, list) and roots else None
+    for at in (os.environ.get("CLAUDE_PROJECT_DIR"), first, sent.get("cwd")):
+        if isinstance(at, str) and at and Path(at).is_dir():
+            return str(Path(at).resolve())
+    return None
+
+
+def shell_wrapped(box: Path, sent: dict, command: str) -> str | None:
+    """The command as it is run instead: through the shell door, which runs
+    it in Kart's sandbox. None when the host didn't say which folder."""
+    project = shell_project(sent)
+    if project is None:
+        return None
+    cwd = sent.get("cwd")
+    inside = (isinstance(cwd, str) and Path(cwd).is_dir()
+              and Path(cwd).resolve().is_relative_to(project))  # fmt: skip
+    given = sent.get("tool_input") if isinstance(sent.get("tool_input"), dict) else {}
+    ms = given.get("timeout")
+    seconds = SHELL_SECONDS
+    if given.get("run_in_background") is True:
+        seconds = SHELL_LATER
+    elif isinstance(ms, (int, float)) and not isinstance(ms, bool) and ms > 0:
+        seconds = max(1, -(-int(ms) // 1000))
+    return shlex.join([sys.executable, str(SHELL_DOOR), "--box", str(box),
+                       "--project", project,
+                       "--cwd", str(Path(cwd).resolve()) if inside else project,
+                       "--timeout", str(seconds), "--command", command])  # fmt: skip
+
+
+def shell_inner(box: Path, sent: dict, command: str) -> str | None:
+    """The command inside one that already goes through the shell door, or
+    None. Only the door as this runtime writes it counts: this box, this
+    session's project, a folder in it. Anything else that names the door is
+    a command like any other, judged and wrapped as one."""
+    try:
+        words = shlex.split(command)
+    except ValueError:
+        return None
+    if (
+        len(words) != 12
+        or words[1] != str(SHELL_DOOR)
+        or tuple(words[2::2]) != SHELL_WORDS
+    ):
+        return None
+    _, _, _, at, _, project, _, cwd, _, seconds, _, inner = words
+    if at != str(box) or project != shell_project(sent) or not seconds.isdigit():
+        return None
+    if not Path(cwd).is_dir() or not Path(cwd).resolve().is_relative_to(project):
+        return None
+    return inner
+
+
+def shell_as_sent(box: Path, sent: dict) -> dict:
+    """A call whose command goes through the shell door, as the command
+    inside it: what the guards judge and what a failed command is kept as."""
+    given = sent.get("tool_input")
+    command = given.get("command") if isinstance(given, dict) else None
+    if sent.get("tool_name") != "Bash" or not isinstance(command, str):
+        return sent
+    inner = shell_inner(box, sent, command)
+    if inner is None:
+        return sent
+    return {
+        **sent,
+        "tool_input": {**given, "command": inner},
+        "through_shell_door": True,
+    }
+
+
+def before_tool(box: Path, sent: dict) -> dict:
+    """A tool call, judged, and a shell command sent through Kart's sandbox
+    when the person turned kart-shell on. The guards judge the command the
+    assistant wrote, never the door around it. A command they allow comes
+    back with the input to run instead; where the host can't be handed one
+    (Cursor's beforeShellExecution), a command that isn't through the door
+    already is blocked: nothing runs outside the sandbox while it is on."""
+    asked = shell_as_sent(box, sent)
+    got = own_doors_guard(asked) or judged(asked, guards(box))
+    given = sent.get("tool_input")
+    command = given.get("command") if isinstance(given, dict) else None
+    if (got["state"] != "allowed" or sent.get("tool_name") != "Bash"
+            or not isinstance(command, str) or not hooks_on(box)["kart-shell"]
+            or asked.get("through_shell_door")):  # fmt: skip
+        return got
+    wrapped = shell_wrapped(box, sent, command)
+    if wrapped is None:
+        return {"state": "blocked", "by": "provider",
+                "says": "blocked: rule kart-shell: the host didn't say which folder this "
+                        "session works in, so the command has no sandbox to run in."}  # fmt: skip
+    if sent.get("host_event") == "beforeShellExecution":
+        return {"state": "blocked", "by": "provider",
+                "says": "blocked: rule kart-shell: this command didn't come through the "
+                        "sandbox's door, and nothing runs outside it while kart-shell is on."}  # fmt: skip
+    return {"state": "allowed", "input": {**given, "command": wrapped}}
+
+
+def kart_shell(
+    box: Path, project: str, cwd: str, command: str, seconds: int
+) -> tuple[int, str, str]:
+    """(exit code, what it printed, what it said on standard error) of one
+    command run by Willow's kart in its sandbox: the project writable, home
+    read-only, no network. Never mounted: the box and its key (kart's own
+    rule), the runtime's folder beside the box and this checkout. The Willow
+    that runs the guards is hidden too, or read-only where it lies inside
+    the project. Nothing of it is on the record: it is the session's own
+    shell. 126 when nothing ran, 124 when it was ended."""
+    inside = WILLOW.resolve().is_relative_to(Path(project).resolve())
+    kept = ("--hide", f"{state(box)},{HERE}")
+    kept += ("--hold", str(WILLOW)) if inside else ()
+    if not inside:
+        kept = ("--hide", f"{state(box)},{HERE},{WILLOW}")
+    try:
+        run = subprocess.run(
+            [kart_python(box), KART, "shell", "--box", str(box), "--project", project,
+             "--cwd", cwd, "--timeout", str(seconds), "--command", command, *kept],
+            cwd=WILLOW, capture_output=True, text=True, check=False,
+            timeout=seconds + 60,
+        )  # fmt: skip
+    except (OSError, subprocess.TimeoutExpired) as why:
+        return 126, "", f"model-context-provider: the sandbox didn't answer ({type(why).__name__}); nothing is known of the command"  # fmt: skip
+    try:
+        said = json.loads(run.stdout)
+        out, err, code = str(said["stdout"]), str(said["stderr"]), said["returncode"]
+    except (ValueError, KeyError, TypeError):
+        return 126, "", ("model-context-provider: nothing ran in the sandbox: "
+                         + (run.stderr.strip()[-500:] or f"kart exit {run.returncode}"))  # fmt: skip
+    if not isinstance(code, int):
+        how = str(said.get("how") or "it never ran")
+        ended = "timeout" in how.lower()
+        return (
+            (124 if ended else 126),
+            out,
+            f"{err}\nmodel-context-provider: {how}".strip(),
+        )
+    return code, out, err
 
 
 def holds_open(box: Path) -> str:
@@ -4490,7 +4646,7 @@ def one_shape(sent: dict) -> dict:
     name = sent.get("hook_event_name")
     if name not in ("preToolUse", "beforeShellExecution", "beforeReadFile"):
         return sent
-    out = {**sent, "hook_event_name": "PreToolUse"}
+    out = {**sent, "hook_event_name": "PreToolUse", "host_event": name}
     if not isinstance(out.get("session_id"), str) and isinstance(
         sent.get("conversation_id"), str
     ):
@@ -4526,7 +4682,9 @@ def event(box: Path, sent) -> dict:
     """A moment of the assistant's session, as its host sent it, decided
     here for every door that carries one.
 
-    Before a tool call: the guards, and the call is allowed or blocked.
+    Before a tool call: the guards, and the call is allowed or blocked; with
+    kart-shell on, an allowed shell command comes back as the one to run
+    instead, through the sandbox's door.
     After one: a failed command is kept, by hash. At a prompt: a correction
     ("no", "wrong", "I said") is proposed for the person's seal, and a new
     session is told where the last one ended. At a turn's end: where it
@@ -4554,12 +4712,12 @@ def event(box: Path, sent) -> dict:
         tag = hashlib.sha256(text.encode()).hexdigest()[:8]
         shelve(box, sent.get("cwd"), {"name": f"event-{name}-{tag}.json", "text": text}, "guard")  # fmt: skip
     if name == "PreToolUse":
-        return own_doors_guard(sent) or judged(sent, guards(box))
+        return before_tool(box, sent)
     on = hooks_on(box)
     if name in ("PostToolUse", "PostToolUseFailure"):
         if not on["hook-errors"]:
             return {"state": "empty"}
-        return judged(sent, [("hook-errors", (HOOK_ERRORS, "run", *at))])
+        return judged(shell_as_sent(box, sent), [("hook-errors", (HOOK_ERRORS, "run", *at))])  # fmt: skip
     says = []
     if name == "SessionEnd":
         grant_end(box, sent.get("session_id"))

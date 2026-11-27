@@ -134,6 +134,21 @@ payload was kept with `capture`, the fix went to Willow (`hook-errors`
 0.1.2, commit `14efe16d`, not yet in a Willow pull request), and the pin
 moved to it. A correction and a denied command have not been tried.
 
+### The shell door (kart-shell, off unless you turn it on)
+
+With `kart-shell` on, a shell command the guards allowed isn't run as it
+came. The guard door hands the host the same command through
+`doors/shell.py`, which runs it in Willow's `kart shell` sandbox: the
+session's project writable, your home and the system read-only, a private
+/tmp, no network, and never your box, its key, `BOX.runtime` or this
+checkout. That holds what a rule of words can't: a command that builds its
+own path to the key finds nothing there. The assistant sees the command's
+output and exit code as before (126 when nothing ran in the sandbox, 124
+when it was ended). Nothing of it is on your record. It needs a Willow
+whose kart has `shell`, Kartikeya (`kart-python` beside the box) and
+bubblewrap. What it costs: no `git push`, `gh` or `pip`; nothing written
+outside the project; output only when a command ends.
+
 ## Which hooks run
 
 Each hook around what your assistant does is on until you turn it off, the

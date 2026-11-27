@@ -1215,6 +1215,42 @@ tools stay guarded by words, with Claude Code's deny rules once installed:
 Kart covers what words couldn't, code that builds its own paths. Then the
 key pair, then signed network requests through it.
 
+**Built 2026-11-26, not merged, not pinned, not seen in a real client.**
+- *Willow, branch `addons/kart-shell` (kart 0.1.4), uncommitted in its
+  worktree:* `kart.py shell --box --project --command [--cwd] [--hide]
+  [--hold] [--timeout]` and `policy --project`. The project writable; home,
+  /usr and /etc read-only; a private /tmp; no network; PATH, LANG and HOME.
+  Kartikeya's policy only lists what to mount, so home is mounted *around*
+  the box, the key and each `--hide` path, piece by piece; `--hold` is
+  read-only wherever it is, the project too. The command goes in as a file,
+  since Kartikeya splits a task's fenced blocks into steps. One line of JSON
+  back; no seal, no proposal, no row.
+- *Here, branch `dev`, uncommitted:* the hook `kart-shell`, **off unless
+  turned on** (the first hook that is); `before_tool` hands an allowed shell
+  command back as the same command through `doors/shell.py` (Claude Code's
+  `updatedInput`, whole; Cursor's `updated_input`); the door runs it by
+  `kart shell`, hiding `BOX.runtime` and this checkout, and the pinned
+  Willow (held read-only instead where it lies inside the project, as it
+  does in Willow's own `.git`). The guards judge the command inside the
+  door; only a door written for this box and this session's project counts.
+  With it on, Cursor's `beforeShellExecution` blocks a command that didn't
+  come through the door, since it can't be handed one there.
+- *Until the pin moves* the door answers 126, nothing ran: the pinned kart
+  has no `shell`. `tests/test_kart_shell.py` skips its one test through the
+  real sandbox until then; run by hand against the branch it passed (exit
+  code and output as the command's, the key, the record, `BOX.runtime`, this
+  checkout and the network not there, no row).
+- *Not known, to be seen in a real session:* whether Claude Code keeps its
+  own permission prompt when a hook gives `updatedInput` with no
+  `permissionDecision` (its hooks page doesn't say; none is sent, so no
+  prompt is skipped on our word); Cursor's shapes, taken from the note
+  above, unread this time (its docs could not be fetched).
+- *What it costs a session, known now:* no network (git push, gh, pip);
+  /tmp is new for every command; nothing outside the project can be written
+  (`~/.cache`, a venv elsewhere); output comes when the command ends, not
+  as it runs; a background command is ended at 30 minutes; a session whose
+  project is this checkout, or holds the box, is refused every command.
+
 **The steps, for when sealing can cross** (not to follow yet: today they
 would stop the seal page and the desktop prompt from sealing). The person
 names the account, `KEYHOLDER`:

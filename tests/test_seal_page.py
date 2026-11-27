@@ -480,12 +480,15 @@ def test_the_hooks_page_lists_each_hook_and_a_click_switches_it(box, browser):
     browser.open()
     got, text = browser.ask("GET", "/hooks")
     text = html.unescape(text)
-    n = len(runtime.HOOKS)
-    assert got.status == 200 and f"{n} of {n} hooks run now." in text
-    for word in ("<h2>hook-read-first</h2>", "On: always on",
+    # all but the ones that are off until the person turns them on
+    all_, n = len(runtime.HOOKS), len(runtime.HOOKS) - len(runtime.HOOKS_OFF)
+    assert got.status == 200 and f"{n} of {all_} hooks run now." in text
+    for word in ("<h2>hook-read-first</h2>", "On: always on", "<h2>kart-shell</h2>",
+                 "Off: off unless you turn it on",
                  "On: on unless you turn it off", "What runs around your assistant"):  # fmt: skip
         assert word in text, word
-    assert text.count("Turn this off") == n - 1 and "Turn this on" not in text
+    assert text.count("Turn this off") == n - 1
+    assert text.count("Turn this on") == len(runtime.HOOKS_OFF) == 1
     got, _ = hook_switch(browser, "hook_off", "hook-read-first")
     assert got.status == 303 and got.getheader("Location") == "/hooks"
     assert (runtime.state(box) / "hooks.txt").read_text() == "-hook-read-first\n"
@@ -493,10 +496,12 @@ def test_the_hooks_page_lists_each_hook_and_a_click_switches_it(box, browser):
     got, text = browser.ask("GET", "/hooks")
     text = html.unescape(text)
     assert "Turned off. hook-read-first isn't asked from now on" in text
-    assert f"{n - 1} of {n} hooks run now." in text and "Off: you turned it off" in text
+    assert (
+        f"{n - 1} of {all_} hooks run now." in text and "Off: you turned it off" in text
+    )
     hook_switch(browser, "hook_on", "hook-read-first")
     _, text = browser.ask("GET", "/hooks")
-    assert f"{n} of {n} hooks run now." in html.unescape(text)
+    assert f"{n} of {all_} hooks run now." in html.unescape(text)
     assert kinds(box).count("seal") == 0  # a switch is beside the record, and no key
 
 
