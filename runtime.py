@@ -2343,21 +2343,62 @@ def before_tool(box: Path, sent: dict) -> dict:
     return {"state": "allowed", "input": {**given, "command": wrapped}}
 
 
+#: What of a home a command in the sandbox never sees, besides the box and
+#: this runtime: where keys and sign-ins are kept, by the tools that keep
+#: them. More is the person's, a path a line in hide.txt beside the box.
+SHELL_HIDDEN = (
+    ".ssh", ".gnupg", ".password-store", ".local/share/keyrings",
+    ".netrc", ".git-credentials", ".config/git/credentials", ".config/gh",
+    ".aws", ".azure", ".config/gcloud", ".kube", ".docker/config.json",
+    ".npmrc", ".pypirc", ".config/pip/pip.conf", ".cargo/credentials.toml",
+    ".claude.json", ".claude/.credentials.json", ".cursor/mcp.json",
+    ".codex/auth.json", ".gemini/oauth_creds.json",
+)  # fmt: skip
+
+
+def shell_hidden(box: Path, project: str) -> list[str]:
+    """The paths a session's shell never has, beyond the box and this
+    runtime: each of SHELL_HIDDEN that is there in the person's home, then
+    each line of hide.txt beside the box (`~` is home; `#` starts a remark).
+    One of ours that holds the project, or lies in it, is left out, since
+    kart would refuse every command for it; one of the person's is passed as
+    they wrote it, and kart says why it can't be."""
+    home, at = Path.home(), Path(project).resolve()
+    found: list[str] = []
+    for name in SHELL_HIDDEN:
+        p = (home / name).resolve()
+        if p.exists() and not (p.is_relative_to(at) or at.is_relative_to(p)):
+            found.append(str(p))
+    try:
+        lines = (state(box) / "hide.txt").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        lines = []
+    for line in lines:
+        line = line.split("#", 1)[0].strip()
+        if line:
+            found.append(str(Path(line).expanduser().resolve()))
+    return list(dict.fromkeys(found))
+
+
 def kart_shell(
     box: Path, project: str, cwd: str, command: str, seconds: int
 ) -> tuple[int, str, str]:
     """(exit code, what it printed, what it said on standard error) of one
     command run by Willow's kart in its sandbox: the project writable, home
     read-only, no network. Never mounted: the box and its key (kart's own
-    rule), the runtime's folder beside the box and this checkout. The Willow
+    rule), the runtime's folder beside the box, this checkout, and where the
+    home keeps keys and sign-ins (shell_hidden). The Willow
     that runs the guards is hidden too, or read-only where it lies inside
     the project. Nothing of it is on the record: it is the session's own
     shell. 126 when nothing ran, 124 when it was ended."""
     inside = WILLOW.resolve().is_relative_to(Path(project).resolve())
-    kept = ("--hide", f"{state(box)},{HERE}")
+    hidden = [str(state(box)), str(HERE), *(() if inside else (str(WILLOW),))]
+    hidden += shell_hidden(box, project)
+    if any("," in h for h in hidden):
+        return 126, "", ("model-context-provider: nothing ran in the sandbox: a path to "
+                         "hide has a comma in it, and kart's list is split on commas")  # fmt: skip
+    kept = ("--hide", ",".join(hidden))
     kept += ("--hold", str(WILLOW)) if inside else ()
-    if not inside:
-        kept = ("--hide", f"{state(box)},{HERE},{WILLOW}")
     try:
         run = subprocess.run(
             [kart_python(box), KART, "shell", "--box", str(box), "--project", project,

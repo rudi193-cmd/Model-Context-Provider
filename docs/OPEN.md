@@ -1251,6 +1251,35 @@ key pair, then signed network requests through it.
   (`~/.cache`, a venv elsewhere); output comes when the command ends, not
   as it runs; a background command is ended at 30 minutes; a session whose
   project is this checkout, or holds the box, is refused every command.
+- *Seen in a real Claude Code session, 2026-11-27 (the owner turned it on):*
+  a rewritten command ran in the sandbox, and its output and exit code came
+  back as before; a write in the project landed; no network; a private
+  /tmp; this checkout not there. **Claude Code keeps its own permission
+  prompt:** on accept-edits the owner was asked for the command, and in auto
+  mode its classifier went on judging, by the command as the assistant
+  wrote it (it refused one for what it would have done outside a sandbox).
+  Cursor still unseen.
+- *What that session found wrong:*
+  - **a write outside the project was lost, not refused** (`touch ~/x`
+    exited 0 and the file was gone with the command): home is mounted around
+    what is hidden, so home's own folder and `/` were the sandbox's scratch.
+    *Fixed in Willow, kart 0.1.5, not merged or pinned yet:* `shell` closes
+    the folders above its mounts before the command starts. Until the pin
+    moves, `tests/test_kart_shell.py`'s real-sandbox test fails on it.
+  - **only the Provider's key was hidden** (`~/.ssh`, `~/.config/gh`,
+    `~/.claude.json` and a vault of other keys could be read). *Fixed here,
+    not merged:* `SHELL_HIDDEN`, and the person's `hide.txt` beside
+    `hooks.txt`. The owner's vault is theirs to name there.
+  - **no sandbox inside the sandbox:** bubblewrap can't make a namespace
+    there, so Willow's kart tests and `tests/test_kart_shell.py` fail with
+    it on. Kart's shell can't be worked on through Kart's shell. Not fixed;
+    said in `doors.md`.
+  - **a git worktree of this checkout is broken inside:** its `.git` points
+    into the live checkout, which is hidden (`-dev` here is one). Not fixed.
+    `--hold` on the live checkout's `.git` would keep it readable, at the
+    cost of the runtime's own history in the sandbox.
+  - *not looked at:* `hide.txt` has no page on the seal page and no word in
+    `provider hooks`; the guard's rule for `BOX.runtime` covers writing it.
 
 **The steps, for when sealing can cross** (not to follow yet: today they
 would stop the seal page and the desktop prompt from sealing). The person
