@@ -2051,12 +2051,17 @@ HOOKS = {
     "hook-feedback": "a correction you make (no, wrong, I said), kept for the session's seal",
     "hook-handoff": "where the last session ended, told to the next",
     "prompt-context": "whether your files hold something on each prompt",
+    "hide-shell": "every shell command run where your key, your record and what "
+                  "hide.txt names aren't there; all else as it was",
     "kart-shell": "every shell command run in Kart's sandbox: the project writable, "
                   "no key, no record, no network",
 }  # fmt: skip
 HOOKS_ALWAYS = ("hook-guard",)
-#: off until the person turns it on: it changes what every command can reach
-HOOKS_OFF = ("kart-shell",)
+#: off until the person turns it on: each changes what every command can
+#: reach. hide-shell takes away the box and what the person names and no
+#: more; kart-shell contains the command, and is the one that runs when both
+#: are on
+HOOKS_OFF = ("hide-shell", "kart-shell")
 
 
 def hooks_said(box: Path) -> dict:
@@ -2299,6 +2304,110 @@ def shell_inner(box: Path, sent: dict, command: str) -> str | None:
     return inner
 
 
+#: the door of the lighter level: the command as it was, with the box gone
+HIDE_DOOR = HERE / "doors" / "hide.py"
+HIDE_WORDS = ("--box", "--command")
+
+
+def hide_wrapped(box: Path, command: str) -> str:
+    """The command as hide-shell runs it instead: through the hide door, in
+    the folder and with the environment the host gives it."""
+    return shlex.join([sys.executable, str(HIDE_DOOR), "--box", str(box),
+                       "--command", command])  # fmt: skip
+
+
+def hide_inner(box: Path, command: str) -> str | None:
+    """The command inside one that already goes through the hide door as
+    this runtime writes it for this box, or None."""
+    try:
+        words = shlex.split(command)
+    except ValueError:
+        return None
+    if (
+        len(words) != 6
+        or words[1] != str(HIDE_DOOR)
+        or tuple(words[2::2]) != HIDE_WORDS
+        or words[3] != str(box)
+    ):
+        return None
+    return words[5]
+
+
+def hide_named(box: Path) -> list[Path]:
+    """What the person never wants in an assistant's shell: each line of
+    hide.txt beside the box (`~` is home; `#` starts a remark)."""
+    try:
+        lines = (state(box) / "hide.txt").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    named = (line.split("#", 1)[0].strip() for line in lines)
+    return [Path(n).expanduser().resolve() for n in named if n]
+
+
+def hide_places(box: Path) -> tuple[list[Path], list[Path]]:
+    """(what a command under hide-shell never has, what it may read and not
+    change). Gone: the box, its key, the runtime's folder beside it and what
+    hide.txt names, each only where it exists. Read-only: this checkout and
+    the Willow that runs the guards, which are not secret and must stay as
+    they are."""
+    gone = [box.resolve(), state(box).resolve(), *hide_named(box)]
+    try:
+        key = json.loads((box / "kernel.json").read_text()).get("key")
+    except (OSError, ValueError):
+        key = None
+    if isinstance(key, str):
+        gone.append(Path(key).expanduser().resolve())
+    gone = [g for g in dict.fromkeys(gone) if g.exists()]
+    held = [h.resolve() for h in (HERE, WILLOW)]
+    return gone, [h for h in dict.fromkeys(held) if h.exists()]
+
+
+def hide_argv(box: Path, cwd: Path, command: str) -> tuple[list[str] | None, str]:
+    """(the bubblewrap command line that runs the command with the box gone,
+    why not). Everything is as the person's own shell has it, the network
+    and their home to write too, but: an empty folder stands over each
+    folder that is gone, and nothing readable over each file. Refused where
+    the folder to run in is one of them, or the system's root would be."""
+    gone, held = hide_places(box)
+    cwd = cwd.resolve()
+    for g in gone:
+        if g == Path(g.anchor):
+            return None, f"{g} is the whole machine; it can't be hidden"
+        if cwd == g or (g.is_dir() and cwd.is_relative_to(g)):
+            return None, f"{cwd} is hidden from an assistant's shell ({g})"
+    argv = ["bwrap", "--dev-bind", "/", "/"]
+    for h in held:
+        argv += ["--ro-bind", str(h), str(h)]
+    for g in gone:
+        argv += (
+            ["--tmpfs", str(g)] if g.is_dir() else ["--ro-bind", "/dev/null", str(g)]
+        )
+    return [*argv, "--chdir", str(cwd), "--", "bash", "-c", command], ""
+
+
+def hide_run(box: Path, command: str) -> int:
+    """The command under hide-shell, in the folder this was started in. This
+    program becomes bubblewrap, which becomes the command, so what it prints
+    comes as it is printed and it ends as the command ends; this returns
+    only when nothing ran, having said why: 126."""
+    says = "model-context-provider: nothing ran: "
+    if not shutil.which("bwrap"):
+        print(says + "bubblewrap (bwrap) isn't installed, and hide-shell is on. Install "
+              "it, or turn hide-shell off on your own door: provider hooks off=hide-shell",
+              file=sys.stderr)  # fmt: skip
+        return 126
+    args, why = hide_argv(box, Path.cwd(), command)
+    if args is None:
+        print(says + why, file=sys.stderr)
+        return 126
+    sys.stdout.flush()
+    try:
+        os.execvp(args[0], args)
+    except OSError as err:
+        print(says + f"bubblewrap couldn't start ({err})", file=sys.stderr)
+    return 126
+
+
 def shell_as_sent(box: Path, sent: dict) -> dict:
     """A call whose command goes through the shell door, as the command
     inside it: what the guards judge and what a failed command is kept as."""
@@ -2306,40 +2415,45 @@ def shell_as_sent(box: Path, sent: dict) -> dict:
     command = given.get("command") if isinstance(given, dict) else None
     if sent.get("tool_name") != "Bash" or not isinstance(command, str):
         return sent
-    inner = shell_inner(box, sent, command)
-    if inner is None:
-        return sent
-    return {
-        **sent,
-        "tool_input": {**given, "command": inner},
-        "through_shell_door": True,
-    }
+    for level, inner in (("kart-shell", shell_inner(box, sent, command)),
+                         ("hide-shell", hide_inner(box, command))):  # fmt: skip
+        if inner is not None:
+            return {**sent, "tool_input": {**given, "command": inner},
+                    "through_shell_door": level}  # fmt: skip
+    return sent
 
 
 def before_tool(box: Path, sent: dict) -> dict:
-    """A tool call, judged, and a shell command sent through Kart's sandbox
-    when the person turned kart-shell on. The guards judge the command the
-    assistant wrote, never the door around it. A command they allow comes
-    back with the input to run instead; where the host can't be handed one
-    (Cursor's beforeShellExecution), a command that isn't through the door
-    already is blocked: nothing runs outside the sandbox while it is on."""
+    """A tool call, judged, and a shell command sent through a door when the
+    person turned one on: Kart's sandbox for kart-shell, the lighter door
+    that only takes the box away for hide-shell, Kart's where both are on.
+    The guards judge the command the assistant wrote, never the door around
+    it. A command they allow comes back with the input to run instead; where
+    the host can't be handed one (Cursor's beforeShellExecution), a command
+    that isn't through the door already is blocked: nothing runs outside it
+    while it is on."""
     asked = shell_as_sent(box, sent)
     got = own_doors_guard(asked) or judged(asked, guards(box))
     given = sent.get("tool_input")
     command = given.get("command") if isinstance(given, dict) else None
+    on = hooks_on(box)
+    level = next((h for h in ("kart-shell", "hide-shell") if on[h]), None)
     if (got["state"] != "allowed" or sent.get("tool_name") != "Bash"
-            or not isinstance(command, str) or not hooks_on(box)["kart-shell"]
-            or asked.get("through_shell_door")):  # fmt: skip
+            or not isinstance(command, str) or level is None
+            or asked.get("through_shell_door") == level):  # fmt: skip
         return got
-    wrapped = shell_wrapped(box, sent, command)
+    if level == "kart-shell":
+        wrapped = shell_wrapped(box, sent, command)
+    else:
+        wrapped = hide_wrapped(box, command)
     if wrapped is None:
         return {"state": "blocked", "by": "provider",
                 "says": "blocked: rule kart-shell: the host didn't say which folder this "
                         "session works in, so the command has no sandbox to run in."}  # fmt: skip
     if sent.get("host_event") == "beforeShellExecution":
         return {"state": "blocked", "by": "provider",
-                "says": "blocked: rule kart-shell: this command didn't come through the "
-                        "sandbox's door, and nothing runs outside it while kart-shell is on."}  # fmt: skip
+                "says": f"blocked: rule {level}: this command didn't come through its "
+                        f"door, and nothing runs outside it while {level} is on."}  # fmt: skip
     return {"state": "allowed", "input": {**given, "command": wrapped}}
 
 
@@ -2369,14 +2483,7 @@ def shell_hidden(box: Path, project: str) -> list[str]:
         p = (home / name).resolve()
         if p.exists() and not (p.is_relative_to(at) or at.is_relative_to(p)):
             found.append(str(p))
-    try:
-        lines = (state(box) / "hide.txt").read_text(encoding="utf-8").splitlines()
-    except OSError:
-        lines = []
-    for line in lines:
-        line = line.split("#", 1)[0].strip()
-        if line:
-            found.append(str(Path(line).expanduser().resolve()))
+    found += map(str, hide_named(box))
     return list(dict.fromkeys(found))
 
 

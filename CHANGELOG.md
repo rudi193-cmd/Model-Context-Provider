@@ -4,6 +4,16 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **hide-shell: the box gone from an assistant's shell, and nothing else
+  changed.** `kart-shell` contains a command (no network, home read-only,
+  a new /tmp), which is right for work you don't trust and too much to live
+  in: no `git push`, no `pip`, output only at the end. `hide-shell` is the
+  light one. Each allowed shell command runs through `doors/hide.py` and
+  bubblewrap as it would have run, with your box, its key, `BOX.runtime` and
+  what `hide.txt` names not there. Off unless you turn it on, until it has
+  been lived in. It hides by where a file is; it is not a wall against a
+  command that asks another program for the file.
+
 - **kart-shell hides where a home keeps keys.** Turned on in a real
   session, the sandbox hid the Provider's key and nothing else: `~/.ssh`,
   `gh`'s sign-in and a vault of other keys could be read inside. Now a
