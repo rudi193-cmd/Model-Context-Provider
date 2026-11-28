@@ -18,10 +18,11 @@ def on(box):
 
 def test_every_hook_is_on_until_the_person_turns_one_off(box):
     got = hooks(box)
-    # but the ones that are off until turned on: kart-shell changes what
-    # every command can reach, so it is the person's to start
+    # but the ones that are off until turned on: each changes what every
+    # command can reach, so it is the person's to start
     off = [h["hook"] for h in got["hooks"] if not h["on"]]
-    assert got["state"] == "listed" and off == list(runtime.HOOKS_OFF) == ["kart-shell"]
+    assert got["state"] == "listed"
+    assert off == list(runtime.HOOKS_OFF) == ["hide-shell", "kart-shell"]
     why = {h["hook"]: h["why"] for h in got["hooks"]}
     assert why["kart-shell"] == "off unless you turn it on"
     hooks(box, {"on": ["kart-shell"]})

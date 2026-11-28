@@ -134,6 +134,40 @@ payload was kept with `capture`, the fix went to Willow (`hook-errors`
 0.1.2, commit `14efe16d`, not yet in a Willow pull request), and the pin
 moved to it. A correction and a denied command have not been tried.
 
+### The hide door (hide-shell, off unless you turn it on)
+
+The light one, made to be left on. With `hide-shell` on, a shell command
+the guards allowed is handed back to the host as the same command through
+`doors/hide.py`, and runs as it would have: the same folder, your
+environment, the network, your home to write, output as it is printed, no
+limit of time. One thing differs. Your box, its key, `BOX.runtime` and each
+path in `hide.txt` beside your record aren't there: an empty folder stands
+where each folder was, and nothing readable where each file was. This
+checkout and the Willow that runs the guards can be read, not changed.
+
+    provider hooks on=hide-shell
+
+That holds what a rule of words can't: `cat` of your record under a path
+the command built, a search of your whole home. It needs bubblewrap and
+nothing else (no Kartikeya, no Willow add-on); without it the door says so
+and runs nothing. `hide.txt` is a path a line, `~` your home, `#` a remark:
+
+    ~/vault/secrets     # the other keys
+
+Hide what `git push` needs (`~/.ssh`, `gh`'s sign-in) and `git push` stops
+working, which is why nothing of a home is hidden unless you name it.
+
+What it is not: a wall. It hides by where a file is, so a command that asks
+a program outside the sandbox for the file isn't stopped (a service of
+yours started with `systemd-run --user`, `ssh localhost`, another
+process's `/proc/PID/root`). The word guards still read the command first.
+The wall is a key the assistant's account can't read at all, which is the
+key pair in `OPEN.md`. And where the machine forbids a sandbox inside a
+sandbox (Ubuntu's AppArmor rule for unprivileged namespaces does), a
+project whose own tests make one fails them with it on.
+
+With both on, `kart-shell` is the one that runs.
+
 ### The shell door (kart-shell, off unless you turn it on)
 
 With `kart-shell` on, a shell command the guards allowed isn't run as it

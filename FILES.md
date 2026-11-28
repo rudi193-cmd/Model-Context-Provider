@@ -35,6 +35,7 @@ model-context-provider/
 │   ├── hook.py                             the prompt hook: adds a sealed page to a prompt, as data
 │   ├── session.py                          session start and end: tells the person what waits, closes a session
 │   ├── guard.py                            the guard: Willow's hooks around what an assistant does
+│   ├── hide.py                             the hide door: one command of an assistant's, run with the box gone
 │   └── shell.py                            the shell door: one command of an assistant's, run in Kart's sandbox
 ├── boxes/                                  the maintainer's Willow boxes over the repositories built beside this, and their stacks
 │   ├── README.md                           what each box is laid from, what each stack asks, and what waits on the person
@@ -81,6 +82,7 @@ model-context-provider/
 │   ├── test_files.py                       FILES.md names every file here, and no file that isn't
 │   ├── test_grant.py                       one yes for one session in one folder
 │   ├── test_guard.py                       the guard door, decided by the runtime
+│   ├── test_hide_shell.py                  hide-shell: an allowed command handed back through the hide door, and the door
 │   ├── test_hook.py                        the prompt hook gives a sealed page, or only whether the files hold it
 │   ├── test_kart_shell.py                  kart-shell: an allowed command handed back through the shell door, and the door
 │   ├── test_hooks_on.py                    the person's switch for the hooks: each on until turned off, the guard always

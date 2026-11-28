@@ -1280,6 +1280,38 @@ key pair, then signed network requests through it.
   - *not looked at:* `hide.txt` has no page on the seal page and no word in
     `provider hooks`; the guard's rule for `BOX.runtime` covers writing it.
 
+**Two levels, 2026-11-27 (the owner: "user friendly, not so restrictive
+that they would immediately delete it").** Kart contains a job; what the
+Provider promises is smaller, that the box can't be reached. So:
+- *`hide-shell`, built, not yet on in a real session:* `doors/hide.py`
+  becomes `bwrap --dev-bind / /` with a tmpfs over each hidden folder and
+  nothing readable over each hidden file; all else as the person's shell.
+  Hidden: the box, the key, `BOX.runtime`, `hide.txt`'s paths (no default
+  list: with a network, hiding `~/.ssh` breaks `git push`). Read-only: this
+  checkout and the pinned Willow, so a worktree of it keeps its git.
+- *`kart-shell` stays* for work that isn't trusted; it wins where both are on.
+- *Known holes in hide, said in `doors.md`:* a program outside asked for the
+  file (`systemd-run --user`, `ssh localhost`), and `/proc/PID/root` of a
+  process outside, since the process table is shared (unsharing it would end
+  a background command with the command that started it). The key pair is
+  the wall.
+- *Still no sandbox inside:* on this machine AppArmor forbids a namespace
+  made from inside bubblewrap, under either level. Not ours to lift.
+- *Tried on Willow's demos, by hand, a throwaway box, 2026-11-27:*
+  demo/shared-runs' dry sweep (13 machine runs, the real simulation) and
+  demo/johnson's `private.py` came out the same under hide as plain, in the
+  same time, and under kart-shell too once given a project and an
+  environment inside it. demo/johnson's `jobs.py` stops at its first
+  `kart run` under either: a command under bubblewrap runs as AppArmor's
+  `unpriv_bwrap`, which may not make a namespace. So an assistant's shell
+  under either level can't run a Kart job on Ubuntu. Ways out: a profile of
+  the Provider's own installed once as root, or no sandbox at all and the
+  key pair (file permissions don't nest).
+- *To decide once it has been lived in:* whether `hide-shell` is on by
+  default where bubblewrap is there; a page for `hide.txt` on the seal page.
+- *A thing the tests showed:* the word guards allow `cat` of the record by
+  its path (they block the key's); `hide-shell` is what covers the record.
+
 **The steps, for when sealing can cross** (not to follow yet: today they
 would stop the seal page and the desktop prompt from sealing). The person
 names the account, `KEYHOLDER`:

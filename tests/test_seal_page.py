@@ -488,7 +488,8 @@ def test_the_hooks_page_lists_each_hook_and_a_click_switches_it(box, browser):
                  "On: on unless you turn it off", "What runs around your assistant"):  # fmt: skip
         assert word in text, word
     assert text.count("Turn this off") == n - 1
-    assert text.count("Turn this on") == len(runtime.HOOKS_OFF) == 1
+    assert "<h2>hide-shell</h2>" in text
+    assert text.count("Turn this on") == len(runtime.HOOKS_OFF) == 2
     got, _ = hook_switch(browser, "hook_off", "hook-read-first")
     assert got.status == 303 and got.getheader("Location") == "/hooks"
     assert (runtime.state(box) / "hooks.txt").read_text() == "-hook-read-first\n"

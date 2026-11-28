@@ -20,7 +20,7 @@ with the reason on standard error. A call the runtime couldn't judge is
 blocked too. Where the person turned kart-shell on, an allowed shell
 command is handed back to the host as the one to run instead (Claude Code's
 updatedInput, Cursor's updated_input): the same command through
-doors/shell.py, which runs it in Kart's sandbox. At any other moment it never blocks: it exits 0, and prints
+doors/shell.py, which runs it in Kart's sandbox (or, for hide-shell, doors/hide.py, which runs it with the box gone). At any other moment it never blocks: it exits 0, and prints
 only what the runtime says to hand over (where the last session ended, how
 much waits on the person's seal).
 """
