@@ -182,6 +182,9 @@ def fake_kart(box, tmp_path, monkeypatch):
                     "sys.exit(int(code))\n")  # fmt: skip
     monkeypatch.setattr(runtime, "KART", str(kart))
     monkeypatch.setattr(runtime, "kart_python", lambda box: sys.executable)
+    home = tmp_path.parent / f"{tmp_path.name}-home"  # beside the project, not in it
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
 
     def run(code, said):
         says.write_text(
@@ -240,15 +243,61 @@ def test_the_door_run_wrong_says_how_and_runs_nothing(box):
 
 
 @pytest.mark.skipif(not PINNED, reason="the pinned Willow's kart has no `shell` yet")
-def test_through_the_door_a_command_works_in_the_project_and_never_sees_the_record(box, work):  # fmt: skip
+def test_through_the_door_a_command_works_in_the_project_and_never_sees_the_record(box, work, tmp_path):  # fmt: skip
     record = box / "record.jsonl"
     before = record.read_text()
+    home = tmp_path / "home"
+    (home / ".ssh").mkdir(parents=True)
+    (home / ".ssh" / "id").write_text("a key\n")
+    (home / "vault").mkdir()
+    (home / "vault" / "other").write_text("another\n")
+    (home / "notes.txt").write_text("milk\n")
+    (runtime.state(box) / "hide.txt").write_text("~/vault\n")
     probe = (f"echo made > new.txt; cat new.txt; cat {record} 2>/dev/null | wc -c; "
-             f"ls {runtime.state(box)} 2>/dev/null | wc -l; echo oops >&2; exit 3")  # fmt: skip
-    run = subprocess.run(through(box, work, work, 60, probe), capture_output=True,
-                         text=True, check=False)  # fmt: skip
+             f"ls {runtime.state(box)} 2>/dev/null | wc -l; cat ~/notes.txt; "
+             "cat ~/.ssh/id ~/vault/other 2>/dev/null | wc -c; "
+             "(echo x > ~/lost.txt) 2>/dev/null && echo kept || echo refused; "
+             "echo oops >&2; exit 3")  # fmt: skip
+    try:
+        run = subprocess.run(through(box, work, work, 60, probe), capture_output=True,
+                             text=True, check=False, env={**os.environ, "HOME": str(home)})  # fmt: skip
+    finally:
+        (runtime.state(box) / "hide.txt").unlink()
     if "Kartikeya isn't installed" in run.stderr:
         pytest.skip("this Python has no Kartikeya")
-    assert (run.returncode, run.stdout, run.stderr) == (3, "made\n0\n0\n", "oops\n")
+    assert (run.returncode, run.stdout, run.stderr) == (
+        3, "made\n0\n0\nmilk\n0\nrefused\n", "oops\n")  # fmt: skip
     assert (work / "new.txt").read_text() == "made\n"
     assert record.read_text() == before  # the session's own shell: no row
+
+
+def test_where_a_home_keeps_keys_is_hidden_and_what_the_person_names(fake_kart, box, tmp_path):  # fmt: skip
+    home = Path.home()
+    (home / ".ssh").mkdir()
+    (home / ".config" / "gh").mkdir(parents=True)
+    (home / ".netrc").write_text("machine x\n")
+    (home / "vault" / "secrets").mkdir(parents=True)
+    ok = {"returncode": 0, "stdout": "", "stderr": "", "status": "completed"}
+    _, asked = fake_kart(0, ok)
+    ours = [str(runtime.state(box)), str(runtime.HERE), str(runtime.WILLOW)]
+    assert asked[-2] == "--hide" and asked[-1].split(",") == [
+        *ours, str(home / ".ssh"), str(home / ".netrc"), str(home / ".config" / "gh")]  # fmt: skip
+    (runtime.state(box) / "hide.txt").write_text(
+        "# mine\n~/vault/secrets  # the other keys\n\n~/.ssh\n/srv/not there\n"
+    )
+    _, asked = fake_kart(0, ok)
+    assert asked[-1].split(",")[3:] == [
+        str(home / ".ssh"), str(home / ".netrc"), str(home / ".config" / "gh"),
+        str(home / "vault" / "secrets"), "/srv/not there"]  # fmt: skip
+
+
+def test_a_default_that_holds_the_project_is_left_out_and_a_comma_runs_nothing(fake_kart, box, tmp_path, monkeypatch):  # fmt: skip
+    monkeypatch.setenv("HOME", str(tmp_path.parent))
+    (tmp_path.parent / ".kube").mkdir(exist_ok=True)
+    monkeypatch.setattr(runtime, "SHELL_HIDDEN", (tmp_path.name, ".kube"))
+    ok = {"returncode": 0, "stdout": "", "stderr": "", "status": "completed"}
+    _, asked = fake_kart(0, ok)
+    assert asked[-1].split(",")[3:] == [str(tmp_path.parent / ".kube")]
+    (runtime.state(box) / "hide.txt").write_text("~/a,b\n")
+    got, _ = fake_kart(0, ok)
+    assert got[0] == 126 and "comma" in got[2]

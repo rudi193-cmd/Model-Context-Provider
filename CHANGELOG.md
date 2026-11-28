@@ -4,6 +4,15 @@
 
 The first cut, built one piece at a time on 2026-11-17, each with its tests.
 
+- **kart-shell hides where a home keeps keys.** Turned on in a real
+  session, the sandbox hid the Provider's key and nothing else: `~/.ssh`,
+  `gh`'s sign-in and a vault of other keys could be read inside. Now a
+  command there never has the usual places (`SHELL_HIDDEN`: ssh, gnupg,
+  keyrings, netrc, git, gh, the clouds', the package tools' and the
+  assistants' sign-ins), nor any path you put in `hide.txt` beside your
+  record. With Willow's kart 0.1.5, a write outside the project is refused:
+  before, `touch ~/x` succeeded and the file was gone with the command.
+
 - **kart-shell: an assistant's shell commands, run in Kart's sandbox.** A
   hook that is off unless you turn it on. With it on, each shell command the
   guards allowed is handed back to the host as the same command through

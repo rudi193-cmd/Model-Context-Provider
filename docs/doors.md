@@ -149,6 +149,30 @@ whose kart has `shell`, Kartikeya (`kart-python` beside the box) and
 bubblewrap. What it costs: no `git push`, `gh` or `pip`; nothing written
 outside the project; output only when a command ends.
 
+Your home is there to read, except where keys and sign-ins are kept: a
+command in the sandbox never has `~/.ssh`, `~/.gnupg`, `~/.password-store`,
+your keyrings, `~/.netrc`, git's and `gh`'s credentials, `~/.aws`,
+`~/.azure`, gcloud's folder, `~/.kube`, Docker's, npm's, pip's and cargo's
+sign-in files, or the assistants' own (`~/.claude.json` and the like;
+`SHELL_HIDDEN` in `runtime.py` is the list). What else it should never
+have is yours to say, a path a line in `hide.txt` beside your record:
+
+    ~/vault/secrets     # the other keys
+    ~/taxes
+
+`~` is your home and `#` starts a remark. The guard holds that file as it
+holds `hooks.txt`: no door that faces a model writes it. A folder that
+holds something hidden is mounted piece by piece around it, and a link in
+such a folder is left out, so hiding `~/.config/gh` costs the links in
+`~/.config`. A path of yours that holds the project stops every command,
+and the door says which.
+
+Two things it can't do, seen in the first real session: there is no
+sandbox inside the sandbox, so a project whose own tests make one
+(Willow's `kart`, this one's `tests/test_kart_shell.py`) fails them with
+`kart-shell` on; and a git worktree of this checkout has no git inside,
+since its `.git` points into the checkout that is hidden.
+
 ## Which hooks run
 
 Each hook around what your assistant does is on until you turn it off, the
