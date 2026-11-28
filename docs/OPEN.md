@@ -1263,12 +1263,11 @@ key pair, then signed network requests through it.
   - **a write outside the project was lost, not refused** (`touch ~/x`
     exited 0 and the file was gone with the command): home is mounted around
     what is hidden, so home's own folder and `/` were the sandbox's scratch.
-    *Fixed in Willow, kart 0.1.5, not merged or pinned yet:* `shell` closes
-    the folders above its mounts before the command starts. Until the pin
-    moves, `tests/test_kart_shell.py`'s real-sandbox test fails on it.
+    *Fixed in Willow, kart 0.1.5 (willow-memory/Willow#404, merged, pinned
+    here at `5cb19cd746d4`):* `shell` closes the folders above its mounts
+    before the command starts; `tests/test_kart_shell.py` holds it.
   - **only the Provider's key was hidden** (`~/.ssh`, `~/.config/gh`,
-    `~/.claude.json` and a vault of other keys could be read). *Fixed here,
-    not merged:* `SHELL_HIDDEN`, and the person's `hide.txt` beside
+    `~/.claude.json` and a vault of other keys could be read). *Fixed here:* `SHELL_HIDDEN`, and the person's `hide.txt` beside
     `hooks.txt`. The owner's vault is theirs to name there.
   - **no sandbox inside the sandbox:** bubblewrap can't make a namespace
     there, so Willow's kart tests and `tests/test_kart_shell.py` fail with
